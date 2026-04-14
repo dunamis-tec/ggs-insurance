@@ -525,7 +525,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
           </div>
           <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
             <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-              <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0, flex:1 }}>Requerimientos de pago</p>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Requerimientos de pago</p>
               <div style={{ display:'flex', gap:'6px' }}>
                 {['todos','pendiente','pagado','vencido'].map(e => (
                   <button key={e} onClick={() => setFiltroReqEstado(e)}
