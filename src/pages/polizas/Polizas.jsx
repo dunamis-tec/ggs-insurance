@@ -7,21 +7,22 @@ const fraccionamientoOpciones = [2,6,8,10,12]
 const emisionTipos = { emision:'Emisión', inclusion:'Inclusión', exclusion:'Exclusión', renovacion:'Renovación' }
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const estadoIcons = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
-const emptyPoliza = { cliente_id:'', aseguradora_id:'', producto_id:'', persona_facturable_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'' }
-const emptyVehiculo = { marca:'', modelo:'', anio:'', placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
+const emptyPoliza = { numero_poliza:'', cliente_id:'', aseguradora_id:'', producto_id:'', persona_facturable_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio' }
 const emptyEmision = { tipo:'emision', prima_emision:'', fraccionamiento:'', fecha_inicio:'', fecha_fin:'', notas:'' }
 const emptyReq = { monto:'', fecha_vencimiento:'', total_cuotas:1 }
 
-// Buscador generico reutilizable
 function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre', valueKey='id', renderOption }) {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const selected = options.find(o => o[valueKey] === value)
-  const filtered = options.filter(o => (o[labelKey]||'').toLowerCase().includes(search.toLowerCase()))
+  const filtered = options.filter(o => {
+    const label = renderOption ? `${o.nombre||''} ${o.apellido||''}` : (o[labelKey]||'')
+    return label.toLowerCase().includes(search.toLowerCase())
+  })
 
   return (
     <div style={{position:'relative'}}>
-      <div onClick={()=>setOpen(!open)} style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:'42px'}}>
+      <div onClick={()=>setOpen(!open)} style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:'42px'}}>
         <span style={{color:selected?'#1e293b':'#94a3b8',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
           {selected ? (renderOption ? renderOption(selected) : selected[labelKey]) : placeholder}
         </span>
@@ -34,7 +35,7 @@ function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre'
         <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,right:0,background:'white',border:'1px solid #e2e8f0',borderRadius:'8px',zIndex:200,boxShadow:'0 8px 24px rgba(0,0,0,0.12)'}}>
           <div style={{padding:'8px'}}>
             <input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..."
-              style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box',outline:'none'}}
+              style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box',outline:'none',background:'white',color:'#1e293b'}}
               onClick={e=>e.stopPropagation()}/>
           </div>
           <div style={{maxHeight:'200px',overflowY:'auto'}}>
@@ -96,20 +97,45 @@ export default function Polizas() {
     } else setPersonasFacturables([])
   }
 
+  const handleFechaInicioChange = (fecha) => {
+    let fechaVenc = ''
+    if (fecha && form.vigencia === '1anio') {
+      const d = new Date(fecha)
+      d.setFullYear(d.getFullYear() + 1)
+      fechaVenc = d.toISOString().split('T')[0]
+    }
+    setForm(f => ({ ...f, fecha_inicio: fecha, fecha_vencimiento: fechaVenc }))
+  }
+
+  const handleVigenciaChange = (vigencia) => {
+    let fechaVenc = form.fecha_vencimiento
+    if (vigencia === '1anio' && form.fecha_inicio) {
+      const d = new Date(form.fecha_inicio)
+      d.setFullYear(d.getFullYear() + 1)
+      fechaVenc = d.toISOString().split('T')[0]
+    } else if (vigencia === 'manual') {
+      fechaVenc = ''
+    }
+    setForm(f => ({ ...f, vigencia, fecha_vencimiento: fechaVenc }))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
-      ...form,
-      prima_total: parseFloat(form.prima_total),
+      numero_poliza: form.numero_poliza || null,
+      cliente_id: form.cliente_id,
+      aseguradora_id: form.aseguradora_id,
+      producto_id: form.producto_id,
       persona_facturable_id: form.persona_facturable_id || null,
-      fraccionamiento: form.tipo_pago === 'contado' ? 'anual' : form.fraccionamiento,
+      prima_total: parseFloat(form.prima_total),
+      tipo_pago: form.tipo_pago,
+      fraccionamiento: form.tipo_pago === 'financiado' ? form.fraccionamiento : 'anual',
+      fecha_inicio: form.fecha_inicio,
+      fecha_vencimiento: form.fecha_vencimiento,
       agente_id: user?.id
     }
-    if (!payload.numero_poliza) {
-      const { data: num } = await supabase.rpc('generate_numero_poliza')
-      payload.numero_poliza = num || 'POL-' + Date.now()
-    }
+    if (!payload.numero_poliza) delete payload.numero_poliza
     if (editing) {
       const { error } = await supabase.from('polizas').update(payload).eq('id', editing)
       if (error) { toast.error('Error: ' + error.message); return }
@@ -132,7 +158,7 @@ export default function Polizas() {
       const { data } = await supabase.from('personas_facturables').select('*').eq('cliente_id', p.cliente_id).eq('activa', true)
       setPersonasFacturables(data || [])
     }
-    setForm({ cliente_id:p.cliente_id, aseguradora_id:p.aseguradora_id, producto_id:p.producto_id, persona_facturable_id:p.persona_facturable_id||'', prima_total:p.prima_total, tipo_pago:p.tipo_pago||'contado', fraccionamiento:p.fraccionamiento||'', fecha_inicio:p.fecha_inicio, fecha_vencimiento:p.fecha_vencimiento })
+    setForm({ numero_poliza:p.numero_poliza||'', cliente_id:p.cliente_id, aseguradora_id:p.aseguradora_id, producto_id:p.producto_id, persona_facturable_id:p.persona_facturable_id||'', prima_total:p.prima_total, tipo_pago:p.tipo_pago||'contado', fraccionamiento:p.fraccionamiento||'', fecha_inicio:p.fecha_inicio, fecha_vencimiento:p.fecha_vencimiento, vigencia:'manual' })
     setEditing(p.id)
     setView('form')
     window.scrollTo(0,0)
@@ -146,8 +172,10 @@ export default function Polizas() {
   }
 
   const filtered = polizas.filter(p =>
-    (p.numero_poliza+' '+(p.clientes?.nombre||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
+    ((p.numero_poliza||'')+' '+(p.clientes?.nombre||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
   )
+
+  const inputStyle = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   if (view === 'detalle' && selected) return (
     <PolizaDetalle poliza={selected} onBack={()=>{setView('list');fetchAll()}} onEdit={handleEdit} />
@@ -162,6 +190,12 @@ export default function Polizas() {
         <h2 style={{fontSize:'18px',fontWeight:700,color:'#0C1E3D',marginBottom:'20px'}}>{editing?'Editar póliza':'Nueva póliza'}</h2>
         <form onSubmit={handleSubmit}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
+
+            <div>
+              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de póliza <span style={{color:'#94a3b8',fontWeight:400}}>(brindado por aseguradora)</span></label>
+              <input value={form.numero_poliza} onChange={e=>setForm({...form,numero_poliza:e.target.value})} placeholder="Ej: POL-2024-001"
+                style={inputStyle}/>
+            </div>
 
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Cliente *</label>
@@ -183,7 +217,7 @@ export default function Polizas() {
               <SearchSelect value={form.aseguradora_id} onChange={handleAseguradoraChange} options={aseguradoras} placeholder="Buscar aseguradora..."
                 renderOption={a=>(
                   <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                    {a.logo_url && <img src={a.logo_url} style={{width:'20px',height:'20px',objectFit:'contain',borderRadius:'3px'}}/>}
+                    {a.logo_url && <img src={a.logo_url} style={{width:'18px',height:'18px',objectFit:'contain',borderRadius:'2px'}}/>}
                     <span>{a.nombre}</span>
                   </div>
                 )} labelKey="nombre"/>
@@ -192,13 +226,12 @@ export default function Polizas() {
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Producto *</label>
               <SearchSelect value={form.producto_id} onChange={val=>setForm({...form,producto_id:val})}
-                options={productosFiltered} placeholder={form.aseguradora_id?"Seleccionar producto...":"Seleccioná una aseguradora primero"} labelKey="nombre"/>
+                options={productosFiltered} placeholder={form.aseguradora_id?"Seleccionar producto...":"Primero seleccioná aseguradora"} labelKey="nombre"/>
             </div>
 
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima total (Q) *</label>
-              <input type="number" step="0.01" value={form.prima_total} onChange={e=>setForm({...form,prima_total:e.target.value})} required
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
+              <input type="number" step="0.01" value={form.prima_total} onChange={e=>setForm({...form,prima_total:e.target.value})} required style={inputStyle}/>
             </div>
 
             <div>
@@ -219,10 +252,10 @@ export default function Polizas() {
             {form.tipo_pago==='financiado' && (
               <div>
                 <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de cuotas *</label>
-                <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                <div style={{display:'flex',gap:'6px'}}>
                   {fraccionamientoOpciones.map(n=>(
                     <button key={n} type="button" onClick={()=>setForm({...form,fraccionamiento:String(n)})}
-                      style={{padding:'8px 14px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                      style={{flex:1,padding:'9px 0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
                         background:form.fraccionamiento===String(n)?'#1A6BBA':'white',
                         color:form.fraccionamiento===String(n)?'white':'#64748b',
                         border:`1px solid ${form.fraccionamiento===String(n)?'#1A6BBA':'#e2e8f0'}`}}>
@@ -235,14 +268,29 @@ export default function Polizas() {
 
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha inicio *</label>
-              <input type="date" value={form.fecha_inicio} onChange={e=>setForm({...form,fecha_inicio:e.target.value})} required
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
+              <input type="date" value={form.fecha_inicio} onChange={e=>handleFechaInicioChange(e.target.value)} required style={inputStyle}/>
             </div>
 
             <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha vencimiento *</label>
-              <input type="date" value={form.fecha_vencimiento} onChange={e=>setForm({...form,fecha_vencimiento:e.target.value})} required
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
+              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Vigencia *</label>
+              <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
+                {[['1anio','1 año'],['manual','Manual']].map(([v,l])=>(
+                  <button key={v} type="button" onClick={()=>handleVigenciaChange(v)}
+                    style={{flex:1,padding:'9px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                      background:form.vigencia===v?'#0C1E3D':'white',
+                      color:form.vigencia===v?'white':'#64748b',
+                      border:`1px solid ${form.vigencia===v?'#0C1E3D':'#e2e8f0'}`}}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              {form.vigencia==='manual' ? (
+                <input type="date" value={form.fecha_vencimiento} onChange={e=>setForm({...form,fecha_vencimiento:e.target.value})} required style={inputStyle}/>
+              ) : (
+                <div style={{padding:'10px 12px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #e2e8f0',fontSize:'14px',color:'#64748b'}}>
+                  {form.fecha_vencimiento ? new Date(form.fecha_vencimiento).toLocaleDateString('es-GT') : 'Seleccioná fecha inicio'}
+                </div>
+              )}
             </div>
 
           </div>
@@ -277,7 +325,7 @@ export default function Polizas() {
         <div style={{position:'relative'}}>
           <Search size={16} color="#94a3b8" style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)'}}/>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por número, cliente o aseguradora..."
-            style={{width:'100%',padding:'9px 12px 9px 36px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
+            style={{width:'100%',padding:'9px 12px 9px 36px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
         </div>
       </div>
 
@@ -297,7 +345,7 @@ export default function Polizas() {
               {p.aseguradoras?.logo_url?<img src={p.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={16} color="#1A6BBA"/>}
             </div>
             <div style={{flex:1,minWidth:0}}>
-              <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px'}}>{p.numero_poliza}</p>
+              <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px'}}>{p.numero_poliza||'Sin número'}</p>
               <p style={{fontSize:'12px',color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre}</p>
             </div>
             <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
@@ -323,32 +371,32 @@ export default function Polizas() {
 function PolizaDetalle({ poliza, onBack, onEdit }) {
   const [emisiones, setEmisiones] = useState([])
   const [reqs, setReqs] = useState([])
-  const [vehiculos, setVehiculos] = useState([])
+  const [vehiculosDisponibles, setVehiculosDisponibles] = useState([])
   const [tareas, setTareas] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('emisiones')
   const [showEmisionForm, setShowEmisionForm] = useState(false)
-  const [showVehiculoForm, setShowVehiculoForm] = useState(false)
   const [showReqForm, setShowReqForm] = useState(false)
+  const [showAsignarVehiculo, setShowAsignarVehiculo] = useState(null)
   const [emisionForm, setEmisionForm] = useState(emptyEmision)
-  const [vehiculoForm, setVehiculoForm] = useState(emptyVehiculo)
   const [reqForm, setReqForm] = useState(emptyReq)
   const [expandedEmision, setExpandedEmision] = useState(null)
+  const [vehiculoSearch, setVehiculoSearch] = useState('')
 
   useEffect(() => { fetchData() }, [poliza.id])
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }, { data: vehiculosData }] = await Promise.all([
+    const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }, { data: vDisp }] = await Promise.all([
       supabase.from('emisiones').select('*, emision_vehiculos(vehiculos(*))').eq('poliza_id', poliza.id).order('created_at'),
       supabase.from('requerimientos_pago').select('*').eq('poliza_id', poliza.id).order('fecha_vencimiento'),
       supabase.from('tareas').select('*').eq('poliza_id', poliza.id).eq('estado', 'pendiente'),
-      supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true)
+      supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true).is('poliza_id', null)
     ])
     setEmisiones(emisionesData || [])
     setReqs(reqsData || [])
     setTareas(tareasData || [])
-    setVehiculos(vehiculosData || [])
+    setVehiculosDisponibles(vDisp || [])
     setLoading(false)
   }
 
@@ -358,7 +406,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
     const { error } = await supabase.from('emisiones').insert({
       poliza_id: poliza.id,
       ...emisionForm,
-      numero_emision: `${poliza.numero_poliza}-E${(emisiones.length+1).toString().padStart(2,'0')}`,
+      numero_emision: `${poliza.numero_poliza||'POL'}-E${(emisiones.length+1).toString().padStart(2,'0')}`,
       prima_emision: parseFloat(emisionForm.prima_emision),
       created_by: user?.id
     })
@@ -369,13 +417,24 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
     fetchData()
   }
 
-  const handleVehiculoSubmit = async (e) => {
-    e.preventDefault()
-    const { error } = await supabase.from('vehiculos').insert({ ...vehiculoForm, cliente_id: poliza.cliente_id, anio: parseInt(vehiculoForm.anio), valor_asegurado: parseFloat(vehiculoForm.valor_asegurado||0) })
-    if (error) { toast.error('Error: ' + error.message); return }
-    toast.success('Vehículo agregado')
-    setVehiculoForm(emptyVehiculo)
-    setShowVehiculoForm(false)
+  const asignarVehiculo = async (vehiculoId, emisionId) => {
+    // Verificar que el vehículo no esté en otra póliza vigente
+    const { data: check } = await supabase.from('vehiculos').select('poliza_id').eq('id', vehiculoId).single()
+    if (check?.poliza_id) { toast.error('Este vehículo ya está asignado a una póliza vigente'); return }
+
+    const { error: evError } = await supabase.from('emision_vehiculos').insert({ emision_id: emisionId, vehiculo_id: vehiculoId })
+    if (evError) { toast.error('Error al asignar'); return }
+    await supabase.from('vehiculos').update({ poliza_id: poliza.id }).eq('id', vehiculoId)
+    toast.success('Vehículo asignado')
+    setShowAsignarVehiculo(null)
+    setVehiculoSearch('')
+    fetchData()
+  }
+
+  const quitarVehiculo = async (vehiculoId, emisionVehiculoId) => {
+    await supabase.from('emision_vehiculos').delete().eq('id', emisionVehiculoId)
+    await supabase.from('vehiculos').update({ poliza_id: null }).eq('id', vehiculoId)
+    toast.success('Vehículo removido')
     fetchData()
   }
 
@@ -389,23 +448,18 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
     const totalCuotas = parseInt(reqForm.total_cuotas)
     const emisionId = emisiones[emisiones.length-1].id
     const requerimientos = []
-
     for (let i = 0; i < totalCuotas; i++) {
       const fecha = new Date(reqForm.fecha_vencimiento)
       fecha.setMonth(fecha.getMonth() + i)
       requerimientos.push({
-        emision_id: emisionId,
-        poliza_id: poliza.id,
+        emision_id: emisionId, poliza_id: poliza.id,
         codigo: i === 0 ? codigo : `${codigo}-${i}`,
         codigo_matriz: i === 0 ? null : codigo,
-        numero_cuota: i + 1,
-        total_cuotas: totalCuotas,
-        monto,
-        fecha_vencimiento: fecha.toISOString().split('T')[0],
+        numero_cuota: i + 1, total_cuotas: totalCuotas,
+        monto, fecha_vencimiento: fecha.toISOString().split('T')[0],
         created_by: user?.id
       })
     }
-
     const { error } = await supabase.from('requerimientos_pago').insert(requerimientos)
     if (error) { toast.error('Error: ' + error.message); return }
     toast.success(`${totalCuotas} requerimiento(s) creado(s)`)
@@ -427,6 +481,8 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
 
   const totalPagado = reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
   const totalPendiente = reqs.filter(r=>r.estado!=='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
+  const totalVehiculos = emisiones.reduce((s,em)=>s+(em.emision_vehiculos?.length||0),0)
+  const inputStyle = { width:'100%', padding:'8px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   return (
     <div>
@@ -441,7 +497,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
               {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="#1A6BBA"/>}
             </div>
             <div>
-              <h1 style={{fontSize:'20px',fontWeight:700,color:'#0C1E3D'}}>{poliza.numero_poliza}</h1>
+              <h1 style={{fontSize:'20px',fontWeight:700,color:'#0C1E3D'}}>{poliza.numero_poliza||'Sin número'}</h1>
               <p style={{fontSize:'13px',color:'#64748b'}}>{poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}</p>
             </div>
           </div>
@@ -465,7 +521,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
       </div>
 
       <div style={{display:'flex',gap:'8px',marginBottom:'16px',flexWrap:'wrap'}}>
-        {[['emisiones',`Emisiones (${emisiones.length})`],['vehiculos',`Vehículos (${vehiculos.length})`],['pagos',`Pagos (${reqs.length})`],['tareas',`Tareas (${tareas.length})`]].map(([tab,label])=>(
+        {[['emisiones',`Emisiones (${emisiones.length})`],['vehiculos',`Vehículos (${totalVehiculos})`],['pagos',`Pagos (${reqs.length})`],['tareas',`Tareas (${tareas.length})`]].map(([tab,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab)}
             style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
               background:activeTab===tab?'#0C1E3D':'white',color:activeTab===tab?'white':'#64748b',
@@ -490,30 +546,25 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'12px'}}>
                   <div>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo</label>
-                    <select value={emisionForm.tipo} onChange={e=>setEmisionForm({...emisionForm,tipo:e.target.value})}
-                      style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',background:'white'}}>
+                    <select value={emisionForm.tipo} onChange={e=>setEmisionForm({...emisionForm,tipo:e.target.value})} style={{...inputStyle,padding:'8px 10px'}}>
                       {Object.entries(emisionTipos).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                     </select>
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima emisión (Q) *</label>
-                    <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required
-                      style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
+                    <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required style={inputStyle}/>
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha inicio *</label>
-                    <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required
-                      style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
+                    <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required style={inputStyle}/>
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha fin *</label>
-                    <input type="date" value={emisionForm.fecha_fin} onChange={e=>setEmisionForm({...emisionForm,fecha_fin:e.target.value})} required
-                      style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
+                    <input type="date" value={emisionForm.fecha_fin} onChange={e=>setEmisionForm({...emisionForm,fecha_fin:e.target.value})} required style={inputStyle}/>
                   </div>
                   <div style={{gridColumn:'1/-1'}}>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas</label>
-                    <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})}
-                      style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
+                    <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle}/>
                   </div>
                 </div>
                 <div style={{display:'flex',gap:'8px'}}>
@@ -535,7 +586,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                   </div>
                   <div style={{flex:1,minWidth:0}}>
                     <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px'}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
-                    <p style={{fontSize:'12px',color:'#64748b'}}>{new Date(em.fecha_inicio).toLocaleDateString('es-GT')} → {new Date(em.fecha_fin).toLocaleDateString('es-GT')}</p>
+                    <p style={{fontSize:'12px',color:'#64748b'}}>{new Date(em.fecha_inicio).toLocaleDateString('es-GT')} → {new Date(em.fecha_fin).toLocaleDateString('es-GT')} · {em.emision_vehiculos?.length||0} vehículos</p>
                   </div>
                   <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',marginRight:'12px',flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
                   <div style={{display:'flex',gap:'4px',marginRight:'8px',flexShrink:0}}>
@@ -550,15 +601,45 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                   </div>
                   {expandedEmision===em.id?<ChevronUp size={16} color="#64748b"/>:<ChevronDown size={16} color="#64748b"/>}
                 </div>
-                {expandedEmision===em.id && em.emision_vehiculos?.length>0 && (
-                  <div style={{padding:'10px 20px 14px',background:'#f8fafc'}}>
-                    {em.emision_vehiculos.map(ev=>(
-                      <div key={ev.vehiculos?.id} style={{display:'flex',gap:'8px',padding:'6px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center'}}>
-                        <Car size={14} color="#64748b"/>
-                        <span style={{fontWeight:500}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</span>
-                        <span style={{color:'#64748b'}}>· {ev.vehiculos?.placa||'Sin placa'}</span>
+                {expandedEmision===em.id && (
+                  <div style={{padding:'12px 20px 16px',background:'#f8fafc'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
+                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151'}}>Vehículos asignados</p>
+                      <button onClick={()=>setShowAsignarVehiculo(showAsignarVehiculo===em.id?null:em.id)}
+                        style={{fontSize:'11px',padding:'3px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontWeight:500}}>
+                        + Asignar vehículo
+                      </button>
+                    </div>
+                    {em.emision_vehiculos?.length===0&&<p style={{fontSize:'13px',color:'#94a3b8',marginBottom:'8px'}}>Sin vehículos asignados</p>}
+                    {em.emision_vehiculos?.map(ev=>(
+                      <div key={ev.vehiculos?.id} style={{display:'flex',gap:'8px',padding:'8px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center'}}>
+                        <Car size={14} color="#1A6BBA"/>
+                        <span style={{fontWeight:500,flex:1}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</span>
+                        <span style={{color:'#64748b'}}>Placa: {ev.vehiculos?.placa||'N/A'}</span>
+                        <button onClick={()=>quitarVehiculo(ev.vehiculos?.id, ev.id)}
+                          style={{padding:'2px 8px',background:'#fef2f2',color:'#ef4444',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px'}}>
+                          Quitar
+                        </button>
                       </div>
                     ))}
+                    {showAsignarVehiculo===em.id && (
+                      <div style={{marginTop:'8px',padding:'10px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
+                        <input value={vehiculoSearch} onChange={e=>setVehiculoSearch(e.target.value)} placeholder="Buscar vehículo disponible..."
+                          style={{width:'100%',padding:'7px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'12px',marginBottom:'8px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
+                        {vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+(v.placa||'')).toLowerCase().includes(vehiculoSearch.toLowerCase())).length===0
+                          ? <p style={{fontSize:'12px',color:'#94a3b8',textAlign:'center',padding:'8px'}}>No hay vehículos disponibles para este cliente</p>
+                          : vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+(v.placa||'')).toLowerCase().includes(vehiculoSearch.toLowerCase())).map(v=>(
+                          <div key={v.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 8px',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',background:'#f8fafc'}}>
+                            <Car size={13} color="#1A6BBA"/>
+                            <span style={{flex:1,fontSize:'12px',fontWeight:500}}>{v.marca} {v.modelo} {v.anio} — {v.placa||'Sin placa'}</span>
+                            <button onClick={()=>asignarVehiculo(v.id, em.id)}
+                              style={{padding:'3px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px',fontWeight:500}}>
+                              Asignar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -568,51 +649,24 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
       )}
 
       {activeTab==='vehiculos' && (
-        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D'}}>Vehículos asegurados</h3>
-            <button onClick={()=>setShowVehiculoForm(!showVehiculoForm)}
-              style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>
-              <Plus size={13}/> Nuevo vehículo
-            </button>
-          </div>
-          {showVehiculoForm && (
-            <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
-              <form onSubmit={handleVehiculoSubmit}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px',marginBottom:'12px'}}>
-                  {[['marca','Marca *',true,'text'],['modelo','Modelo *',true,'text'],['anio','Año *',true,'number'],['placa','Placa',false,'text'],['chasis','Chasis',false,'text'],['motor','Motor',false,'text'],['color','Color',false,'text'],['valor_asegurado','Valor asegurado (Q)',false,'number']].map(([key,label,req,type])=>(
-                    <div key={key}>
-                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>
-                      <input value={vehiculoForm[key]} onChange={e=>setVehiculoForm({...vehiculoForm,[key]:e.target.value})} required={req} type={type}
-                        style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
-                    </div>
-                  ))}
-                  <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo</label>
-                    <select value={vehiculoForm.tipo} onChange={e=>setVehiculoForm({...vehiculoForm,tipo:e.target.value})}
-                      style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',background:'white'}}>
-                      {['sedan','pickup','suv','van','moto','camion','otro'].map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
-                    </select>
+        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+          <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px'}}>Vehículos en esta póliza</h3>
+          {emisiones.every(em=>!em.emision_vehiculos?.length) ? <p style={{color:'#94a3b8',fontSize:'14px',textAlign:'center',padding:'16px 0'}}>Sin vehículos asignados. Asignalos desde la pestaña de Emisiones.</p> :
+           emisiones.filter(em=>em.emision_vehiculos?.length>0).map(em=>(
+            <div key={em.id} style={{marginBottom:'16px'}}>
+              <p style={{fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'8px'}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
+              {em.emision_vehiculos.map(ev=>(
+                <div key={ev.vehiculos?.id} style={{display:'flex',alignItems:'center',padding:'12px 16px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #f1f5f9',marginBottom:'6px'}}>
+                  <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
+                    <Car size={16} color="#1A6BBA"/>
                   </div>
+                  <div style={{flex:1}}>
+                    <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px'}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
+                    <p style={{fontSize:'12px',color:'#64748b'}}>{ev.vehiculos?.tipo} · Placa: {ev.vehiculos?.placa||'N/A'} · Color: {ev.vehiculos?.color||'N/A'}</p>
+                  </div>
+                  {ev.vehiculos?.valor_asegurado>0&&<p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA'}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>}
                 </div>
-                <div style={{display:'flex',gap:'8px'}}>
-                  <button type="submit" style={{padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>Agregar vehículo</button>
-                  <button type="button" onClick={()=>setShowVehiculoForm(false)} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
-                </div>
-              </form>
-            </div>
-          )}
-          {vehiculos.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin vehículos</p>:
-           vehiculos.map((v,i)=>(
-            <div key={v.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<vehiculos.length-1?'1px solid #f1f5f9':'none'}}>
-              <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
-                <Car size={16} color="#1A6BBA"/>
-              </div>
-              <div style={{flex:1}}>
-                <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px'}}>{v.marca} {v.modelo} {v.anio}</p>
-                <p style={{fontSize:'12px',color:'#64748b'}}>{v.tipo} · Placa: {v.placa||'N/A'} · Color: {v.color||'N/A'}</p>
-              </div>
-              {v.valor_asegurado&&<p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA'}}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
+              ))}
             </div>
           ))}
         </div>
@@ -642,18 +696,15 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px',marginBottom:'12px'}}>
                     <div>
                       <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Monto por cuota (Q) *</label>
-                      <input type="number" step="0.01" value={reqForm.monto} onChange={e=>setReqForm({...reqForm,monto:e.target.value})} required
-                        style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
+                      <input type="number" step="0.01" value={reqForm.monto} onChange={e=>setReqForm({...reqForm,monto:e.target.value})} required style={inputStyle}/>
                     </div>
                     <div>
                       <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha primer vencimiento *</label>
-                      <input type="date" value={reqForm.fecha_vencimiento} onChange={e=>setReqForm({...reqForm,fecha_vencimiento:e.target.value})} required
-                        style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
+                      <input type="date" value={reqForm.fecha_vencimiento} onChange={e=>setReqForm({...reqForm,fecha_vencimiento:e.target.value})} required style={inputStyle}/>
                     </div>
                     <div>
                       <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de cuotas</label>
-                      <input type="number" min="1" max="24" value={reqForm.total_cuotas} onChange={e=>setReqForm({...reqForm,total_cuotas:e.target.value})}
-                        style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
+                      <input type="number" min="1" max="24" value={reqForm.total_cuotas} onChange={e=>setReqForm({...reqForm,total_cuotas:e.target.value})} style={inputStyle}/>
                     </div>
                   </div>
                   <div style={{display:'flex',gap:'8px'}}>
