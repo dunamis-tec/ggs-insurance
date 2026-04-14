@@ -621,6 +621,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
         ))}
       </tbody>
     </table>
+    </div>
   </div>
 )}
                 </div>
