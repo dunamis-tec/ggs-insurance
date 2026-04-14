@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, Building2, User, Briefcase, Edit2, Trash2, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react'
+import { Users, Plus, Search, Building2, User, Briefcase, Edit2, Trash2, ChevronDown, ChevronUp, ArrowLeft, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const tipoLabels = { prospecto:'Prospecto', individual:'Individual', empresa:'Empresa' }
@@ -30,7 +30,7 @@ export default function Clientes() {
     setLoading(true)
     const [{ data: clientesData }, { data: conglomeradosData }] = await Promise.all([
       supabase.from('clientes').select('*, conglomerados(nombre)').eq('activo', true).order('nombre'),
-      supabase.from('conglomerados').select('*, clientes(id, nombre, apellido, tipo, email)').eq('activo', true).order('nombre')
+      supabase.from('conglomerados').select('*, clientes(id, nombre, apellido, tipo, email, nit, telefono, dpi, direccion, razon_social, nombre_empresa, representante_legal, conglomerado_id)').eq('activo', true).order('nombre')
     ])
     setClientes(clientesData || [])
     setConglomerados(conglomeradosData || [])
@@ -70,6 +70,7 @@ export default function Clientes() {
     setEditing(c.id)
     setShowForm(true)
     setShowConglomeradoForm(false)
+    setActiveTab('clientes')
     window.scrollTo(0,0)
   }
 
@@ -99,7 +100,6 @@ export default function Clientes() {
     return matchSearch && matchTipo
   })
 
-  // Si está editando o creando, mostrar SOLO el formulario
   if (showForm) return (
     <div>
       <button onClick={cancelForm} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
@@ -201,7 +201,7 @@ export default function Clientes() {
           <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>{clientes.length} clientes · {conglomerados.length} conglomerados</p>
         </div>
         <div style={{display:'flex',gap:'8px'}}>
-          <button onClick={()=>{setShowConglomeradoForm(!showConglomeradoForm)}}
+          <button onClick={()=>setShowConglomeradoForm(!showConglomeradoForm)}
             style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 16px',background:'white',color:'#0C1E3D',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
             <Briefcase size={15}/> Nuevo conglomerado
           </button>
@@ -321,14 +321,22 @@ export default function Clientes() {
                 {expandedConglomerado===cong.id?<ChevronUp size={18} color="#64748b"/>:<ChevronDown size={18} color="#64748b"/>}
               </div>
               {expandedConglomerado===cong.id && (
-                <div style={{borderTop:'1px solid #f1f5f9',padding:'16px 20px',background:'#fafafa'}}>
+                <div style={{borderTop:'1px solid #f1f5f9',padding:'12px 20px',background:'#fafafa'}}>
                   {(!cong.clientes||cong.clientes.length===0) ? <p style={{fontSize:'13px',color:'#94a3b8'}}>Sin clientes asociados</p> :
                    cong.clientes.map(c=>(
-                    <div key={c.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 0',borderBottom:'1px solid #f1f5f9'}}>
-                      <User size={14} color="#64748b"/>
-                      <span style={{fontSize:'13px',color:'#1e293b',fontWeight:500}}>{c.nombre} {c.apellido||''}</span>
+                    <div key={c.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 12px',marginBottom:'4px',borderRadius:'8px',background:'white',border:'1px solid #f1f5f9',cursor:'pointer',transition:'all 0.15s'}}
+                      onClick={()=>handleEdit(c)}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor='#1A6BBA'}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor='#f1f5f9'}>
+                      <div style={{width:'32px',height:'32px',borderRadius:'6px',background:tipoColors[c.tipo]+'20',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        <User size={14} color={tipoColors[c.tipo]}/>
+                      </div>
+                      <div style={{flex:1}}>
+                        <span style={{fontSize:'13px',color:'#1e293b',fontWeight:600}}>{c.nombre} {c.apellido||''}</span>
+                        {c.email && <p style={{fontSize:'11px',color:'#64748b',margin:'1px 0 0'}}>{c.email}</p>}
+                      </div>
                       <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:tipoColors[c.tipo]+'20',color:tipoColors[c.tipo]}}>{tipoLabels[c.tipo]}</span>
-                      {c.email && <span style={{fontSize:'12px',color:'#64748b'}}>{c.email}</span>}
+                      <ExternalLink size={13} color="#94a3b8"/>
                     </div>
                   ))}
                 </div>
