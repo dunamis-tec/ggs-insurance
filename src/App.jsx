@@ -16,6 +16,7 @@ import Liquidaciones from './pages/liquidaciones/Liquidaciones'
 import Comisiones from './pages/comisiones/Comisiones'
 import Tareas from './pages/tareas/Tareas'
 import Vehiculos from './pages/vehiculos/Vehiculos'
+import Configuracion from './pages/configuracion/Configuracion'
 
 function ProtectedRoute({ children, session }) {
   if (!session) return <Navigate to="/login" replace />
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="comisiones/*" element={<Comisiones />} />
         <Route path="tareas/*" element={<Tareas />} />
         <Route path="vehiculos/*" element={<Vehiculos />} />
+        <Route path="configuracion/*" element={<Configuracion />} />
       </Route>
     </Routes>
   )
