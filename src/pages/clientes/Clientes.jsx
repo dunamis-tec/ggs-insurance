@@ -42,8 +42,16 @@ export default function Clientes() {
     // Validar regla: no puede volver a prospecto
     if (editing) {
       const original = clientes.find(c => c.id === editing)
-      if (original?.tipo !== 'prospecto' && form.tipo === 'prospecto') {
-        toast.error('Un cliente individual o empresa no puede volver a ser prospecto')
+      if (original) {
+        if (original.tipo === 'empresa' && form.tipo !== 'empresa') {
+          toast.error('Una empresa no puede cambiar a otro tipo de cliente')
+          return
+        }
+        if (original.tipo === 'individual' && form.tipo !== 'individual') {
+          toast.error('Un cliente individual no puede cambiar de tipo')
+          return
+        }
+      }        toast.error('Un cliente individual o empresa no puede volver a ser prospecto')
         return
       }
     }
@@ -285,16 +293,18 @@ export default function Clientes() {
 
   return (
     <div>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'24px' }}>
-        <div>
-          <h1 style={{ fontSize:'24px', fontWeight:700, color:'#0C1E3D', margin:0 }}>Clientes</h1>
-          <p style={{ color:'#64748b', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes registrados</p>
-        </div>
-        <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
-          style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
-          <Plus size={16} /> Nuevo cliente
-        </button>
-      </div>
+      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
+  <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+    <div>
+      <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
+      <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
+    </div>
+    <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
+      style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+      <Plus size={16} /> Nuevo cliente
+    </button>
+  </div>
+</div>
 
       <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px', display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center' }}>
         <div style={{ flex:1, minWidth:'200px', position:'relative' }}>
@@ -378,6 +388,16 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
     ])
     setPolizas(pData || [])
     setPersonas(pfData || [])
+    const polizaIds = (pData || []).map(p => p.id)
+if (polizaIds.length > 0) {
+  const { data: reqData } = await supabase.from('requerimientos_pago')
+    .select('*, polizas(numero_poliza)')
+    .in('poliza_id', polizaIds)
+    .order('fecha_vencimiento', { ascending: true })
+  setReqs(reqData || [])
+} else {
+  setReqs([])
+}
     setReqs(reqData || [])
     setLoading(false)
   }
