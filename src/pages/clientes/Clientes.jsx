@@ -379,24 +379,22 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: pData }, { data: pfData }, { data: reqData }] = await Promise.all([
+    const [{ data: pData }, { data: pfData }] = await Promise.all([
       supabase.from('polizas').select('*, aseguradoras(nombre, logo_url), productos(nombre)').eq('cliente_id', cliente.id).eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('personas_facturables').select('*').eq('cliente_id', cliente.id).eq('activa', true).order('nombre'),
-      supabase.from('requerimientos_pago').select('*, polizas(numero_poliza)').eq('cliente_id', cliente.id).order('fecha_vencimiento', { ascending: true })
     ])
     setPolizas(pData || [])
     setPersonas(pfData || [])
     const polizaIds = (pData || []).map(p => p.id)
-if (polizaIds.length > 0) {
-  const { data: reqData } = await supabase.from('requerimientos_pago')
-    .select('*, polizas(numero_poliza)')
-    .in('poliza_id', polizaIds)
-    .order('fecha_vencimiento', { ascending: true })
-  setReqs(reqData || [])
-} else {
-  setReqs([])
-}
-    setReqs(reqData || [])
+    if (polizaIds.length > 0) {
+      const { data: reqData } = await supabase.from('requerimientos_pago')
+        .select('*, polizas(numero_poliza)')
+        .in('poliza_id', polizaIds)
+        .order('fecha_vencimiento', { ascending: true })
+      setReqs(reqData || [])
+    } else {
+      setReqs([])
+    }
     setLoading(false)
   }
 
