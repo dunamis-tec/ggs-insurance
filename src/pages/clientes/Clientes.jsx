@@ -542,7 +542,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                 <thead>
                   <tr style={{ background:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
-                    {['# Req.','Doc. Emision','Vencimiento','Fecha pago','Monto','Estado',''].map(h => (
+                    {['# Req.','Doc. Emision','Vencimiento','Fecha pago','Monto','Estado'].map(h => (
                       <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -569,13 +569,6 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
                           color: r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207', fontWeight:500 }}>
                           {r.estado}
                         </span>
-                      </td>
-                      <td style={{ padding:'12px 16px' }}>
-                        {r.estado !== 'pagado' && (
-                          <button onClick={() => marcarPagado(r.id)} style={{ padding:'5px 10px', background:'#dcfce7', color:'#15803d', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer', whiteSpace:'nowrap' }}>
-                            Pagar
-                          </button>
-                        )}
                       </td>
                     </tr>
                   ))}
