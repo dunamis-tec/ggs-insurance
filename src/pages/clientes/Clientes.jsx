@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, Car } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -362,6 +362,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
   const [polizas, setPolizas] = useState([])
   const [personas, setPersonas] = useState([])
   const [reqs, setReqs] = useState([])
+  const [vehiculos, setVehiculos] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('polizas')
   const [showPFForm, setShowPFForm] = useState(false)
@@ -373,12 +374,14 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: pData }, { data: pfData }] = await Promise.all([
+    const [{ data: pData }, { data: pfData }, { data: vData }] = await Promise.all([
       supabase.from('polizas').select('*, aseguradoras(nombre, logo_url), productos(nombre)').eq('cliente_id', cliente.id).eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('personas_facturables').select('*').eq('cliente_id', cliente.id).eq('activa', true).order('nombre'),
+      supabase.from('vehiculos').select('*, polizas(numero_poliza, activa)').eq('cliente_id', cliente.id).eq('activo', true).order('created_at', { ascending: false }),
     ])
     setPolizas(pData || [])
     setPersonas(pfData || [])
+    setVehiculos(vData || [])
     const polizaIds = (pData || []).map(p => p.id)
     if (polizaIds.length > 0) {
       const { data: reqData } = await supabase.from('requerimientos_pago')
@@ -484,7 +487,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['vehiculos',`Vehículos (${vehiculos.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#0C1E3D' : 'white',
@@ -643,6 +646,42 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
                 </div>
               </div>
             ))}
+        </div>
+      )}
+
+      {activeTab === 'vehiculos' && (
+        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
+            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0, textAlign:'left' }}>Vehículos del cliente</p>
+          </div>
+          {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
+            vehiculos.length === 0 ? (
+              <div style={{ padding:'32px', textAlign:'center' }}>
+                <Car size={28} color='#cbd5e1' style={{ marginBottom:'10px' }}/>
+                <p style={{ color:'#94a3b8', margin:0 }}>Sin vehículos registrados</p>
+              </div>
+            ) : vehiculos.map((v, i) => {
+              const enPoliza = v.polizas?.activa
+              return (
+                <div key={v.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<vehiculos.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
+                  onClick={() => navigate('/vehiculos', { state: { openVehiculoId: v.id, fromClienteId: cliente.id } })}
+                  onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background='white'}>
+                  <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                    <Car size={18} color='#1A6BBA'/>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{v.marca} {v.modelo} {v.anio}</p>
+                    <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>Placa: {v.placa||'N/A'} · {v.tipo}</p>
+                  </div>
+                  {v.valor_asegurado > 0 && <p style={{ fontSize:'13px', fontWeight:600, color:'#1A6BBA', marginRight:'12px', flexShrink:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
+                  <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', background: enPoliza?'#dcfce7':'#f1f5f9', color: enPoliza?'#15803d':'#64748b', fontWeight:500, flexShrink:0 }}>
+                    {enPoliza ? 'En póliza activa' : 'Disponible'}
+                  </span>
+                  <ChevronRight size={16} color='#94a3b8' style={{ marginLeft:'8px', flexShrink:0 }}/>
+                </div>
+              )
+            })}
         </div>
       )}
     </div>

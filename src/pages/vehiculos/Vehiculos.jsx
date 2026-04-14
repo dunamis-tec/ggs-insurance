@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Car, Plus, Edit2, Trash2, Search, ArrowLeft, FileText, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
 const emptyForm = { marca:'', modelo:'', anio:'', placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
@@ -60,8 +60,18 @@ export default function Vehiculos() {
   const [form, setForm] = useState(emptyForm)
   const [clienteId, setClienteId] = useState('')
   const [editing, setEditing] = useState(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const fromClienteId = location.state?.fromClienteId || null
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (location.state?.openVehiculoId && vehiculos.length > 0) {
+      const v = vehiculos.find(v => v.id === location.state.openVehiculoId)
+      if (v) { setSelected(v); setView('detalle') }
+    }
+  }, [location.state, vehiculos])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -130,7 +140,13 @@ export default function Vehiculos() {
   const labelStyle = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }
 
   if (view === 'detalle' && selected) return (
-    <VehiculoDetalle vehiculo={selected} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
+    <VehiculoDetalle vehiculo={selected}
+      onBack={() => {
+        if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } })
+        else { setSelected(null); setView('list'); fetchAll() }
+      }}
+      fromCliente={!!fromClienteId}
+      onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -275,7 +291,7 @@ export default function Vehiculos() {
   )
 }
 
-function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
+function VehiculoDetalle({ vehiculo, onBack, onEdit, fromCliente }) {
   const navigate = useNavigate()
   const [historial, setHistorial] = useState([])
   const [loading, setLoading] = useState(true)
@@ -295,7 +311,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
   return (
     <div>
       <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> Volver a vehiculos
+        <ArrowLeft size={16}/> {fromCliente ? 'Volver al cliente' : 'Volver a vehículos'}
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
