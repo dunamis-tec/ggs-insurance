@@ -522,20 +522,20 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
                 <p style={{ fontSize:'16px', fontWeight:700, color:c, margin:'4px 0 0' }}>{v}</p>
               </div>
             ))}
-          </div>
-          <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
-            <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-              <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Requerimientos de pago</p>
-              <div style={{ display:'flex', gap:'6px' }}>
-                {['todos','pendiente','pagado','vencido'].map(e => (
-                  <button key={e} onClick={() => setFiltroReqEstado(e)}
-                    style={{ padding:'5px 12px', borderRadius:'6px', fontSize:'12px', cursor:'pointer', fontWeight:500,
-                      background: filtroReqEstado===e ? '#0C1E3D' : 'white',
-                      color: filtroReqEstado===e ? 'white' : '#64748b',
-                      border: `1px solid ${filtroReqEstado===e ? '#0C1E3D' : '#e2e8f0'}` }}>
-                    {e.charAt(0).toUpperCase()+e.slice(1)}
-                  </button>
-                ))}
+            </div>
+            <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+              <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px' }}>
+                <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Requerimientos de pago</p>
+                <div style={{ display:'flex', gap:'6px' }}>
+                  {['todos','pendiente','pagado','vencido'].map(e => (
+                    <button key={e} onClick={() => setFiltroReqEstado(e)}
+                      style={{ padding:'5px 12px', borderRadius:'6px', fontSize:'12px', cursor:'pointer', fontWeight:500,
+                        background: filtroReqEstado===e ? '#0C1E3D' : 'white',
+                        color: filtroReqEstado===e ? 'white' : '#64748b',
+                        border: `1px solid ${filtroReqEstado===e ? '#0C1E3D' : '#e2e8f0'}` }}>
+                      {e.charAt(0).toUpperCase()+e.slice(1)}
+                    </button>
+                  ))}
               </div>
             </div>
             <div style={{ overflowX:'auto' }}>
