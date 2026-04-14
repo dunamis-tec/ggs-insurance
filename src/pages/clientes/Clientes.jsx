@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
 const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
@@ -23,8 +23,16 @@ export default function Clientes() {
   const [editing, setEditing] = useState(null)
   const [conglomeradoSearch, setConglomeradoSearch] = useState('')
   const [showConglomeradoDropdown, setShowConglomeradoDropdown] = useState(false)
+  const location = useLocation()
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (location.state?.openClienteId && clientes.length > 0) {
+      const c = clientes.find(c => c.id === location.state.openClienteId)
+      if (c) { setSelected(c); setView('detalle') }
+    }
+  }, [location.state, clientes])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -491,7 +499,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
             polizas.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><FileText size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} /><p style={{ color:'#94a3b8', margin:0 }}>Sin polizas activas</p></div> :
               polizas.map((p, i) => (
                 <div key={p.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<polizas.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
-                  onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
+                  onClick={() => navigate('/polizas', { state: { openPolizaId: p.id, fromClienteId: cliente.id } })}
                   onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                   onMouseLeave={e => e.currentTarget.style.background='white'}>
                   <div style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', overflow:'hidden', background:'#f8fafc', flexShrink:0 }}>

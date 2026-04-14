@@ -69,6 +69,8 @@ export default function Polizas() {
   const [productosFiltered, setProductosFiltered] = useState([])
   const [personasFacturables, setPersonasFacturables] = useState([])
   const location = useLocation()
+  const navigate = useNavigate()
+  const fromClienteId = location.state?.fromClienteId || null
 
   useEffect(() => { fetchAll() }, [])
 
@@ -208,7 +210,13 @@ export default function Polizas() {
   const inputStyle = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   if (view === 'detalle' && selected) return (
-    <PolizaDetalle poliza={selected} onBack={()=>{setView('list');fetchAll()}} onEdit={handleEdit} />
+    <PolizaDetalle poliza={selected}
+      onBack={() => {
+        if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } })
+        else { setView('list'); fetchAll() }
+      }}
+      fromCliente={!!fromClienteId}
+      onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -423,7 +431,7 @@ export default function Polizas() {
   )
 }
 
-function PolizaDetalle({ poliza, onBack, onEdit }) {
+function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
   const [emisiones, setEmisiones] = useState([])
   const [reqs, setReqs] = useState([])
   const [vehiculosDisponibles, setVehiculosDisponibles] = useState([])
@@ -550,7 +558,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
   return (
     <div>
       <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> Volver a polizas
+        <ArrowLeft size={16}/> {fromCliente ? 'Volver al cliente' : 'Volver a pólizas'}
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
