@@ -57,6 +57,7 @@ export default function App() {
         <Route path="liquidaciones/*" element={<Liquidaciones />} />
         <Route path="comisiones/*" element={<Comisiones />} />
         <Route path="tareas/*" element={<Tareas />} />
+        <Route path="vehiculos/*" element={<Vehiculos />} />
       </Route>
     </Routes>
   )
