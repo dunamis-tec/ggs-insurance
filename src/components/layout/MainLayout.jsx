@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { LayoutDashboard, Users, FileText, Building2, CreditCard, BookOpen, DollarSign, CheckSquare, Car, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Building2, CreditCard, BookOpen, DollarSign, CheckSquare, Car, LogOut, Settings } from 'lucide-react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/liquidaciones', icon: BookOpen, label: 'Liquidaciones' },
   { to: '/comisiones', icon: DollarSign, label: 'Comisiones' },
   { to: '/tareas', icon: CheckSquare, label: 'Tareas' },
+  { to: '/configuracion', icon: Settings, label: 'Configuración' },
 ]
 
 export default function MainLayout({ session }) {
