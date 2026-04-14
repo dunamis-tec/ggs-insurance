@@ -15,6 +15,7 @@ import Requerimientos from './pages/requerimientos/Requerimientos'
 import Liquidaciones from './pages/liquidaciones/Liquidaciones'
 import Comisiones from './pages/comisiones/Comisiones'
 import Tareas from './pages/tareas/Tareas'
+import Vehiculos from './pages/vehiculos/Vehiculos'
 
 function ProtectedRoute({ children, session }) {
   if (!session) return <Navigate to="/login" replace />
