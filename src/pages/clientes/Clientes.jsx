@@ -500,8 +500,12 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
       {activeTab === 'polizas' && (
         <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
-          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
-            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Polizas activas</p>
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0, textAlign:'left' }}>Polizas activas</p>
+            <button onClick={() => navigate('/polizas', { state: { newPoliza: true, fromClienteId: cliente.id, prefilledClienteId: cliente.id } })}
+              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'7px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+              <Plus size={14}/> Nueva Póliza
+            </button>
           </div>
           {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
             polizas.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><FileText size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} /><p style={{ color:'#94a3b8', margin:0 }}>Sin polizas activas</p></div> :

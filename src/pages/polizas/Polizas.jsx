@@ -71,6 +71,7 @@ export default function Polizas() {
   const location = useLocation()
   const navigate = useNavigate()
   const fromClienteId = location.state?.fromClienteId || null
+  const prefilledClienteId = location.state?.prefilledClienteId || null
 
   useEffect(() => { fetchAll() }, [])
 
@@ -80,6 +81,15 @@ export default function Polizas() {
       if (p) { setSelected(p); setView('detalle') }
     }
   }, [location.state, polizas])
+
+  useEffect(() => {
+    if (location.state?.newPoliza && prefilledClienteId && clientes.length > 0) {
+      handleClienteChange(prefilledClienteId)
+      setForm(f => ({ ...f, cliente_id: prefilledClienteId }))
+      setEditing(null)
+      setView('form')
+    }
+  }, [location.state, clientes])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -221,8 +231,11 @@ export default function Polizas() {
 
   if (view === 'form') return (
     <div>
-      <button onClick={()=>{setView('list');setEditing(null);setForm(emptyPoliza)}} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> Volver a polizas
+      <button onClick={()=>{
+        if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } })
+        else { setView('list'); setEditing(null); setForm(emptyPoliza) }
+      }} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
+        <ArrowLeft size={16}/> {fromClienteId ? 'Volver al cliente' : 'Volver a polizas'}
       </button>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',maxWidth:'800px'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
@@ -238,8 +251,15 @@ export default function Polizas() {
               </div>
               <div>
                 <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Cliente *</label>
-                <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes} placeholder="Buscar cliente..."
-                  renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
+                {prefilledClienteId ? (
+                  <div style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'#f8fafc',color:'#64748b',boxSizing:'border-box',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <span>{clientes.find(c=>c.id===prefilledClienteId) ? `${clientes.find(c=>c.id===prefilledClienteId).nombre} ${clientes.find(c=>c.id===prefilledClienteId).apellido||''}` : 'Cliente'}</span>
+                    <span style={{fontSize:'11px',padding:'2px 8px',background:'#dbeafe',color:'#1d4ed8',borderRadius:'20px',fontWeight:500}}>Pre-llenado</span>
+                  </div>
+                ) : (
+                  <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes} placeholder="Buscar cliente..."
+                    renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
+                )}
               </div>
               {personasFacturables.length > 0 && (
                 <div>
