@@ -106,9 +106,18 @@ export default function Liquidaciones() {
 
   return (
     <div>
-      <div style={{marginBottom:'24px'}}>
-        <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Liquidaciones</h1>
-        <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>Requerimientos pagados pendientes de informar a aseguradoras</p>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Liquidaciones</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {reqs.length} pendientes de envío · {informes.length} informes enviados
+            </p>
+          </div>
+          <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <BookOpen size={20} color='white'/>
+          </div>
+        </div>
       </div>
 
       <div style={{display:'flex',gap:'8px',marginBottom:'20px'}}>

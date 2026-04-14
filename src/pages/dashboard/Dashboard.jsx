@@ -80,12 +80,21 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{marginBottom:'24px'}}>
-        <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Dashboard</h1>
-        <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>Resumen general del sistema</p>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Dashboard</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {stats.polizas} pólizas · {stats.clientes} clientes · {stats.reqs_pendientes} reqs pendientes
+            </p>
+          </div>
+          <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <TrendingUp size={20} color='white'/>
+          </div>
+        </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'16px',marginBottom:'32px'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'16px',marginBottom:'24px'}}>
         <StatCard icon={FileText} label="Pólizas activas" value={stats.polizas} color="#1A6BBA" />
         <StatCard icon={Users} label="Clientes activos" value={stats.clientes} color="#0C1E3D" />
         <StatCard icon={CreditCard} label="Reqs. pendientes" value={stats.reqs_pendientes} color="#C8A84B" />

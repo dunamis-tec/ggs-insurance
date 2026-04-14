@@ -63,18 +63,24 @@ export default function Requerimientos() {
 
   return (
     <div>
-      <div style={{marginBottom:'24px'}}>
-        <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Requerimientos de pago</h1>
-        <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>{reqs.length} requerimientos en total</p>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Requerimientos de pago</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {reqs.length} total · {reqs.filter(r=>r.estado==='pendiente').length} pendientes · {reqs.filter(r=>r.estado==='vencido').length} vencidos
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'24px'}}>
-        {[['Pendientes',reqs.filter(r=>r.estado==='pendiente').length,'Q '+totalPendiente.toLocaleString(),'#f59e0b'],
-          ['Pagados',reqs.filter(r=>r.estado==='pagado').length,'Q '+totalPagado.toLocaleString(),'#22c55e'],
-          ['Vencidos',reqs.filter(r=>r.estado==='vencido').length,'Q '+totalVencido.toLocaleString(),'#ef4444']
-        ].map(([label,count,monto,color])=>(
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'20px'}}>
+        {[['Pendientes','pendiente',reqs.filter(r=>r.estado==='pendiente').length,'Q '+totalPendiente.toLocaleString(),'#f59e0b'],
+          ['Pagados','pagado',reqs.filter(r=>r.estado==='pagado').length,'Q '+totalPagado.toLocaleString(),'#22c55e'],
+          ['Vencidos','vencido',reqs.filter(r=>r.estado==='vencido').length,'Q '+totalVencido.toLocaleString(),'#ef4444']
+        ].map(([label,estado,count,monto,color])=>(
           <div key={label} style={{background:'white',borderRadius:'12px',padding:'16px 20px',border:'1px solid #e2e8f0',cursor:'pointer',borderLeft:`4px solid ${color}`}}
-            onClick={()=>setFiltroEstado(label.toLowerCase().slice(0,-1)==='pendient'?'pendiente':label.toLowerCase().slice(0,-1)==='pagad'?'pagado':'vencido')}>
+            onClick={()=>setFiltroEstado(estado)}>
             <p style={{fontSize:'13px',color:'#64748b',marginBottom:'4px'}}>{label}</p>
             <p style={{fontSize:'22px',fontWeight:700,color}}>{count}</p>
             <p style={{fontSize:'12px',color:'#94a3b8',marginTop:'2px'}}>{monto}</p>

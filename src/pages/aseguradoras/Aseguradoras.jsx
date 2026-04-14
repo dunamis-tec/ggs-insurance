@@ -75,15 +75,19 @@ export default function Aseguradoras() {
 
   return (
     <div>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'24px'}}>
-        <div>
-          <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Aseguradoras</h1>
-          <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>{aseguradoras.length} aseguradoras registradas</p>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Aseguradoras</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {aseguradoras.length} aseguradoras registradas
+            </p>
+          </div>
+          <button onClick={()=>{setShowForm(!showForm);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
+            style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+            <Plus size={16}/> Nueva aseguradora
+          </button>
         </div>
-        <button onClick={()=>{setShowForm(!showForm);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
-          style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-          <Plus size={16}/> Nueva aseguradora
-        </button>
       </div>
 
       {showForm && (
