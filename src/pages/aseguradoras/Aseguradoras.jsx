@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Building2, Plus, ChevronDown, ChevronUp, Trash2, Edit2, Check, X } from 'lucide-react'
+import { Building2, Plus, ChevronDown, ChevronUp, Trash2, Edit2, X, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'' }
+const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'', logo_url:'' }
 
 export default function Aseguradoras() {
   const [aseguradoras, setAseguradoras] = useState([])
@@ -12,15 +12,32 @@ export default function Aseguradoras() {
   const [form, setForm] = useState(emptyForm)
   const [editing, setEditing] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [logoPreview, setLogoPreview] = useState(null)
 
   useEffect(() => { fetchAseguradoras() }, [])
 
   const fetchAseguradoras = async () => {
     setLoading(true)
-    const { data } = await supabase.from('aseguradoras').select(`*, productos(*, coberturas(*))`)
-      .eq('activa', true).order('nombre')
+    const { data } = await supabase.from('aseguradoras').select('*, productos(*, coberturas(*))').eq('activa', true).order('nombre')
     setAseguradoras(data || [])
     setLoading(false)
+  }
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) { toast.error('El logo debe ser menor a 2MB'); return }
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const fileName = `logo_${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('logos').upload(fileName, file, { upsert: true })
+    if (error) { toast.error('Error al subir logo'); setUploading(false); return }
+    const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName)
+    setForm(f => ({ ...f, logo_url: publicUrl }))
+    setLogoPreview(publicUrl)
+    setUploading(false)
+    toast.success('Logo subido')
   }
 
   const handleSubmit = async (e) => {
@@ -36,14 +53,17 @@ export default function Aseguradoras() {
       toast.success('Aseguradora creada')
     }
     setForm(emptyForm)
+    setLogoPreview(null)
     setShowForm(false)
     fetchAseguradoras()
   }
 
   const handleEdit = (a) => {
-    setForm({ nombre:a.nombre, nit:a.nit||'', direccion:a.direccion||'', telefono:a.telefono||'', email:a.email||'', contacto_nombre:a.contacto_nombre||'' })
+    setForm({ nombre:a.nombre, nit:a.nit||'', direccion:a.direccion||'', telefono:a.telefono||'', email:a.email||'', contacto_nombre:a.contacto_nombre||'', logo_url:a.logo_url||'' })
+    setLogoPreview(a.logo_url || null)
     setEditing(a.id)
     setShowForm(true)
+    window.scrollTo(0,0)
   }
 
   const handleDelete = async (id) => {
@@ -60,30 +80,46 @@ export default function Aseguradoras() {
           <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Aseguradoras</h1>
           <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>{aseguradoras.length} aseguradoras registradas</p>
         </div>
-        <button onClick={()=>{setShowForm(!showForm);setEditing(null);setForm(emptyForm)}}
+        <button onClick={()=>{setShowForm(!showForm);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
           style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-          <Plus size={16} /> Nueva aseguradora
+          <Plus size={16}/> Nueva aseguradora
         </button>
       </div>
 
       {showForm && (
         <div style={{background:'white',borderRadius:'12px',padding:'24px',border:'1px solid #e2e8f0',marginBottom:'24px'}}>
-          <h2 style={{fontSize:'16px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px'}}>{editing ? 'Editar aseguradora' : 'Nueva aseguradora'}</h2>
+          <h2 style={{fontSize:'16px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px'}}>{editing?'Editar aseguradora':'Nueva aseguradora'}</h2>
           <form onSubmit={handleSubmit}>
+            <div style={{marginBottom:'20px'}}>
+              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'8px'}}>Logo de la aseguradora</label>
+              <div style={{display:'flex',alignItems:'center',gap:'16px'}}>
+                <div style={{width:'80px',height:'80px',borderRadius:'10px',border:'2px dashed #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc'}}>
+                  {logoPreview ? <img src={logoPreview} alt="logo" style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={28} color="#cbd5e1"/>}
+                </div>
+                <div>
+                  <label style={{display:'inline-flex',alignItems:'center',gap:'8px',padding:'8px 16px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',cursor:'pointer',fontSize:'13px',color:'#374151',fontWeight:500}}>
+                    <Upload size={14}/> {uploading ? 'Subiendo...' : 'Subir logo'}
+                    <input type="file" accept="image/*" onChange={handleLogoUpload} style={{display:'none'}} disabled={uploading}/>
+                  </label>
+                  <p style={{fontSize:'12px',color:'#94a3b8',marginTop:'4px'}}>PNG, JPG, SVG · Máx. 2MB</p>
+                  {logoPreview && <button type="button" onClick={()=>{setLogoPreview(null);setForm(f=>({...f,logo_url:''}))}} style={{fontSize:'12px',color:'#ef4444',background:'none',border:'none',cursor:'pointer',marginTop:'4px'}}>Eliminar logo</button>}
+                </div>
+              </div>
+            </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
               {[['nombre','Nombre *','text',true],['nit','NIT','text',false],['telefono','Teléfono','text',false],['email','Email','email',false],['contacto_nombre','Contacto principal','text',false],['direccion','Dirección','text',false]].map(([key,label,type,req])=>(
                 <div key={key}>
                   <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>
                   <input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} required={req}
-                    style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}} />
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
                 </div>
               ))}
             </div>
             <div style={{display:'flex',gap:'8px'}}>
               <button type="submit" style={{padding:'10px 20px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-                {editing ? 'Actualizar' : 'Crear aseguradora'}
+                {editing?'Actualizar':'Crear aseguradora'}
               </button>
-              <button type="button" onClick={()=>{setShowForm(false);setEditing(null);setForm(emptyForm)}}
+              <button type="button" onClick={()=>{setShowForm(false);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
                 style={{padding:'10px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
                 Cancelar
               </button>
@@ -94,24 +130,24 @@ export default function Aseguradoras() {
 
       {loading ? <p style={{color:'#64748b'}}>Cargando...</p> : (
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-          {aseguradoras.length === 0 && <div style={{background:'white',borderRadius:'12px',padding:'48px',textAlign:'center',border:'1px solid #e2e8f0'}}><Building2 size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/><p style={{color:'#94a3b8'}}>No hay aseguradoras registradas</p></div>}
-          {aseguradoras.map(a => (
+          {aseguradoras.length===0 && <div style={{background:'white',borderRadius:'12px',padding:'48px',textAlign:'center',border:'1px solid #e2e8f0'}}><Building2 size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/><p style={{color:'#94a3b8'}}>No hay aseguradoras registradas</p></div>}
+          {aseguradoras.map(a=>(
             <div key={a.id} style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
               <div style={{display:'flex',alignItems:'center',padding:'16px 20px',cursor:'pointer'}} onClick={()=>setExpanded(expanded===a.id?null:a.id)}>
-                <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px'}}>
-                  <Building2 size={18} color="#1A6BBA" />
+                <div style={{width:'44px',height:'44px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc'}}>
+                  {a.logo_url ? <img src={a.logo_url} alt={a.nombre} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={18} color="#1A6BBA"/>}
                 </div>
                 <div style={{flex:1}}>
                   <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'15px'}}>{a.nombre}</p>
-                  <p style={{fontSize:'13px',color:'#64748b'}}>{a.productos?.length || 0} productos · {a.contacto_nombre || 'Sin contacto'}</p>
+                  <p style={{fontSize:'13px',color:'#64748b'}}>{a.productos?.length||0} productos · {a.contacto_nombre||'Sin contacto'}</p>
                 </div>
                 <div style={{display:'flex',gap:'8px',marginRight:'12px'}}>
                   <button onClick={e=>{e.stopPropagation();handleEdit(a)}} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
                   <button onClick={e=>{e.stopPropagation();handleDelete(a.id)}} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
                 </div>
-                {expanded===a.id ? <ChevronUp size={18} color="#64748b"/> : <ChevronDown size={18} color="#64748b"/>}
+                {expanded===a.id?<ChevronUp size={18} color="#64748b"/>:<ChevronDown size={18} color="#64748b"/>}
               </div>
-              {expanded===a.id && <ProductosSection aseguradora={a} onRefresh={fetchAseguradoras} />}
+              {expanded===a.id && <ProductosSection aseguradora={a} onRefresh={fetchAseguradoras}/>}
             </div>
           ))}
         </div>
@@ -127,18 +163,14 @@ function ProductosSection({ aseguradora, onRefresh }) {
 
   const addProducto = async (e) => {
     e.preventDefault()
-    const { error } = await supabase.from('productos').insert({ aseguradora_id: aseguradora.id, nombre })
-    if (error) { toast.error('Error'); return }
+    await supabase.from('productos').insert({ aseguradora_id: aseguradora.id, nombre })
     toast.success('Producto agregado')
-    setNombre('')
-    setShowForm(false)
-    onRefresh()
+    setNombre(''); setShowForm(false); onRefresh()
   }
 
   const deleteProducto = async (id) => {
     await supabase.from('productos').update({ activo: false }).eq('id', id)
-    toast.success('Producto eliminado')
-    onRefresh()
+    toast.success('Producto eliminado'); onRefresh()
   }
 
   return (
@@ -150,12 +182,12 @@ function ProductosSection({ aseguradora, onRefresh }) {
       {showForm && (
         <form onSubmit={addProducto} style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
           <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre del producto" required
-            style={{flex:1,padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px'}} />
+            style={{flex:1,padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px'}}/>
           <button type="submit" style={{padding:'8px 12px',background:'#1A6BBA',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',fontSize:'13px'}}>Agregar</button>
           <button type="button" onClick={()=>setShowForm(false)} style={{padding:'8px',background:'white',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer'}}><X size={14}/></button>
         </form>
       )}
-      {aseguradora.productos?.filter(p=>p.activo).map(prod => (
+      {aseguradora.productos?.filter(p=>p.activo).map(prod=>(
         <div key={prod.id} style={{marginBottom:'8px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',padding:'10px 14px',cursor:'pointer'}} onClick={()=>setExpandedProd(expandedProd===prod.id?null:prod.id)}>
             <span style={{flex:1,fontSize:'14px',color:'#1e293b',fontWeight:500}}>{prod.nombre}</span>
@@ -163,7 +195,7 @@ function ProductosSection({ aseguradora, onRefresh }) {
             <button onClick={e=>{e.stopPropagation();deleteProducto(prod.id)}} style={{padding:'4px',background:'none',border:'none',cursor:'pointer',marginRight:'4px'}}><Trash2 size={12} color="#ef4444"/></button>
             {expandedProd===prod.id?<ChevronUp size={14} color="#64748b"/>:<ChevronDown size={14} color="#64748b"/>}
           </div>
-          {expandedProd===prod.id && <CoberturasSection producto={prod} onRefresh={onRefresh} />}
+          {expandedProd===prod.id && <CoberturasSection producto={prod} onRefresh={onRefresh}/>}
         </div>
       ))}
     </div>
@@ -178,14 +210,11 @@ function CoberturasSection({ producto, onRefresh }) {
     e.preventDefault()
     await supabase.from('coberturas').insert({ producto_id: producto.id, nombre })
     toast.success('Cobertura agregada')
-    setNombre('')
-    setShowForm(false)
-    onRefresh()
+    setNombre(''); setShowForm(false); onRefresh()
   }
 
   const deleteCobertura = async (id) => {
-    await supabase.from('coberturas').update({ activa: false }).eq('id', id)
-    onRefresh()
+    await supabase.from('coberturas').update({ activa: false }).eq('id', id); onRefresh()
   }
 
   return (
@@ -197,7 +226,7 @@ function CoberturasSection({ producto, onRefresh }) {
       {showForm && (
         <form onSubmit={addCobertura} style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
           <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de cobertura" required
-            style={{flex:1,padding:'6px 10px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}} />
+            style={{flex:1,padding:'6px 10px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
           <button type="submit" style={{padding:'6px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'12px'}}>OK</button>
         </form>
       )}
@@ -208,7 +237,7 @@ function CoberturasSection({ producto, onRefresh }) {
             <button onClick={()=>deleteCobertura(c.id)} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex'}}><X size={10} color="#1d4ed8"/></button>
           </span>
         ))}
-        {(!producto.coberturas || producto.coberturas.filter(c=>c.activa).length===0) && <span style={{fontSize:'12px',color:'#94a3b8'}}>Sin coberturas</span>}
+        {(!producto.coberturas||producto.coberturas.filter(c=>c.activa).length===0) && <span style={{fontSize:'12px',color:'#94a3b8'}}>Sin coberturas</span>}
       </div>
     </div>
   )
