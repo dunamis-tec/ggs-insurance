@@ -542,7 +542,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                 <thead>
                   <tr style={{ background:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
-                    {['# Req.','Emision','Vencimiento','Fecha pago','Monto','Estado',''].map(h => (
+                    {['# Req.','Doc. Emision','Vencimiento','Fecha pago','Monto','Estado',''].map(h => (
                       <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
