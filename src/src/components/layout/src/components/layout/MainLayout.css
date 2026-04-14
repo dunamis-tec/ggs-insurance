@@ -1,0 +1,94 @@
+.layout {
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  .sidebar {
+    width: 240px;
+    background: var(--primary);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    z-index: 100;
+  }
+  
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .logo-badge {
+    background: var(--gold);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  
+  .logo-text {
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: rgba(255,255,255,0.65);
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  
+  .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+  .nav-item.active { background: var(--primary-light); color: white; }
+  
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .user-email {
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+  }
+  
+  .logout-btn {
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  
+  .logout-btn:hover { color: white; }
+  
+  .main-content {
+    margin-left: 240px;
+    flex: 1;
+    padding: 24px;
+    min-height: 100vh;
+  }
