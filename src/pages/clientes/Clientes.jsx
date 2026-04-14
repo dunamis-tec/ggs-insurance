@@ -288,7 +288,7 @@ export default function Clientes() {
             <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <Users size={22} color='white'/>
             </div>
-            <div>
+            <div style={{ textAlign:'left' }}>
               <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
               <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
             </div>

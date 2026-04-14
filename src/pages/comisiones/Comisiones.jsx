@@ -83,7 +83,7 @@ export default function Comisiones() {
             <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <DollarSign size={22} color='white'/>
             </div>
-            <div>
+            <div style={{ textAlign:'left' }}>
               <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Comisiones</h1>
               <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
                 {reqs.length} pendientes de cobro · {informes.length} informes enviados
