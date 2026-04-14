@@ -39,7 +39,6 @@ export default function Clientes() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    // Validar regla: no puede volver a prospecto
     if (editing) {
       const original = clientes.find(c => c.id === editing)
       if (original) {
@@ -55,20 +54,12 @@ export default function Clientes() {
     }
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
-      nombre: form.nombre,
-      apellido: form.apellido || null,
-      tipo: form.tipo,
-      email: form.email || null,
-      telefono: form.telefono || null,
-      nit: form.nit || null,
-      direccion: form.direccion || null,
-      conglomerado_id: form.conglomerado_id || null,
-      razon_social: form.razon_social || null,
-      nombre_empresa: form.nombre_empresa || null,
-      contacto_nombre: form.contacto_nombre || null,
-      contacto_apellido: form.contacto_apellido || null,
-      contacto_telefono: form.contacto_telefono || null,
-      contacto_email: form.contacto_email || null,
+      nombre: form.nombre, apellido: form.apellido || null, tipo: form.tipo,
+      email: form.email || null, telefono: form.telefono || null, nit: form.nit || null,
+      direccion: form.direccion || null, conglomerado_id: form.conglomerado_id || null,
+      razon_social: form.razon_social || null, nombre_empresa: form.nombre_empresa || null,
+      contacto_nombre: form.contacto_nombre || null, contacto_apellido: form.contacto_apellido || null,
+      contacto_telefono: form.contacto_telefono || null, contacto_email: form.contacto_email || null,
       contacto_cargo: form.contacto_cargo || null,
     }
     if (editing) {
@@ -104,7 +95,7 @@ export default function Clientes() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar cliente?')) return
+    if (!confirm('Eliminar cliente?')) return
     await supabase.from('clientes').update({ activo: false }).eq('id', id)
     toast.success('Cliente eliminado')
     fetchAll()
@@ -135,22 +126,17 @@ export default function Clientes() {
         style={{ display:'flex', alignItems:'center', gap:'6px', color:'#64748b', background:'none', border:'none', cursor:'pointer', fontSize:'14px', marginBottom:'20px', padding:'0' }}>
         <ArrowLeft size={16} /> Volver a clientes
       </button>
-
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', maxWidth:'800px' }}>
         <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)' }}>
           <h2 style={{ fontSize:'18px', fontWeight:700, color:'white', margin:0 }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
-          <p style={{ fontSize:'13px', color:'rgba(255,255,255,0.7)', marginTop:'4px', marginBottom:0 }}>Completá la información del cliente</p>
+          <p style={{ fontSize:'13px', color:'rgba(255,255,255,0.7)', marginTop:'4px', marginBottom:0 }}>Completa la informacion del cliente</p>
         </div>
-
         <form onSubmit={handleSubmit} style={{ padding:'24px' }}>
           {(!editing || clientes.find(c => c.id === editing)?.tipo === 'prospecto') && (
-          <div style={{ marginBottom:'20px' }}>
-            <label style={labelStyle}>Tipo de cliente *</label>
-            <div style={{ display:'flex', gap:'8px' }}>
-              {tiposCliente.map(t => {
-                const original = editing ? clientes.find(c => c.id === editing) : null
-                const disabled = original?.tipo === 'prospecto' && t === 'prospecto'
-                return (
+            <div style={{ marginBottom:'20px' }}>
+              <label style={labelStyle}>Tipo de cliente *</label>
+              <div style={{ display:'flex', gap:'8px' }}>
+                {tiposCliente.map(t => (
                   <button key={t} type='button' onClick={() => setForm({ ...form, tipo: t })}
                     style={{ flex:1, padding:'10px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
                       background: form.tipo === t ? '#0C1E3D' : 'white',
@@ -158,29 +144,28 @@ export default function Clientes() {
                       border: `1px solid ${form.tipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </button>
-                )
-              })}
+                ))}
+              </div>
             </div>
-          </div>
           )}
           {form.tipo === 'empresa' ? (
             <>
-              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>📋 Datos de la empresa</p>
+              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Datos de la empresa</p>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
                 <div style={{ gridColumn:'1/-1' }}>
-                  <label style={labelStyle}>Razón social *</label>
+                  <label style={labelStyle}>Razon social *</label>
                   <input value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value })} required style={inp} placeholder='Ej: Empresa S.A.' />
                 </div>
                 <div>
                   <label style={labelStyle}>Nombre comercial</label>
-                  <input value={form.nombre_empresa} onChange={e => setForm({ ...form, nombre_empresa: e.target.value })} style={inp} placeholder='Nombre que usa comercialmente' />
+                  <input value={form.nombre_empresa} onChange={e => setForm({ ...form, nombre_empresa: e.target.value })} style={inp} />
                 </div>
                 <div>
                   <label style={labelStyle}>NIT *</label>
                   <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} required style={inp} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Teléfono</label>
+                  <label style={labelStyle}>Telefono</label>
                   <input value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} style={inp} />
                 </div>
                 <div>
@@ -188,11 +173,11 @@ export default function Clientes() {
                   <input type='email' value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inp} />
                 </div>
                 <div style={{ gridColumn:'1/-1' }}>
-                  <label style={labelStyle}>Dirección</label>
+                  <label style={labelStyle}>Direccion</label>
                   <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
                 </div>
               </div>
-              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>👤 Persona de contacto</p>
+              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
@@ -204,10 +189,10 @@ export default function Clientes() {
                 </div>
                 <div>
                   <label style={labelStyle}>Cargo</label>
-                  <input value={form.contacto_cargo} onChange={e => setForm({ ...form, contacto_cargo: e.target.value })} style={inp} placeholder='Ej: Gerente, Administrador' />
+                  <input value={form.contacto_cargo} onChange={e => setForm({ ...form, contacto_cargo: e.target.value })} style={inp} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Teléfono directo</label>
+                  <label style={labelStyle}>Telefono directo</label>
                   <input value={form.contacto_telefono} onChange={e => setForm({ ...form, contacto_telefono: e.target.value })} style={inp} />
                 </div>
                 <div>
@@ -232,7 +217,7 @@ export default function Clientes() {
                   <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} style={inp} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Teléfono</label>
+                  <label style={labelStyle}>Telefono</label>
                   <input value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} style={inp} />
                 </div>
                 <div>
@@ -240,13 +225,12 @@ export default function Clientes() {
                   <input type='email' value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inp} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Dirección</label>
+                  <label style={labelStyle}>Direccion</label>
                   <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
                 </div>
               </div>
             </>
           )}
-
           <div style={{ marginBottom:'20px' }}>
             <label style={labelStyle}>Conglomerado <span style={{ color:'#94a3b8', fontWeight:400 }}>(opcional)</span></label>
             <div style={{ position:'relative' }}>
@@ -274,7 +258,6 @@ export default function Clientes() {
               )}
             </div>
           </div>
-
           <div style={{ display:'flex', gap:'8px', paddingTop:'16px', borderTop:'1px solid #f1f5f9' }}>
             <button type='submit' style={{ padding:'11px 24px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
               {editing ? 'Actualizar cliente' : 'Crear cliente'}
@@ -292,22 +275,21 @@ export default function Clientes() {
   return (
     <div>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
-  <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-    <div style={{ textAlign:'left' }}>
-      <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
-      <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
-    </div>
-    <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
-      style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
-      <Plus size={16} /> Nuevo cliente
-    </button>
-  </div>
-</div>
-
+        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ textAlign:'left' }}>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
+            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
+          </div>
+          <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
+            style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+            <Plus size={16} /> Nuevo cliente
+          </button>
+        </div>
+      </div>
       <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px', display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center' }}>
         <div style={{ flex:1, minWidth:'200px', position:'relative' }}>
           <Search size={16} color='#94a3b8' style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder='Buscar por nombre, NIT, teléfono, conglomerado...'
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder='Buscar por nombre, NIT, telefono, conglomerado...'
             style={{ width:'100%', padding:'9px 12px 9px 36px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
         </div>
         <div style={{ display:'flex', gap:'6px' }}>
@@ -322,7 +304,6 @@ export default function Clientes() {
           ))}
         </div>
       </div>
-
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
         {loading ? <p style={{ padding:'24px', color:'#64748b' }}>Cargando...</p> :
           filtered.length === 0 ? (
@@ -388,7 +369,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
     const polizaIds = (pData || []).map(p => p.id)
     if (polizaIds.length > 0) {
       const { data: reqData } = await supabase.from('requerimientos_pago')
-        .select('*, polizas(numero_poliza)')
+        .select('*, polizas(numero_poliza), emisiones(numero_emision)')
         .in('poliza_id', polizaIds)
         .order('fecha_vencimiento', { ascending: true })
       setReqs(reqData || [])
@@ -422,7 +403,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
   }
 
   const handlePFDelete = async (id) => {
-    if (!confirm('¿Eliminar persona facturable?')) return
+    if (!confirm('Eliminar persona facturable?')) return
     await supabase.from('personas_facturables').update({ activa: false }).eq('id', id)
     toast.success('Eliminada')
     fetchData()
@@ -451,8 +432,6 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
       <button onClick={onBack} style={{ display:'flex', alignItems:'center', gap:'6px', color:'#64748b', background:'none', border:'none', cursor:'pointer', fontSize:'14px', marginBottom:'20px', padding:'0' }}>
         <ArrowLeft size={16} /> Volver a clientes
       </button>
-
-      {/* Header */}
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'16px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
@@ -473,12 +452,11 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
             <Edit2 size={13} /> Editar
           </button>
         </div>
-
         <div style={{ padding:'16px 24px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px' }}>
           {cliente.tipo === 'empresa' ? (
             <>
               {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='NIT' value={cliente.nit} />}
-              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Teléfono' value={cliente.telefono} />}
+              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Telefono' value={cliente.telefono} />}
               {cliente.email && <InfoCard icon={<Mail size={14} color='#1A6BBA'/>} label='Email' value={cliente.email} />}
               {cliente.contacto_nombre && <InfoCard icon={<User size={14} color='#1A6BBA'/>} label='Contacto' value={`${cliente.contacto_nombre} ${cliente.contacto_apellido||''}`} sub={cliente.contacto_cargo} />}
               {cliente.contacto_telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Tel. contacto' value={cliente.contacto_telefono} />}
@@ -486,16 +464,14 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
           ) : (
             <>
               {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='NIT' value={cliente.nit} />}
-              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Teléfono' value={cliente.telefono} />}
+              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Telefono' value={cliente.telefono} />}
               {cliente.email && <InfoCard icon={<Mail size={14} color='#1A6BBA'/>} label='Email' value={cliente.email} />}
             </>
           )}
         </div>
       </div>
-
-      {/* Tabs */}
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Pólizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#0C1E3D' : 'white',
@@ -506,24 +482,23 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
         ))}
       </div>
 
-      {/* Tab: Pólizas */}
       {activeTab === 'polizas' && (
         <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
           <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
-            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Pólizas activas</p>
+            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Polizas activas</p>
           </div>
           {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
-            polizas.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><FileText size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} /><p style={{ color:'#94a3b8', margin:0 }}>Sin pólizas activas</p></div> :
+            polizas.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><FileText size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} /><p style={{ color:'#94a3b8', margin:0 }}>Sin polizas activas</p></div> :
               polizas.map((p, i) => (
                 <div key={p.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<polizas.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
-                onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
+                  onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
                   onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                   onMouseLeave={e => e.currentTarget.style.background='white'}>
                   <div style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', overflow:'hidden', background:'#f8fafc', flexShrink:0 }}>
                     {p.aseguradoras?.logo_url ? <img src={p.aseguradoras.logo_url} style={{ width:'100%', height:'100%', objectFit:'contain' }} /> : <FileText size={14} color='#1A6BBA' />}
                   </div>
                   <div style={{ flex:1 }}>
-                    <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0 }}>{p.numero_poliza || 'Sin número'}</p>
+                    <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0 }}>{p.numero_poliza || 'Sin numero'}</p>
                     <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{p.aseguradoras?.nombre} · {p.productos?.nombre}</p>
                   </div>
                   <div style={{ textAlign:'right', marginRight:'12px' }}>
@@ -538,11 +513,10 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
         </div>
       )}
 
-      {/* Tab: Estado de cuenta */}
       {activeTab === 'estado_cuenta' && (
         <div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'16px' }}>
-            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length+' reqs','#1A6BBA']].map(([l,v,c])=>(
+            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#1A6BBA']].map(([l,v,c])=>(
               <div key={l} style={{ background:'white', borderRadius:'10px', padding:'14px', border:'1px solid #e2e8f0', borderLeft:`4px solid ${c}` }}>
                 <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{l}</p>
                 <p style={{ fontSize:'16px', fontWeight:700, color:c, margin:'4px 0 0' }}>{v}</p>
@@ -564,31 +538,54 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
                 ))}
               </div>
             </div>
-            {reqsFiltrados.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><p style={{ color:'#94a3b8', margin:0 }}>Sin requerimientos</p></div> :
-              reqsFiltrados.map((r, i) => (
-                <div key={r.id} style={{ display:'flex', alignItems:'center', padding:'12px 20px', borderBottom: i<reqsFiltrados.length-1 ? '1px solid #f1f5f9' : 'none' }}>
-                  <div style={{ flex:1 }}>
-                    <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0 }}>{r.codigo} <span style={{ fontWeight:400, color:'#64748b' }}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
-                    <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{r.polizas?.numero_poliza || 'Sin póliza'}</p>
-                  </div>
-                  <p style={{ fontSize:'14px', fontWeight:700, color:'#1e293b', marginRight:'12px' }}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
-                  <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'8px',
-                    background: r.estado==='pagado'?'#dcfce7':r.estado==='vencido'?'#fef2f2':'#fef9c3',
-                    color: r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207', fontWeight:500 }}>
-                    {r.estado}
-                  </span>
-                  {r.estado !== 'pagado' && (
-                    <button onClick={() => marcarPagado(r.id)} style={{ padding:'5px 10px', background:'#dcfce7', color:'#15803d', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>
-                      Pagar
-                    </button>
-                  )}
-                </div>
-              ))}
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
+                <thead>
+                  <tr style={{ background:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
+                    {['# Req.','Emision','Vencimiento','Fecha pago','Monto','Estado',''].map(h => (
+                      <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {reqsFiltrados.length === 0 ? (
+                    <tr><td colSpan={7} style={{ padding:'32px', textAlign:'center', color:'#94a3b8' }}>Sin requerimientos</td></tr>
+                  ) : reqsFiltrados.map((r, i) => (
+                    <tr key={r.id} style={{ borderBottom:'1px solid #f1f5f9', background: i%2===0 ? 'white' : '#fafafa' }}>
+                      <td style={{ padding:'12px 16px', fontWeight:600, color:'#0C1E3D', whiteSpace:'nowrap' }}>
+                        {r.codigo} <span style={{ fontWeight:400, color:'#94a3b8' }}>· {r.numero_cuota}/{r.total_cuotas}</span>
+                      </td>
+                      <td style={{ padding:'12px 16px', color:'#64748b' }}>{r.emisiones?.numero_emision || '-'}</td>
+                      <td style={{ padding:'12px 16px', color: new Date(r.fecha_vencimiento)<new Date() && r.estado!=='pagado' ? '#ef4444' : '#64748b', whiteSpace:'nowrap' }}>
+                        {r.fecha_vencimiento ? new Date(r.fecha_vencimiento).toLocaleDateString('es-GT') : '-'}
+                      </td>
+                      <td style={{ padding:'12px 16px', color:'#64748b', whiteSpace:'nowrap' }}>
+                        {r.fecha_pago ? new Date(r.fecha_pago).toLocaleDateString('es-GT') : '-'}
+                      </td>
+                      <td style={{ padding:'12px 16px', fontWeight:700, color:'#1e293b', whiteSpace:'nowrap' }}>Q {parseFloat(r.monto||0).toLocaleString()}</td>
+                      <td style={{ padding:'12px 16px' }}>
+                        <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px',
+                          background: r.estado==='pagado'?'#dcfce7':r.estado==='vencido'?'#fef2f2':'#fef9c3',
+                          color: r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207', fontWeight:500 }}>
+                          {r.estado}
+                        </span>
+                      </td>
+                      <td style={{ padding:'12px 16px' }}>
+                        {r.estado !== 'pagado' && (
+                          <button onClick={() => marcarPagado(r.id)} style={{ padding:'5px 10px', background:'#dcfce7', color:'#15803d', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                            Pagar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Tab: Personas facturables */}
       {activeTab === 'personas' && (
         <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #f1f5f9' }}>
@@ -601,12 +598,11 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
               <UserPlus size={14} /> Nueva persona
             </button>
           </div>
-
           {showPFForm && (
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
               <form onSubmit={handlePFSubmit}>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px' }}>
-                  {[['nombre','Nombre *',true],['apellido','Apellido',false],['nit','NIT *',true],['email','Email',false],['telefono','Teléfono',false],['direccion','Dirección',false]].map(([key,label,req])=>(
+                  {[['nombre','Nombre *',true],['apellido','Apellido',false],['nit','NIT *',true],['email','Email',false],['telefono','Telefono',false],['direccion','Direccion',false]].map(([key,label,req])=>(
                     <div key={key}>
                       <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>{label}</label>
                       <input value={pfForm[key]} onChange={e => setPfForm({ ...pfForm, [key]: e.target.value })} required={req} style={inp} />
@@ -620,7 +616,6 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
               </form>
             </div>
           )}
-
           {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
             personas.length === 0 ? (
               <div style={{ padding:'32px', textAlign:'center' }}>
