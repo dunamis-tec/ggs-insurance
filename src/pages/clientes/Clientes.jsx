@@ -516,7 +516,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
             polizas.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><FileText size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} /><p style={{ color:'#94a3b8', margin:0 }}>Sin pólizas activas</p></div> :
               polizas.map((p, i) => (
                 <div key={p.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<polizas.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
-                  onClick={() => navigate('/polizas')}
+                onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
                   onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                   onMouseLeave={e => e.currentTarget.style.background='white'}>
                   <div style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', overflow:'hidden', background:'#f8fafc', flexShrink:0 }}>

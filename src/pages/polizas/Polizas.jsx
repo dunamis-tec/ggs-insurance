@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Car, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const fraccionamientoOpciones = [2,6,8,10,12]
 const emisionTipos = { emision:'Emisión', inclusion:'Inclusión', exclusion:'Exclusión', renovacion:'Renovación' }
@@ -62,6 +63,13 @@ export default function Polizas() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [view, setView] = useState('list')
+  const location = useLocation()
+useEffect(() => {
+  if (location.state?.openPolizaId && polizas.length > 0) {
+    const p = polizas.find(p => p.id === location.state.openPolizaId)
+    if (p) { setSelected(p); setView('detalle') }
+  }
+}, [location.state, polizas])
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(emptyPoliza)
   const [editing, setEditing] = useState(null)
