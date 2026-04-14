@@ -69,9 +69,6 @@ export default function Polizas() {
   const [productosFiltered, setProductosFiltered] = useState([])
   const [personasFacturables, setPersonasFacturables] = useState([])
   const location = useLocation()
-  const navigate = useNavigate()
-  const fromClienteId = location.state?.fromClienteId || null
-  const prefilledClienteId = location.state?.prefilledClienteId || null
 
   useEffect(() => { fetchAll() }, [])
 
@@ -81,15 +78,6 @@ export default function Polizas() {
       if (p) { setSelected(p); setView('detalle') }
     }
   }, [location.state, polizas])
-
-  useEffect(() => {
-    if (location.state?.newPoliza && prefilledClienteId && clientes.length > 0) {
-      handleClienteChange(prefilledClienteId)
-      setForm(f => ({ ...f, cliente_id: prefilledClienteId }))
-      setEditing(null)
-      setView('form')
-    }
-  }, [location.state, clientes])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -113,8 +101,10 @@ export default function Polizas() {
   const handleClienteChange = async (id) => {
     setForm(f => ({ ...f, cliente_id: id, persona_facturable_id: '' }))
     if (id) {
+      const cliente = clientes.find(c => c.id === id)
       const { data } = await supabase.from('personas_facturables').select('*').eq('cliente_id', id).eq('activa', true)
-      setPersonasFacturables(data || [])
+      const clienteOption = cliente ? [{ id: id, nombre: cliente.nombre, apellido: cliente.apellido || '', nit: cliente.nit || '', _isCliente: true }] : []
+      setPersonasFacturables([...clienteOption, ...(data || [])])
     } else setPersonasFacturables([])
   }
 
@@ -142,6 +132,7 @@ export default function Polizas() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!form.persona_facturable_id) { toast.error('Selecciona una persona facturable'); return }
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       numero_poliza: form.numero_poliza || null,
@@ -176,8 +167,10 @@ export default function Polizas() {
     const aseg = aseguradoras.find(a => a.id === p.aseguradora_id)
     setProductosFiltered(aseg?.productos?.filter(prod=>prod.activo) || [])
     if (p.cliente_id) {
+      const cliente = clientes.find(c => c.id === p.cliente_id)
       const { data } = await supabase.from('personas_facturables').select('*').eq('cliente_id', p.cliente_id).eq('activa', true)
-      setPersonasFacturables(data || [])
+      const clienteOption = cliente ? [{ id: p.cliente_id, nombre: cliente.nombre, apellido: cliente.apellido || '', nit: cliente.nit || '', _isCliente: true }] : []
+      setPersonasFacturables([...clienteOption, ...(data || [])])
     }
     setForm({ numero_poliza:p.numero_poliza||'', cliente_id:p.cliente_id, aseguradora_id:p.aseguradora_id, producto_id:p.producto_id, persona_facturable_id:p.persona_facturable_id||'', prima_total:p.prima_total, tipo_pago:p.tipo_pago||'contado', fraccionamiento:p.fraccionamiento||'', fecha_inicio:p.fecha_inicio, fecha_vencimiento:p.fecha_vencimiento, vigencia:'manual' })
     setEditing(p.id)
@@ -220,22 +213,13 @@ export default function Polizas() {
   const inputStyle = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   if (view === 'detalle' && selected) return (
-    <PolizaDetalle poliza={selected}
-      onBack={() => {
-        if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } })
-        else { setView('list'); fetchAll() }
-      }}
-      fromCliente={!!fromClienteId}
-      onEdit={handleEdit} />
+    <PolizaDetalle poliza={selected} onBack={()=>{setView('list');fetchAll()}} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
     <div>
-      <button onClick={()=>{
-        if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } })
-        else { setView('list'); setEditing(null); setForm(emptyPoliza) }
-      }} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> {fromClienteId ? 'Volver al cliente' : 'Volver a polizas'}
+      <button onClick={()=>{setView('list');setEditing(null);setForm(emptyPoliza)}} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
+        <ArrowLeft size={16}/> Volver a polizas
       </button>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',maxWidth:'800px'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
@@ -251,24 +235,15 @@ export default function Polizas() {
               </div>
               <div>
                 <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Cliente *</label>
-                {prefilledClienteId ? (
-                  <div style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'#f8fafc',color:'#64748b',boxSizing:'border-box',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <span>{clientes.find(c=>c.id===prefilledClienteId) ? `${clientes.find(c=>c.id===prefilledClienteId).nombre} ${clientes.find(c=>c.id===prefilledClienteId).apellido||''}` : 'Cliente'}</span>
-                    <span style={{fontSize:'11px',padding:'2px 8px',background:'#dbeafe',color:'#1d4ed8',borderRadius:'20px',fontWeight:500}}>Pre-llenado</span>
-                  </div>
-                ) : (
-                  <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes} placeholder="Buscar cliente..."
-                    renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
-                )}
+                <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes} placeholder="Buscar cliente..."
+                  renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
               </div>
-              {personasFacturables.length > 0 && (
-                <div>
-                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Persona facturable</label>
-                  <SearchSelect value={form.persona_facturable_id} onChange={val=>setForm({...form,persona_facturable_id:val})}
-                    options={personasFacturables} placeholder="Sin persona facturable"
-                    renderOption={p=>`${p.nombre} ${p.apellido} - ${p.nit}`} labelKey="nombre"/>
-                </div>
-              )}
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Persona facturable *</label>
+                <SearchSelect value={form.persona_facturable_id} onChange={val=>setForm({...form,persona_facturable_id:val})}
+                  options={personasFacturables} placeholder={form.cliente_id ? "Selecciona persona facturable..." : "Primero selecciona un cliente"}
+                  renderOption={p=>`${p.nombre} ${p.apellido}${p.nit ? ' - ' + p.nit : ''}`} labelKey="nombre"/>
+              </div>
               <div>
                 <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Aseguradora *</label>
                 <SearchSelect value={form.aseguradora_id} onChange={handleAseguradoraChange} options={aseguradoras} placeholder="Buscar aseguradora..."
@@ -325,7 +300,7 @@ export default function Polizas() {
               <div>
                 <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Vigencia *</label>
                 <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
-                  {[['1anio','1 anio'],['manual','Manual']].map(([v,l])=>(
+                  {[['1anio','1 Año'],['manual','Manual']].map(([v,l])=>(
                     <button key={v} type="button" onClick={()=>handleVigenciaChange(v)}
                       style={{flex:1,padding:'9px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
                         background:form.vigencia===v?'#0C1E3D':'white',
@@ -364,16 +339,11 @@ export default function Polizas() {
       {/* Encabezado con gradiente */}
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <FileText size={22} color='white'/>
-            </div>
-            <div style={{textAlign:'left'}}>
-              <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Polizas</h1>
-              <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
-                {counts.todas} total · {counts.activa} activas · {counts.por_vencer} por vencer · {counts.vencida} vencidas
-              </p>
-            </div>
+          <div style={{textAlign:'left'}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Polizas</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {counts.todas} total · {counts.activa} activas · {counts.por_vencer} por vencer · {counts.vencida} vencidas
+            </p>
           </div>
           <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([])}}
             style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
@@ -456,7 +426,7 @@ export default function Polizas() {
   )
 }
 
-function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
+function PolizaDetalle({ poliza, onBack, onEdit }) {
   const [emisiones, setEmisiones] = useState([])
   const [reqs, setReqs] = useState([])
   const [vehiculosDisponibles, setVehiculosDisponibles] = useState([])
@@ -583,7 +553,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
   return (
     <div>
       <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> {fromCliente ? 'Volver al cliente' : 'Volver a pólizas'}
+        <ArrowLeft size={16}/> Volver a polizas
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
