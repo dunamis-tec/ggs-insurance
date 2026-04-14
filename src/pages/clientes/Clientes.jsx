@@ -542,7 +542,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
       {activeTab === 'estado_cuenta' && (
         <div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'16px' }}>
-            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length+' reqs','#1A6BBA']].map(([l,v,c])=>(
+            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#1A6BBA']].map(([l,v,c])=>(
               <div key={l} style={{ background:'white', borderRadius:'10px', padding:'14px', border:'1px solid #e2e8f0', borderLeft:`4px solid ${c}` }}>
                 <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{l}</p>
                 <p style={{ fontSize:'16px', fontWeight:700, color:c, margin:'4px 0 0' }}>{v}</p>
