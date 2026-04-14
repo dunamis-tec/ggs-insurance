@@ -143,26 +143,26 @@ export default function Clientes() {
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding:'24px' }}>
+          {(!editing || clientes.find(c => c.id === editing)?.tipo === 'prospecto') && (
           <div style={{ marginBottom:'20px' }}>
             <label style={labelStyle}>Tipo de cliente *</label>
             <div style={{ display:'flex', gap:'8px' }}>
               {tiposCliente.map(t => {
                 const original = editing ? clientes.find(c => c.id === editing) : null
-                const disabled = original?.tipo !== 'prospecto' && t === 'prospecto'
+                const disabled = original?.tipo === 'prospecto' && t === 'prospecto'
                 return (
-                  <button key={t} type='button' onClick={() => !disabled && setForm({ ...form, tipo: t })} disabled={disabled}
-                    style={{ flex:1, padding:'10px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor: disabled ? 'not-allowed' : 'pointer',
+                  <button key={t} type='button' onClick={() => setForm({ ...form, tipo: t })}
+                    style={{ flex:1, padding:'10px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
                       background: form.tipo === t ? '#0C1E3D' : 'white',
-                      color: form.tipo === t ? 'white' : disabled ? '#cbd5e1' : '#64748b',
-                      border: `1px solid ${form.tipo === t ? '#0C1E3D' : '#e2e8f0'}`,
-                      opacity: disabled ? 0.5 : 1 }}>
+                      color: form.tipo === t ? 'white' : '#64748b',
+                      border: `1px solid ${form.tipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </button>
                 )
               })}
             </div>
           </div>
-
+          )}
           {form.tipo === 'empresa' ? (
             <>
               <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>📋 Datos de la empresa</p>
