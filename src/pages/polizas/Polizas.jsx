@@ -1,18 +1,58 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, CreditCard, CheckCircle, Clock, AlertCircle, Car } from 'lucide-react'
+import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Car, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const fraccionamientos = ['anual','semestral','trimestral','mensual']
+const fraccionamientoOpciones = [2,6,8,10,12]
 const emisionTipos = { emision:'Emisión', inclusion:'Inclusión', exclusion:'Exclusión', renovacion:'Renovación' }
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const estadoIcons = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
-const reqEstadoColors = { pendiente:'#f59e0b', pagado:'#22c55e', vencido:'#ef4444' }
-
-const emptyPoliza = { numero_poliza:'', cliente_id:'', aseguradora_id:'', producto_id:'', persona_facturable_id:'', prima_total:'', fraccionamiento:'anual', fecha_inicio:'', fecha_vencimiento:'' }
+const emptyPoliza = { cliente_id:'', aseguradora_id:'', producto_id:'', persona_facturable_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'' }
 const emptyVehiculo = { marca:'', modelo:'', anio:'', placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
-const emptyEmision = { tipo:'emision', prima_emision:'', fraccionamiento:'anual', fecha_inicio:'', fecha_fin:'', notas:'' }
+const emptyEmision = { tipo:'emision', prima_emision:'', fraccionamiento:'', fecha_inicio:'', fecha_fin:'', notas:'' }
 const emptyReq = { monto:'', fecha_vencimiento:'', total_cuotas:1 }
+
+// Buscador generico reutilizable
+function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre', valueKey='id', renderOption }) {
+  const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false)
+  const selected = options.find(o => o[valueKey] === value)
+  const filtered = options.filter(o => (o[labelKey]||'').toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div style={{position:'relative'}}>
+      <div onClick={()=>setOpen(!open)} style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:'42px'}}>
+        <span style={{color:selected?'#1e293b':'#94a3b8',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+          {selected ? (renderOption ? renderOption(selected) : selected[labelKey]) : placeholder}
+        </span>
+        <div style={{display:'flex',gap:'4px',flexShrink:0}}>
+          {value && <button type="button" onClick={e=>{e.stopPropagation();onChange('')}} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex'}}><X size={13} color="#94a3b8"/></button>}
+          <ChevronDown size={14} color="#94a3b8"/>
+        </div>
+      </div>
+      {open && (
+        <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,right:0,background:'white',border:'1px solid #e2e8f0',borderRadius:'8px',zIndex:200,boxShadow:'0 8px 24px rgba(0,0,0,0.12)'}}>
+          <div style={{padding:'8px'}}>
+            <input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..."
+              style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box',outline:'none'}}
+              onClick={e=>e.stopPropagation()}/>
+          </div>
+          <div style={{maxHeight:'200px',overflowY:'auto'}}>
+            {filtered.length===0 ? <p style={{padding:'10px 14px',fontSize:'13px',color:'#94a3b8'}}>Sin resultados</p> :
+             filtered.map(o=>(
+              <div key={o[valueKey]} onClick={()=>{onChange(o[valueKey]);setOpen(false);setSearch('')}}
+                style={{padding:'10px 14px',cursor:'pointer',fontSize:'13px',color:'#1e293b',fontWeight:value===o[valueKey]?600:400,background:value===o[valueKey]?'#dbeafe':'white',display:'flex',alignItems:'center',gap:'8px'}}
+                onMouseEnter={e=>{if(value!==o[valueKey])e.currentTarget.style.background='#f8fafc'}}
+                onMouseLeave={e=>{if(value!==o[valueKey])e.currentTarget.style.background='white'}}>
+                {renderOption ? renderOption(o) : o[labelKey]}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Polizas() {
   const [polizas, setPolizas] = useState([])
@@ -24,7 +64,7 @@ export default function Polizas() {
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(emptyPoliza)
   const [editing, setEditing] = useState(null)
-  const [productos, setProductos] = useState([])
+  const [productosFiltered, setProductosFiltered] = useState([])
   const [personasFacturables, setPersonasFacturables] = useState([])
 
   useEffect(() => { fetchAll() }, [])
@@ -34,7 +74,7 @@ export default function Polizas() {
     const [{ data: polizasData }, { data: clientesData }, { data: aseguradorasData }] = await Promise.all([
       supabase.from('polizas').select('*, clientes(nombre, apellido), aseguradoras(nombre, logo_url), productos(nombre)').eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('clientes').select('id, nombre, apellido, tipo').eq('activo', true).order('nombre'),
-      supabase.from('aseguradoras').select('id, nombre, logo_url, productos(id, nombre)').eq('activa', true).order('nombre')
+      supabase.from('aseguradoras').select('id, nombre, logo_url, productos(id, nombre, activo)').eq('activa', true).order('nombre')
     ])
     setPolizas(polizasData || [])
     setClientes(clientesData || [])
@@ -44,7 +84,7 @@ export default function Polizas() {
 
   const handleAseguradoraChange = (id) => {
     const aseg = aseguradoras.find(a => a.id === id)
-    setProductos(aseg?.productos || [])
+    setProductosFiltered(aseg?.productos?.filter(p=>p.activo) || [])
     setForm(f => ({ ...f, aseguradora_id: id, producto_id: '' }))
   }
 
@@ -53,25 +93,30 @@ export default function Polizas() {
     if (id) {
       const { data } = await supabase.from('personas_facturables').select('*').eq('cliente_id', id).eq('activa', true)
       setPersonasFacturables(data || [])
-    }
+    } else setPersonasFacturables([])
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       ...form,
-      numero_poliza: form.numero_poliza || await generateNumero(),
       prima_total: parseFloat(form.prima_total),
-      persona_facturable_id: form.persona_facturable_id || null
+      persona_facturable_id: form.persona_facturable_id || null,
+      fraccionamiento: form.tipo_pago === 'contado' ? 'anual' : form.fraccionamiento,
+      agente_id: user?.id
+    }
+    if (!payload.numero_poliza) {
+      const { data: num } = await supabase.rpc('generate_numero_poliza')
+      payload.numero_poliza = num || 'POL-' + Date.now()
     }
     if (editing) {
       const { error } = await supabase.from('polizas').update(payload).eq('id', editing)
-      if (error) { toast.error('Error al actualizar'); return }
+      if (error) { toast.error('Error: ' + error.message); return }
       toast.success('Póliza actualizada')
     } else {
-      const { data: { user } } = await supabase.auth.getUser()
-      const { error } = await supabase.from('polizas').insert({ ...payload, agente_id: user?.id })
-      if (error) { toast.error('Error al crear: ' + error.message); return }
+      const { error } = await supabase.from('polizas').insert(payload)
+      if (error) { toast.error('Error: ' + error.message); return }
       toast.success('Póliza creada')
     }
     setForm(emptyPoliza)
@@ -80,19 +125,14 @@ export default function Polizas() {
     fetchAll()
   }
 
-  const generateNumero = async () => {
-    const { data } = await supabase.rpc('generate_numero_poliza')
-    return data || 'POL-' + Date.now()
-  }
-
   const handleEdit = async (p) => {
     const aseg = aseguradoras.find(a => a.id === p.aseguradora_id)
-    setProductos(aseg?.productos || [])
+    setProductosFiltered(aseg?.productos?.filter(prod=>prod.activo) || [])
     if (p.cliente_id) {
       const { data } = await supabase.from('personas_facturables').select('*').eq('cliente_id', p.cliente_id).eq('activa', true)
       setPersonasFacturables(data || [])
     }
-    setForm({ numero_poliza:p.numero_poliza, cliente_id:p.cliente_id, aseguradora_id:p.aseguradora_id, producto_id:p.producto_id, persona_facturable_id:p.persona_facturable_id||'', prima_total:p.prima_total, fraccionamiento:p.fraccionamiento, fecha_inicio:p.fecha_inicio, fecha_vencimiento:p.fecha_vencimiento })
+    setForm({ cliente_id:p.cliente_id, aseguradora_id:p.aseguradora_id, producto_id:p.producto_id, persona_facturable_id:p.persona_facturable_id||'', prima_total:p.prima_total, tipo_pago:p.tipo_pago||'contado', fraccionamiento:p.fraccionamiento||'', fecha_inicio:p.fecha_inicio, fecha_vencimiento:p.fecha_vencimiento })
     setEditing(p.id)
     setView('form')
     window.scrollTo(0,0)
@@ -106,11 +146,11 @@ export default function Polizas() {
   }
 
   const filtered = polizas.filter(p =>
-    (p.numero_poliza + ' ' + (p.clientes?.nombre||'') + ' ' + (p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
+    (p.numero_poliza+' '+(p.clientes?.nombre||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
   )
 
   if (view === 'detalle' && selected) return (
-    <PolizaDetalle poliza={selected} onBack={()=>{ setView('list'); fetchAll() }} onEdit={handleEdit} clientes={clientes} aseguradoras={aseguradoras} />
+    <PolizaDetalle poliza={selected} onBack={()=>{setView('list');fetchAll()}} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -122,67 +162,89 @@ export default function Polizas() {
         <h2 style={{fontSize:'18px',fontWeight:700,color:'#0C1E3D',marginBottom:'20px'}}>{editing?'Editar póliza':'Nueva póliza'}</h2>
         <form onSubmit={handleSubmit}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de póliza</label>
-              <input value={form.numero_poliza} onChange={e=>setForm({...form,numero_poliza:e.target.value})} placeholder="Se genera automáticamente"
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
-            </div>
+
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Cliente *</label>
-              <select value={form.cliente_id} onChange={e=>handleClienteChange(e.target.value)} required
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white'}}>
-                <option value=''>Seleccionar cliente</option>
-                {clientes.map(c=><option key={c.id} value={c.id}>{c.nombre} {c.apellido||''}</option>)}
-              </select>
+              <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes} placeholder="Buscar cliente..."
+                renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
             </div>
+
             {personasFacturables.length > 0 && (
               <div>
                 <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Persona facturable</label>
-                <select value={form.persona_facturable_id} onChange={e=>setForm({...form,persona_facturable_id:e.target.value})}
-                  style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white'}}>
-                  <option value=''>Sin persona facturable</option>
-                  {personasFacturables.map(p=><option key={p.id} value={p.id}>{p.nombre} {p.apellido} - {p.nit}</option>)}
-                </select>
+                <SearchSelect value={form.persona_facturable_id} onChange={val=>setForm({...form,persona_facturable_id:val})}
+                  options={personasFacturables} placeholder="Sin persona facturable"
+                  renderOption={p=>`${p.nombre} ${p.apellido} - ${p.nit}`} labelKey="nombre"/>
               </div>
             )}
+
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Aseguradora *</label>
-              <select value={form.aseguradora_id} onChange={e=>handleAseguradoraChange(e.target.value)} required
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white'}}>
-                <option value=''>Seleccionar aseguradora</option>
-                {aseguradoras.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
-              </select>
+              <SearchSelect value={form.aseguradora_id} onChange={handleAseguradoraChange} options={aseguradoras} placeholder="Buscar aseguradora..."
+                renderOption={a=>(
+                  <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                    {a.logo_url && <img src={a.logo_url} style={{width:'20px',height:'20px',objectFit:'contain',borderRadius:'3px'}}/>}
+                    <span>{a.nombre}</span>
+                  </div>
+                )} labelKey="nombre"/>
             </div>
+
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Producto *</label>
-              <select value={form.producto_id} onChange={e=>setForm({...form,producto_id:e.target.value})} required
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white'}}>
-                <option value=''>Seleccionar producto</option>
-                {productos.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
+              <SearchSelect value={form.producto_id} onChange={val=>setForm({...form,producto_id:val})}
+                options={productosFiltered} placeholder={form.aseguradora_id?"Seleccionar producto...":"Seleccioná una aseguradora primero"} labelKey="nombre"/>
             </div>
+
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima total (Q) *</label>
               <input type="number" step="0.01" value={form.prima_total} onChange={e=>setForm({...form,prima_total:e.target.value})} required
                 style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
             </div>
+
             <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fraccionamiento *</label>
-              <select value={form.fraccionamiento} onChange={e=>setForm({...form,fraccionamiento:e.target.value})}
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white'}}>
-                {fraccionamientos.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
-              </select>
+              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo de pago *</label>
+              <div style={{display:'flex',gap:'8px'}}>
+                {['contado','financiado'].map(t=>(
+                  <button key={t} type="button" onClick={()=>setForm({...form,tipo_pago:t,fraccionamiento:''})}
+                    style={{flex:1,padding:'10px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                      background:form.tipo_pago===t?'#0C1E3D':'white',
+                      color:form.tipo_pago===t?'white':'#64748b',
+                      border:`1px solid ${form.tipo_pago===t?'#0C1E3D':'#e2e8f0'}`}}>
+                    {t.charAt(0).toUpperCase()+t.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {form.tipo_pago==='financiado' && (
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de cuotas *</label>
+                <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                  {fraccionamientoOpciones.map(n=>(
+                    <button key={n} type="button" onClick={()=>setForm({...form,fraccionamiento:String(n)})}
+                      style={{padding:'8px 14px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                        background:form.fraccionamiento===String(n)?'#1A6BBA':'white',
+                        color:form.fraccionamiento===String(n)?'white':'#64748b',
+                        border:`1px solid ${form.fraccionamiento===String(n)?'#1A6BBA':'#e2e8f0'}`}}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha inicio *</label>
               <input type="date" value={form.fecha_inicio} onChange={e=>setForm({...form,fecha_inicio:e.target.value})} required
                 style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
             </div>
+
             <div>
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha vencimiento *</label>
               <input type="date" value={form.fecha_vencimiento} onChange={e=>setForm({...form,fecha_vencimiento:e.target.value})} required
                 style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
             </div>
+
           </div>
           <div style={{display:'flex',gap:'8px',paddingTop:'8px',borderTop:'1px solid #f1f5f9'}}>
             <button type="submit" style={{padding:'11px 24px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
@@ -205,7 +267,7 @@ export default function Polizas() {
           <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Pólizas</h1>
           <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>{polizas.length} pólizas activas</p>
         </div>
-        <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza)}}
+        <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([])}}
           style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
           <Plus size={16}/> Nueva póliza
         </button>
@@ -231,23 +293,23 @@ export default function Polizas() {
             onClick={()=>{setSelected(p);setView('detalle')}}
             onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
             onMouseLeave={e=>e.currentTarget.style.background='white'}>
-            <div style={{width:'40px',height:'40px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc'}}>
-              {p.aseguradoras?.logo_url ? <img src={p.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <FileText size={16} color="#1A6BBA"/>}
+            <div style={{width:'40px',height:'40px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
+              {p.aseguradoras?.logo_url?<img src={p.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={16} color="#1A6BBA"/>}
             </div>
-            <div style={{flex:1}}>
+            <div style={{flex:1,minWidth:0}}>
               <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px'}}>{p.numero_poliza}</p>
-              <p style={{fontSize:'12px',color:'#64748b'}}>{p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre} · {p.productos?.nombre}</p>
+              <p style={{fontSize:'12px',color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre}</p>
             </div>
-            <div style={{textAlign:'right',marginRight:'16px'}}>
+            <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
               <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA'}}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
-              <p style={{fontSize:'12px',color:'#64748b'}}>{p.fraccionamiento}</p>
+              <p style={{fontSize:'11px',color:'#64748b'}}>{p.tipo_pago==='financiado'?`${p.fraccionamiento} cuotas`:'Contado'}</p>
             </div>
-            <div style={{textAlign:'right',marginRight:'12px'}}>
+            <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
               <p style={{fontSize:'12px',color:new Date(p.fecha_vencimiento)<new Date()?'#ef4444':'#64748b'}}>
                 Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}
               </p>
             </div>
-            <div style={{display:'flex',gap:'6px'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
               <button onClick={()=>handleEdit(p)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
               <button onClick={()=>handleDelete(p.id)} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
             </div>
@@ -258,7 +320,7 @@ export default function Polizas() {
   )
 }
 
-function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
+function PolizaDetalle({ poliza, onBack, onEdit }) {
   const [emisiones, setEmisiones] = useState([])
   const [reqs, setReqs] = useState([])
   const [vehiculos, setVehiculos] = useState([])
@@ -277,30 +339,30 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }] = await Promise.all([
+    const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }, { data: vehiculosData }] = await Promise.all([
       supabase.from('emisiones').select('*, emision_vehiculos(vehiculos(*))').eq('poliza_id', poliza.id).order('created_at'),
       supabase.from('requerimientos_pago').select('*').eq('poliza_id', poliza.id).order('fecha_vencimiento'),
-      supabase.from('tareas').select('*').eq('poliza_id', poliza.id).eq('estado', 'pendiente')
+      supabase.from('tareas').select('*').eq('poliza_id', poliza.id).eq('estado', 'pendiente'),
+      supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true)
     ])
-    const { data: vehiculosData } = await supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true)
     setEmisiones(emisionesData || [])
     setReqs(reqsData || [])
-    setVehiculos(vehiculosData || [])
     setTareas(tareasData || [])
+    setVehiculos(vehiculosData || [])
     setLoading(false)
   }
 
   const handleEmisionSubmit = async (e) => {
     e.preventDefault()
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: emision, error } = await supabase.from('emisiones').insert({
+    const { error } = await supabase.from('emisiones').insert({
       poliza_id: poliza.id,
       ...emisionForm,
       numero_emision: `${poliza.numero_poliza}-E${(emisiones.length+1).toString().padStart(2,'0')}`,
       prima_emision: parseFloat(emisionForm.prima_emision),
       created_by: user?.id
-    }).select().single()
-    if (error) { toast.error('Error al crear emisión'); return }
+    })
+    if (error) { toast.error('Error: ' + error.message); return }
     toast.success('Emisión creada')
     setEmisionForm(emptyEmision)
     setShowEmisionForm(false)
@@ -310,7 +372,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
   const handleVehiculoSubmit = async (e) => {
     e.preventDefault()
     const { error } = await supabase.from('vehiculos').insert({ ...vehiculoForm, cliente_id: poliza.cliente_id, anio: parseInt(vehiculoForm.anio), valor_asegurado: parseFloat(vehiculoForm.valor_asegurado||0) })
-    if (error) { toast.error('Error al agregar vehículo'); return }
+    if (error) { toast.error('Error: ' + error.message); return }
     toast.success('Vehículo agregado')
     setVehiculoForm(emptyVehiculo)
     setShowVehiculoForm(false)
@@ -321,20 +383,16 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
     e.preventDefault()
     if (emisiones.length === 0) { toast.error('Primero creá una emisión'); return }
     const { data: { user } } = await supabase.auth.getUser()
-    const codigo = await supabase.rpc('generate_codigo_req').then(r => r.data || 'REQ-' + Date.now())
+    const { data: codigoData } = await supabase.rpc('generate_codigo_req')
+    const codigo = codigoData || 'REQ-' + Date.now()
     const monto = parseFloat(reqForm.monto)
     const totalCuotas = parseInt(reqForm.total_cuotas)
-    const fechaBase = new Date(reqForm.fecha_vencimiento)
     const emisionId = emisiones[emisiones.length-1].id
-
     const requerimientos = []
-    for (let i = 0; i < totalCuotas; i++) {
-      const fecha = new Date(fechaBase)
-      if (poliza.fraccionamiento === 'mensual') fecha.setMonth(fecha.getMonth() + i)
-      else if (poliza.fraccionamiento === 'trimestral') fecha.setMonth(fecha.getMonth() + (i*3))
-      else if (poliza.fraccionamiento === 'semestral') fecha.setMonth(fecha.getMonth() + (i*6))
-      else fecha.setFullYear(fecha.getFullYear() + i)
 
+    for (let i = 0; i < totalCuotas; i++) {
+      const fecha = new Date(reqForm.fecha_vencimiento)
+      fecha.setMonth(fecha.getMonth() + i)
       requerimientos.push({
         emision_id: emisionId,
         poliza_id: poliza.id,
@@ -349,7 +407,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
     }
 
     const { error } = await supabase.from('requerimientos_pago').insert(requerimientos)
-    if (error) { toast.error('Error al crear requerimientos'); return }
+    if (error) { toast.error('Error: ' + error.message); return }
     toast.success(`${totalCuotas} requerimiento(s) creado(s)`)
     setReqForm(emptyReq)
     setShowReqForm(false)
@@ -376,24 +434,28 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
         <ArrowLeft size={16}/> Volver a pólizas
       </button>
 
-      {/* Header */}
       <div style={{background:'white',borderRadius:'12px',padding:'20px 24px',border:'1px solid #e2e8f0',marginBottom:'16px'}}>
         <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc'}}>
-              {poliza.aseguradoras?.logo_url ? <img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <FileText size={20} color="#1A6BBA"/>}
+            <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
+              {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="#1A6BBA"/>}
             </div>
             <div>
               <h1 style={{fontSize:'20px',fontWeight:700,color:'#0C1E3D'}}>{poliza.numero_poliza}</h1>
               <p style={{fontSize:'13px',color:'#64748b'}}>{poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}</p>
             </div>
           </div>
-          <button onClick={()=>onEdit(poliza)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+          <button onClick={()=>onEdit(poliza)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
             <Edit2 size={13}/> Editar
           </button>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginTop:'16px'}}>
-          {[['Prima total','Q '+parseFloat(poliza.prima_total||0).toLocaleString(),'#1A6BBA'],['Fraccionamiento',poliza.fraccionamiento?.charAt(0).toUpperCase()+poliza.fraccionamiento?.slice(1),'#0C1E3D'],['Inicio',new Date(poliza.fecha_inicio).toLocaleDateString('es-GT'),'#64748b'],['Vencimiento',new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT'),new Date(poliza.fecha_vencimiento)<new Date()?'#ef4444':'#64748b']].map(([label,val,color])=>(
+          {[
+            ['Prima total','Q '+parseFloat(poliza.prima_total||0).toLocaleString(),'#1A6BBA'],
+            ['Tipo de pago',(poliza.tipo_pago||'contado').charAt(0).toUpperCase()+(poliza.tipo_pago||'contado').slice(1),'#0C1E3D'],
+            ['Inicio',new Date(poliza.fecha_inicio).toLocaleDateString('es-GT'),'#64748b'],
+            ['Vencimiento',new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT'),new Date(poliza.fecha_vencimiento)<new Date()?'#ef4444':'#64748b']
+          ].map(([label,val,color])=>(
             <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'12px'}}>
               <p style={{fontSize:'11px',color:'#64748b',marginBottom:'4px'}}>{label}</p>
               <p style={{fontSize:'15px',fontWeight:700,color}}>{val}</p>
@@ -402,20 +464,17 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+      <div style={{display:'flex',gap:'8px',marginBottom:'16px',flexWrap:'wrap'}}>
         {[['emisiones',`Emisiones (${emisiones.length})`],['vehiculos',`Vehículos (${vehiculos.length})`],['pagos',`Pagos (${reqs.length})`],['tareas',`Tareas (${tareas.length})`]].map(([tab,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab)}
             style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
-              background:activeTab===tab?'#0C1E3D':'white',
-              color:activeTab===tab?'white':'#64748b',
+              background:activeTab===tab?'#0C1E3D':'white',color:activeTab===tab?'white':'#64748b',
               border:`1px solid ${activeTab===tab?'#0C1E3D':'#e2e8f0'}`}}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* Tab: Emisiones */}
       {activeTab==='emisiones' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
@@ -464,27 +523,26 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
               </form>
             </div>
           )}
-          {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
-           emisiones.length===0 ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin emisiones — creá la primera</p> :
+          {loading?<p style={{padding:'20px',color:'#64748b'}}>Cargando...</p>:
+           emisiones.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin emisiones</p>:
            emisiones.map(em=>{
-            const Icon = estadoIcons[em.estado]||Clock
+            const Icon=estadoIcons[em.estado]||Clock
             return (
               <div key={em.id} style={{borderBottom:'1px solid #f1f5f9'}}>
                 <div style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer'}} onClick={()=>setExpandedEmision(expandedEmision===em.id?null:em.id)}>
-                  <div style={{width:'34px',height:'34px',borderRadius:'8px',background:estadoColors[em.estado]+'20',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'10px'}}>
+                  <div style={{width:'34px',height:'34px',borderRadius:'8px',background:estadoColors[em.estado]+'20',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'10px',flexShrink:0}}>
                     <Icon size={15} color={estadoColors[em.estado]}/>
                   </div>
-                  <div style={{flex:1}}>
+                  <div style={{flex:1,minWidth:0}}>
                     <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px'}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
                     <p style={{fontSize:'12px',color:'#64748b'}}>{new Date(em.fecha_inicio).toLocaleDateString('es-GT')} → {new Date(em.fecha_fin).toLocaleDateString('es-GT')}</p>
                   </div>
-                  <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',marginRight:'12px'}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
-                  <div style={{display:'flex',gap:'6px',marginRight:'8px'}}>
+                  <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',marginRight:'12px',flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
+                  <div style={{display:'flex',gap:'4px',marginRight:'8px',flexShrink:0}}>
                     {['solicitada','reproceso','emitida'].map(s=>(
                       <button key={s} onClick={e=>{e.stopPropagation();actualizarEstadoEmision(em.id,s)}}
-                        style={{padding:'3px 8px',borderRadius:'4px',fontSize:'11px',fontWeight:500,cursor:'pointer',
-                          background:em.estado===s?estadoColors[s]:'white',
-                          color:em.estado===s?'white':estadoColors[s],
+                        style={{padding:'3px 7px',borderRadius:'4px',fontSize:'11px',fontWeight:500,cursor:'pointer',
+                          background:em.estado===s?estadoColors[s]:'white',color:em.estado===s?'white':estadoColors[s],
                           border:`1px solid ${estadoColors[s]}`}}>
                         {s.charAt(0).toUpperCase()+s.slice(1)}
                       </button>
@@ -492,11 +550,10 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
                   </div>
                   {expandedEmision===em.id?<ChevronUp size={16} color="#64748b"/>:<ChevronDown size={16} color="#64748b"/>}
                 </div>
-                {expandedEmision===em.id && em.emision_vehiculos?.length > 0 && (
+                {expandedEmision===em.id && em.emision_vehiculos?.length>0 && (
                   <div style={{padding:'10px 20px 14px',background:'#f8fafc'}}>
-                    <p style={{fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'8px'}}>Vehículos en esta emisión</p>
                     {em.emision_vehiculos.map(ev=>(
-                      <div key={ev.vehiculos?.id} style={{display:'flex',gap:'8px',padding:'6px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px'}}>
+                      <div key={ev.vehiculos?.id} style={{display:'flex',gap:'8px',padding:'6px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center'}}>
                         <Car size={14} color="#64748b"/>
                         <span style={{fontWeight:500}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</span>
                         <span style={{color:'#64748b'}}>· {ev.vehiculos?.placa||'Sin placa'}</span>
@@ -510,7 +567,6 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
         </div>
       )}
 
-      {/* Tab: Vehículos */}
       {activeTab==='vehiculos' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
@@ -524,11 +580,10 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
             <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
               <form onSubmit={handleVehiculoSubmit}>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px',marginBottom:'12px'}}>
-                  {[['marca','Marca *',true],['modelo','Modelo *',true],['anio','Año *',true],['placa','Placa',false],['chasis','Chasis',false],['motor','Motor',false],['color','Color',false],['valor_asegurado','Valor asegurado (Q)',false]].map(([key,label,req])=>(
+                  {[['marca','Marca *',true,'text'],['modelo','Modelo *',true,'text'],['anio','Año *',true,'number'],['placa','Placa',false,'text'],['chasis','Chasis',false,'text'],['motor','Motor',false,'text'],['color','Color',false,'text'],['valor_asegurado','Valor asegurado (Q)',false,'number']].map(([key,label,req,type])=>(
                     <div key={key}>
                       <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>
-                      <input value={vehiculoForm[key]} onChange={e=>setVehiculoForm({...vehiculoForm,[key]:e.target.value})} required={req}
-                        type={['anio','valor_asegurado'].includes(key)?'number':'text'}
+                      <input value={vehiculoForm[key]} onChange={e=>setVehiculoForm({...vehiculoForm,[key]:e.target.value})} required={req} type={type}
                         style={{width:'100%',padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',boxSizing:'border-box'}}/>
                     </div>
                   ))}
@@ -547,27 +602,26 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
               </form>
             </div>
           )}
-          {vehiculos.length===0 ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin vehículos registrados</p> :
+          {vehiculos.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin vehículos</p>:
            vehiculos.map((v,i)=>(
             <div key={v.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<vehiculos.length-1?'1px solid #f1f5f9':'none'}}>
-              <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px'}}>
+              <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
                 <Car size={16} color="#1A6BBA"/>
               </div>
               <div style={{flex:1}}>
                 <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px'}}>{v.marca} {v.modelo} {v.anio}</p>
                 <p style={{fontSize:'12px',color:'#64748b'}}>{v.tipo} · Placa: {v.placa||'N/A'} · Color: {v.color||'N/A'}</p>
               </div>
-              {v.valor_asegurado && <p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA'}}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
+              {v.valor_asegurado&&<p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA'}}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
             </div>
           ))}
         </div>
       )}
 
-      {/* Tab: Pagos */}
       {activeTab==='pagos' && (
         <div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px',marginBottom:'16px'}}>
-            {[['Total pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Total pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Requerimientos',reqs.length+' total','#1A6BBA']].map(([label,val,color])=>(
+            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total reqs',reqs.length,'#1A6BBA']].map(([label,val,color])=>(
               <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px',border:'1px solid #e2e8f0'}}>
                 <p style={{fontSize:'12px',color:'#64748b',marginBottom:'4px'}}>{label}</p>
                 <p style={{fontSize:'16px',fontWeight:700,color}}>{val}</p>
@@ -609,11 +663,11 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
                 </form>
               </div>
             )}
-            {reqs.length===0 ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin requerimientos de pago</p> :
+            {reqs.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin requerimientos</p>:
              reqs.map((r,i)=>(
               <div key={r.id} style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:i<reqs.length-1?'1px solid #f1f5f9':'none'}}>
                 <div style={{flex:1}}>
-                  <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px'}}>{r.codigo} <span style={{fontWeight:400,color:'#64748b'}}>· Cuota {r.numero_cuota}/{r.total_cuotas}</span></p>
+                  <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px'}}>{r.codigo} <span style={{fontWeight:400,color:'#64748b'}}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
                   <p style={{fontSize:'12px',color:'#64748b'}}>Vence: {new Date(r.fecha_vencimiento).toLocaleDateString('es-GT')}{r.fecha_pago?' · Pagado: '+new Date(r.fecha_pago).toLocaleDateString('es-GT'):''}</p>
                 </div>
                 <p style={{fontSize:'14px',fontWeight:700,color:'#1e293b',marginRight:'12px'}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
@@ -622,31 +676,24 @@ function PolizaDetalle({ poliza, onBack, onEdit, aseguradoras }) {
                   color:r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207',fontWeight:500}}>
                   {r.estado}
                 </span>
-                {r.estado!=='pagado' && (
-                  <button onClick={()=>marcarPagado(r.id)} style={{padding:'5px 10px',background:'#dcfce7',color:'#15803d',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:500,cursor:'pointer'}}>
-                    Marcar pagado
-                  </button>
-                )}
+                {r.estado!=='pagado'&&<button onClick={()=>marcarPagado(r.id)} style={{padding:'5px 10px',background:'#dcfce7',color:'#15803d',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:500,cursor:'pointer'}}>Marcar pagado</button>}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Tab: Tareas */}
       {activeTab==='tareas' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
             <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D'}}>Tareas pendientes</h3>
           </div>
-          {tareas.length===0 ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin tareas pendientes 🎉</p> :
+          {tareas.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin tareas pendientes 🎉</p>:
            tareas.map((t,i)=>(
             <div key={t.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 20px',borderBottom:i<tareas.length-1?'1px solid #f1f5f9':'none'}}>
-              <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:t.tipo==='automatica'?'#dbeafe':'#f0fdf4',color:t.tipo==='automatica'?'#1d4ed8':'#15803d'}}>{t.tipo}</span>
+              <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:t.tipo==='automatica'?'#dbeafe':'#f0fdf4',color:t.tipo==='automatica'?'#1d4ed8':'#15803d',flexShrink:0}}>{t.tipo}</span>
               <p style={{flex:1,fontSize:'13px',color:'#1e293b'}}>{t.titulo}</p>
-              {t.fecha_vencimiento && <p style={{fontSize:'12px',color:new Date(t.fecha_vencimiento)<new Date()?'#ef4444':'#64748b'}}>
-                {new Date(t.fecha_vencimiento).toLocaleDateString('es-GT')}
-              </p>}
+              {t.fecha_vencimiento&&<p style={{fontSize:'12px',color:new Date(t.fecha_vencimiento)<new Date()?'#ef4444':'#64748b',flexShrink:0}}>{new Date(t.fecha_vencimiento).toLocaleDateString('es-GT')}</p>}
             </div>
           ))}
         </div>
