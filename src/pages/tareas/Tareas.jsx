@@ -64,11 +64,16 @@ export default function Tareas() {
     <div>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div>
-            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Tareas</h1>
-            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
-              {pendientes.length} pendientes · {vencidas.length} vencidas
-            </p>
+          <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
+            <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <CheckSquare size={22} color='white'/>
+            </div>
+            <div>
+              <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Tareas</h1>
+              <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
+                {pendientes.length} pendientes · {vencidas.length} vencidas
+              </p>
+            </div>
           </div>
           <button onClick={() => setShowForm(!showForm)}
             style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>

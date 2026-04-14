@@ -79,14 +79,16 @@ export default function Comisiones() {
     <div>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div>
-            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Comisiones</h1>
-            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
-              {reqs.length} pendientes de cobro · {informes.length} informes enviados
-            </p>
-          </div>
-          <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <DollarSign size={20} color='white'/>
+          <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
+            <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <DollarSign size={22} color='white'/>
+            </div>
+            <div>
+              <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Comisiones</h1>
+              <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
+                {reqs.length} pendientes de cobro · {informes.length} informes enviados
+              </p>
+            </div>
           </div>
         </div>
       </div>
