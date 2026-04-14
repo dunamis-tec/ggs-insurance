@@ -51,8 +51,6 @@ export default function Clientes() {
           toast.error('Un cliente individual no puede cambiar de tipo')
           return
         }
-      }        toast.error('Un cliente individual o empresa no puede volver a ser prospecto')
-        return
       }
     }
     const { data: { user } } = await supabase.auth.getUser()
