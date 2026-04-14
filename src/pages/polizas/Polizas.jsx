@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const fraccionamientoOpciones = [2,6,8,10,12]
-const emisionTipos = { emision:'Emisión', inclusion:'Inclusión', exclusion:'Exclusión', renovacion:'Renovación' }
+const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const estadoIcons = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
 const emptyPoliza = { numero_poliza:'', cliente_id:'', aseguradora_id:'', producto_id:'', persona_facturable_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio' }
@@ -20,7 +20,6 @@ function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre'
     const label = renderOption ? `${o.nombre||''} ${o.apellido||''}` : (o[labelKey]||'')
     return label.toLowerCase().includes(search.toLowerCase())
   })
-
   return (
     <div style={{position:'relative'}}>
       <div onClick={()=>setOpen(!open)} style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:'42px'}}>
@@ -62,21 +61,23 @@ export default function Polizas() {
   const [aseguradoras, setAseguradoras] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todas')
   const [view, setView] = useState('list')
-  const location = useLocation()
-useEffect(() => {
-  if (location.state?.openPolizaId && polizas.length > 0) {
-    const p = polizas.find(p => p.id === location.state.openPolizaId)
-    if (p) { setSelected(p); setView('detalle') }
-  }
-}, [location.state, polizas])
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(emptyPoliza)
   const [editing, setEditing] = useState(null)
   const [productosFiltered, setProductosFiltered] = useState([])
   const [personasFacturables, setPersonasFacturables] = useState([])
+  const location = useLocation()
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (location.state?.openPolizaId && polizas.length > 0) {
+      const p = polizas.find(p => p.id === location.state.openPolizaId)
+      if (p) { setSelected(p); setView('detalle') }
+    }
+  }, [location.state, polizas])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -147,11 +148,11 @@ useEffect(() => {
     if (editing) {
       const { error } = await supabase.from('polizas').update(payload).eq('id', editing)
       if (error) { toast.error('Error: ' + error.message); return }
-      toast.success('Póliza actualizada')
+      toast.success('Poliza actualizada')
     } else {
       const { error } = await supabase.from('polizas').insert(payload)
       if (error) { toast.error('Error: ' + error.message); return }
-      toast.success('Póliza creada')
+      toast.success('Poliza creada')
     }
     setForm(emptyPoliza)
     setEditing(null)
@@ -173,15 +174,36 @@ useEffect(() => {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar póliza?')) return
+    if (!confirm('Eliminar poliza?')) return
     await supabase.from('polizas').update({ activa: false }).eq('id', id)
-    toast.success('Póliza eliminada')
+    toast.success('Poliza eliminada')
     fetchAll()
   }
 
-  const filtered = polizas.filter(p =>
-    ((p.numero_poliza||'')+' '+(p.clientes?.nombre||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
-  )
+  const hoy = new Date()
+  const en30dias = new Date()
+  en30dias.setDate(en30dias.getDate() + 30)
+
+  const getEstadoPoliza = (p) => {
+    const venc = new Date(p.fecha_vencimiento)
+    if (venc < hoy) return 'vencida'
+    if (venc <= en30dias) return 'por_vencer'
+    return 'activa'
+  }
+
+  const filtered = polizas.filter(p => {
+    const matchSearch = ((p.numero_poliza||'')+' '+(p.clientes?.nombre||'')+' '+(p.clientes?.apellido||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
+    const estado = getEstadoPoliza(p)
+    const matchEstado = filtroEstado === 'todas' || estado === filtroEstado
+    return matchSearch && matchEstado
+  })
+
+  const counts = {
+    todas: polizas.length,
+    activa: polizas.filter(p => getEstadoPoliza(p) === 'activa').length,
+    por_vencer: polizas.filter(p => getEstadoPoliza(p) === 'por_vencer').length,
+    vencida: polizas.filter(p => getEstadoPoliza(p) === 'vencida').length,
+  }
 
   const inputStyle = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
@@ -192,185 +214,210 @@ useEffect(() => {
   if (view === 'form') return (
     <div>
       <button onClick={()=>{setView('list');setEditing(null);setForm(emptyPoliza)}} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> Volver a pólizas
+        <ArrowLeft size={16}/> Volver a polizas
       </button>
-      <div style={{background:'white',borderRadius:'12px',padding:'28px',border:'1px solid #e2e8f0',maxWidth:'800px'}}>
-        <h2 style={{fontSize:'18px',fontWeight:700,color:'#0C1E3D',marginBottom:'20px'}}>{editing?'Editar póliza':'Nueva póliza'}</h2>
-        <form onSubmit={handleSubmit}>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de póliza <span style={{color:'#94a3b8',fontWeight:400}}>(brindado por aseguradora)</span></label>
-              <input value={form.numero_poliza} onChange={e=>setForm({...form,numero_poliza:e.target.value})} placeholder="Ej: POL-2024-001"
-                style={inputStyle}/>
-            </div>
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Cliente *</label>
-              <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes} placeholder="Buscar cliente..."
-                renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
-            </div>
-
-            {personasFacturables.length > 0 && (
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',maxWidth:'800px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
+          <h2 style={{fontSize:'18px',fontWeight:700,color:'white',margin:0}}>{editing ? 'Editar poliza' : 'Nueva poliza'}</h2>
+          <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',marginTop:'4px',marginBottom:0}}>Completa la informacion de la poliza</p>
+        </div>
+        <div style={{padding:'24px'}}>
+          <form onSubmit={handleSubmit}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
               <div>
-                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Persona facturable</label>
-                <SearchSelect value={form.persona_facturable_id} onChange={val=>setForm({...form,persona_facturable_id:val})}
-                  options={personasFacturables} placeholder="Sin persona facturable"
-                  renderOption={p=>`${p.nombre} ${p.apellido} - ${p.nit}`} labelKey="nombre"/>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Numero de poliza <span style={{color:'#94a3b8',fontWeight:400}}>(brindado por aseguradora)</span></label>
+                <input value={form.numero_poliza} onChange={e=>setForm({...form,numero_poliza:e.target.value})} placeholder="Ej: POL-2024-001" style={inputStyle}/>
               </div>
-            )}
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Aseguradora *</label>
-              <SearchSelect value={form.aseguradora_id} onChange={handleAseguradoraChange} options={aseguradoras} placeholder="Buscar aseguradora..."
-                renderOption={a=>(
-                  <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                    {a.logo_url && <img src={a.logo_url} style={{width:'18px',height:'18px',objectFit:'contain',borderRadius:'2px'}}/>}
-                    <span>{a.nombre}</span>
-                  </div>
-                )} labelKey="nombre"/>
-            </div>
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Producto *</label>
-              <SearchSelect value={form.producto_id} onChange={val=>setForm({...form,producto_id:val})}
-                options={productosFiltered} placeholder={form.aseguradora_id?"Seleccionar producto...":"Primero seleccioná aseguradora"} labelKey="nombre"/>
-            </div>
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima total (Q) *</label>
-              <input type="number" step="0.01" value={form.prima_total} onChange={e=>setForm({...form,prima_total:e.target.value})} required style={inputStyle}/>
-            </div>
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo de pago *</label>
-              <div style={{display:'flex',gap:'8px'}}>
-                {['contado','financiado'].map(t=>(
-                  <button key={t} type="button" onClick={()=>setForm({...form,tipo_pago:t,fraccionamiento:''})}
-                    style={{flex:1,padding:'10px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
-                      background:form.tipo_pago===t?'#0C1E3D':'white',
-                      color:form.tipo_pago===t?'white':'#64748b',
-                      border:`1px solid ${form.tipo_pago===t?'#0C1E3D':'#e2e8f0'}`}}>
-                    {t.charAt(0).toUpperCase()+t.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {form.tipo_pago==='financiado' && (
               <div>
-                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de cuotas *</label>
-                <div style={{display:'flex',gap:'6px'}}>
-                  {fraccionamientoOpciones.map(n=>(
-                    <button key={n} type="button" onClick={()=>setForm({...form,fraccionamiento:String(n)})}
-                      style={{flex:1,padding:'9px 0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
-                        background:form.fraccionamiento===String(n)?'#1A6BBA':'white',
-                        color:form.fraccionamiento===String(n)?'white':'#64748b',
-                        border:`1px solid ${form.fraccionamiento===String(n)?'#1A6BBA':'#e2e8f0'}`}}>
-                      {n}
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Cliente *</label>
+                <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes} placeholder="Buscar cliente..."
+                  renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
+              </div>
+              {personasFacturables.length > 0 && (
+                <div>
+                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Persona facturable</label>
+                  <SearchSelect value={form.persona_facturable_id} onChange={val=>setForm({...form,persona_facturable_id:val})}
+                    options={personasFacturables} placeholder="Sin persona facturable"
+                    renderOption={p=>`${p.nombre} ${p.apellido} - ${p.nit}`} labelKey="nombre"/>
+                </div>
+              )}
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Aseguradora *</label>
+                <SearchSelect value={form.aseguradora_id} onChange={handleAseguradoraChange} options={aseguradoras} placeholder="Buscar aseguradora..."
+                  renderOption={a=>(
+                    <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                      {a.logo_url && <img src={a.logo_url} style={{width:'18px',height:'18px',objectFit:'contain',borderRadius:'2px'}}/>}
+                      <span>{a.nombre}</span>
+                    </div>
+                  )} labelKey="nombre"/>
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Producto *</label>
+                <SearchSelect value={form.producto_id} onChange={val=>setForm({...form,producto_id:val})}
+                  options={productosFiltered} placeholder={form.aseguradora_id?"Seleccionar producto...":"Primero selecciona aseguradora"} labelKey="nombre"/>
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima total (Q) *</label>
+                <input type="number" step="0.01" value={form.prima_total} onChange={e=>setForm({...form,prima_total:e.target.value})} required style={inputStyle}/>
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo de pago *</label>
+                <div style={{display:'flex',gap:'8px'}}>
+                  {['contado','financiado'].map(t=>(
+                    <button key={t} type="button" onClick={()=>setForm({...form,tipo_pago:t,fraccionamiento:''})}
+                      style={{flex:1,padding:'10px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                        background:form.tipo_pago===t?'#0C1E3D':'white',
+                        color:form.tipo_pago===t?'white':'#64748b',
+                        border:`1px solid ${form.tipo_pago===t?'#0C1E3D':'#e2e8f0'}`}}>
+                      {t.charAt(0).toUpperCase()+t.slice(1)}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha inicio *</label>
-              <input type="date" value={form.fecha_inicio} onChange={e=>handleFechaInicioChange(e.target.value)} required style={inputStyle}/>
-            </div>
-
-            <div>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Vigencia *</label>
-              <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
-                {[['1anio','1 año'],['manual','Manual']].map(([v,l])=>(
-                  <button key={v} type="button" onClick={()=>handleVigenciaChange(v)}
-                    style={{flex:1,padding:'9px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
-                      background:form.vigencia===v?'#0C1E3D':'white',
-                      color:form.vigencia===v?'white':'#64748b',
-                      border:`1px solid ${form.vigencia===v?'#0C1E3D':'#e2e8f0'}`}}>
-                    {l}
-                  </button>
-                ))}
-              </div>
-              {form.vigencia==='manual' ? (
-                <input type="date" value={form.fecha_vencimiento} onChange={e=>setForm({...form,fecha_vencimiento:e.target.value})} required style={inputStyle}/>
-              ) : (
-                <div style={{padding:'10px 12px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #e2e8f0',fontSize:'14px',color:'#64748b'}}>
-                  {form.fecha_vencimiento ? new Date(form.fecha_vencimiento).toLocaleDateString('es-GT') : 'Seleccioná fecha inicio'}
+              {form.tipo_pago==='financiado' && (
+                <div>
+                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Numero de cuotas *</label>
+                  <div style={{display:'flex',gap:'6px'}}>
+                    {fraccionamientoOpciones.map(n=>(
+                      <button key={n} type="button" onClick={()=>setForm({...form,fraccionamiento:String(n)})}
+                        style={{flex:1,padding:'9px 0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                          background:form.fraccionamiento===String(n)?'#1A6BBA':'white',
+                          color:form.fraccionamiento===String(n)?'white':'#64748b',
+                          border:`1px solid ${form.fraccionamiento===String(n)?'#1A6BBA':'#e2e8f0'}`}}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha inicio *</label>
+                <input type="date" value={form.fecha_inicio} onChange={e=>handleFechaInicioChange(e.target.value)} required style={inputStyle}/>
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Vigencia *</label>
+                <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
+                  {[['1anio','1 anio'],['manual','Manual']].map(([v,l])=>(
+                    <button key={v} type="button" onClick={()=>handleVigenciaChange(v)}
+                      style={{flex:1,padding:'9px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                        background:form.vigencia===v?'#0C1E3D':'white',
+                        color:form.vigencia===v?'white':'#64748b',
+                        border:`1px solid ${form.vigencia===v?'#0C1E3D':'#e2e8f0'}`}}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                {form.vigencia==='manual' ? (
+                  <input type="date" value={form.fecha_vencimiento} onChange={e=>setForm({...form,fecha_vencimiento:e.target.value})} required style={inputStyle}/>
+                ) : (
+                  <div style={{padding:'10px 12px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #e2e8f0',fontSize:'14px',color:'#64748b'}}>
+                    {form.fecha_vencimiento ? new Date(form.fecha_vencimiento).toLocaleDateString('es-GT') : 'Selecciona fecha inicio'}
+                  </div>
+                )}
+              </div>
             </div>
-
-          </div>
-          <div style={{display:'flex',gap:'8px',paddingTop:'8px',borderTop:'1px solid #f1f5f9'}}>
-            <button type="submit" style={{padding:'11px 24px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-              {editing?'Actualizar póliza':'Crear póliza'}
-            </button>
-            <button type="button" onClick={()=>{setView('list');setEditing(null);setForm(emptyPoliza)}}
-              style={{padding:'11px 24px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
-              Cancelar
-            </button>
-          </div>
-        </form>
+            <div style={{display:'flex',gap:'8px',paddingTop:'8px',borderTop:'1px solid #f1f5f9'}}>
+              <button type="submit" style={{padding:'11px 24px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+                {editing ? 'Actualizar poliza' : 'Crear poliza'}
+              </button>
+              <button type="button" onClick={()=>{setView('list');setEditing(null);setForm(emptyPoliza)}}
+                style={{padding:'11px 24px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )
 
   return (
     <div>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'24px'}}>
-        <div>
-          <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Pólizas</h1>
-          <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>{polizas.length} pólizas activas</p>
+      {/* Encabezado con gradiente */}
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{textAlign:'left'}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Polizas</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {counts.todas} total · {counts.activa} activas · {counts.por_vencer} por vencer · {counts.vencida} vencidas
+            </p>
+          </div>
+          <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([])}}
+            style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+            <Plus size={16}/> Nueva poliza
+          </button>
         </div>
-        <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([])}}
-          style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-          <Plus size={16}/> Nueva póliza
-        </button>
       </div>
 
-      <div style={{background:'white',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e2e8f0',marginBottom:'16px'}}>
-        <div style={{position:'relative'}}>
+      {/* Buscador y filtros */}
+      <div style={{background:'white',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e2e8f0',marginBottom:'16px',display:'flex',gap:'12px',flexWrap:'wrap',alignItems:'center'}}>
+        <div style={{flex:1,minWidth:'200px',position:'relative'}}>
           <Search size={16} color="#94a3b8" style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)'}}/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por número, cliente o aseguradora..."
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por numero, cliente o aseguradora..."
             style={{width:'100%',padding:'9px 12px 9px 36px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
         </div>
+        <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+          {[
+            ['todas','Todas','#64748b'],
+            ['activa','Activas','#22c55e'],
+            ['por_vencer','Por vencer','#f59e0b'],
+            ['vencida','Vencidas','#ef4444'],
+          ].map(([key,label,color])=>(
+            <button key={key} onClick={()=>setFiltroEstado(key)}
+              style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
+                background: filtroEstado===key ? '#0C1E3D' : 'white',
+                color: filtroEstado===key ? 'white' : '#64748b',
+                border: `1px solid ${filtroEstado===key ? '#0C1E3D' : '#e2e8f0'}`}}>
+              {label} {filtroEstado===key ? '' : `(${counts[key]})`}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* Lista */}
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
         {loading ? <p style={{padding:'24px',color:'#64748b'}}>Cargando...</p> :
          filtered.length===0 ? (
           <div style={{padding:'48px',textAlign:'center'}}>
             <FileText size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/>
-            <p style={{color:'#94a3b8'}}>No hay pólizas registradas</p>
+            <p style={{color:'#94a3b8'}}>No hay polizas registradas</p>
           </div>
-        ) : filtered.map((p,i)=>(
-          <div key={p.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
-            onClick={()=>{setSelected(p);setView('detalle')}}
-            onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
-            onMouseLeave={e=>e.currentTarget.style.background='white'}>
-            <div style={{width:'40px',height:'40px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
-              {p.aseguradoras?.logo_url?<img src={p.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={16} color="#1A6BBA"/>}
+        ) : filtered.map((p,i)=>{
+          const estado = getEstadoPoliza(p)
+          const estadoBadge = {
+            activa: { bg:'#dcfce7', color:'#15803d', label:'Activa' },
+            por_vencer: { bg:'#fef9c3', color:'#a16207', label:'Por vencer' },
+            vencida: { bg:'#fef2f2', color:'#ef4444', label:'Vencida' },
+          }[estado]
+          return (
+            <div key={p.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
+              onClick={()=>{setSelected(p);setView('detalle')}}
+              onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+              onMouseLeave={e=>e.currentTarget.style.background='white'}>
+              <div style={{width:'40px',height:'40px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
+                {p.aseguradoras?.logo_url?<img src={p.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={16} color="#1A6BBA"/>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{p.numero_poliza||'Sin numero'}</p>
+                <p style={{fontSize:'12px',color:'#64748b',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre}</p>
+              </div>
+              <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
+                <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0}}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
+                <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{p.tipo_pago==='financiado'?`${p.fraccionamiento} cuotas`:'Contado'}</p>
+              </div>
+              <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
+                <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}</p>
+              </div>
+              <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'12px',background:estadoBadge.bg,color:estadoBadge.color,fontWeight:500,flexShrink:0,whiteSpace:'nowrap'}}>
+                {estadoBadge.label}
+              </span>
+              <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
+                <button onClick={()=>handleEdit(p)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
+                <button onClick={()=>handleDelete(p.id)} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
+              </div>
             </div>
-            <div style={{flex:1,minWidth:0}}>
-              <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px'}}>{p.numero_poliza||'Sin número'}</p>
-              <p style={{fontSize:'12px',color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre}</p>
-            </div>
-            <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
-              <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA'}}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
-              <p style={{fontSize:'11px',color:'#64748b'}}>{p.tipo_pago==='financiado'?`${p.fraccionamiento} cuotas`:'Contado'}</p>
-            </div>
-            <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
-              <p style={{fontSize:'12px',color:new Date(p.fecha_vencimiento)<new Date()?'#ef4444':'#64748b'}}>
-                Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}
-              </p>
-            </div>
-            <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
-              <button onClick={()=>handleEdit(p)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
-              <button onClick={()=>handleDelete(p.id)} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -419,21 +466,19 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
       created_by: user?.id
     })
     if (error) { toast.error('Error: ' + error.message); return }
-    toast.success('Emisión creada')
+    toast.success('Emision creada')
     setEmisionForm(emptyEmision)
     setShowEmisionForm(false)
     fetchData()
   }
 
   const asignarVehiculo = async (vehiculoId, emisionId) => {
-    // Verificar que el vehículo no esté en otra póliza vigente
     const { data: check } = await supabase.from('vehiculos').select('poliza_id').eq('id', vehiculoId).single()
-    if (check?.poliza_id) { toast.error('Este vehículo ya está asignado a una póliza vigente'); return }
-
+    if (check?.poliza_id) { toast.error('Este vehiculo ya esta asignado a una poliza vigente'); return }
     const { error: evError } = await supabase.from('emision_vehiculos').insert({ emision_id: emisionId, vehiculo_id: vehiculoId })
     if (evError) { toast.error('Error al asignar'); return }
     await supabase.from('vehiculos').update({ poliza_id: poliza.id }).eq('id', vehiculoId)
-    toast.success('Vehículo asignado')
+    toast.success('Vehiculo asignado')
     setShowAsignarVehiculo(null)
     setVehiculoSearch('')
     fetchData()
@@ -442,13 +487,13 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
   const quitarVehiculo = async (vehiculoId, emisionVehiculoId) => {
     await supabase.from('emision_vehiculos').delete().eq('id', emisionVehiculoId)
     await supabase.from('vehiculos').update({ poliza_id: null }).eq('id', vehiculoId)
-    toast.success('Vehículo removido')
+    toast.success('Vehiculo removido')
     fetchData()
   }
 
   const handleReqSubmit = async (e) => {
     e.preventDefault()
-    if (emisiones.length === 0) { toast.error('Primero creá una emisión'); return }
+    if (emisiones.length === 0) { toast.error('Primero crea una emision'); return }
     const { data: { user } } = await supabase.auth.getUser()
     const { data: codigoData } = await supabase.rpc('generate_codigo_req')
     const codigo = codigoData || 'REQ-' + Date.now()
@@ -492,44 +537,59 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
   const totalVehiculos = emisiones.reduce((s,em)=>s+(em.emision_vehiculos?.length||0),0)
   const inputStyle = { width:'100%', padding:'8px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
+  const hoy = new Date()
+  const vencDate = new Date(poliza.fecha_vencimiento)
+  const diasRestantes = Math.ceil((vencDate - hoy) / (1000*60*60*24))
+  const estadoPoliza = vencDate < hoy ? 'vencida' : diasRestantes <= 30 ? 'por_vencer' : 'activa'
+  const estadoBadge = {
+    activa: { bg:'#dcfce7', color:'#15803d', label:'Activa' },
+    por_vencer: { bg:'#fef9c3', color:'#a16207', label:`Por vencer (${diasRestantes}d)` },
+    vencida: { bg:'#fef2f2', color:'#ef4444', label:'Vencida' },
+  }[estadoPoliza]
+
   return (
     <div>
       <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> Volver a pólizas
+        <ArrowLeft size={16}/> Volver a polizas
       </button>
 
-      <div style={{background:'white',borderRadius:'12px',padding:'20px 24px',border:'1px solid #e2e8f0',marginBottom:'16px'}}>
-        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
-              {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="#1A6BBA"/>}
+            <div style={{width:'52px',height:'52px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'rgba(255,255,255,0.15)',flexShrink:0}}>
+              {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={22} color="white"/>}
             </div>
             <div>
-              <h1 style={{fontSize:'20px',fontWeight:700,color:'#0C1E3D'}}>{poliza.numero_poliza||'Sin número'}</h1>
-              <p style={{fontSize:'13px',color:'#64748b'}}>{poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}</p>
+              <h1 style={{fontSize:'20px',fontWeight:700,color:'white',margin:0}}>{poliza.numero_poliza||'Sin numero'}</h1>
+              <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'4px 0 0'}}>{poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}</p>
             </div>
           </div>
-          <button onClick={()=>onEdit(poliza)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
-            <Edit2 size={13}/> Editar
-          </button>
+          <div style={{display:'flex',alignItems:'center',gap:'8px',flexShrink:0}}>
+            <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:estadoBadge.bg,color:estadoBadge.color,fontWeight:600}}>
+              {estadoBadge.label}
+            </span>
+            <button onClick={()=>onEdit(poliza)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+              <Edit2 size={13}/> Editar
+            </button>
+          </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginTop:'16px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',padding:'16px 24px'}}>
           {[
             ['Prima total','Q '+parseFloat(poliza.prima_total||0).toLocaleString(),'#1A6BBA'],
             ['Tipo de pago',(poliza.tipo_pago||'contado').charAt(0).toUpperCase()+(poliza.tipo_pago||'contado').slice(1),'#0C1E3D'],
             ['Inicio',new Date(poliza.fecha_inicio).toLocaleDateString('es-GT'),'#64748b'],
-            ['Vencimiento',new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT'),new Date(poliza.fecha_vencimiento)<new Date()?'#ef4444':'#64748b']
+            ['Vencimiento',new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT'),estadoPoliza==='vencida'?'#ef4444':estadoPoliza==='por_vencer'?'#a16207':'#64748b']
           ].map(([label,val,color])=>(
             <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'12px'}}>
-              <p style={{fontSize:'11px',color:'#64748b',marginBottom:'4px'}}>{label}</p>
-              <p style={{fontSize:'15px',fontWeight:700,color}}>{val}</p>
+              <p style={{fontSize:'11px',color:'#64748b',marginBottom:'4px',margin:0}}>{label}</p>
+              <p style={{fontSize:'15px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
             </div>
           ))}
         </div>
       </div>
 
       <div style={{display:'flex',gap:'8px',marginBottom:'16px',flexWrap:'wrap'}}>
-        {[['emisiones',`Emisiones (${emisiones.length})`],['vehiculos',`Vehículos (${totalVehiculos})`],['pagos',`Pagos (${reqs.length})`],['tareas',`Tareas (${tareas.length})`]].map(([tab,label])=>(
+        {[['emisiones',`Emisiones (${emisiones.length})`],['vehiculos',`Vehiculos (${totalVehiculos})`],['pagos',`Pagos (${reqs.length})`],['tareas',`Tareas (${tareas.length})`]].map(([tab,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab)}
             style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
               background:activeTab===tab?'#0C1E3D':'white',color:activeTab===tab?'white':'#64748b',
@@ -542,10 +602,10 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
       {activeTab==='emisiones' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D'}}>Emisiones</h3>
+            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Emisiones</h3>
             <button onClick={()=>setShowEmisionForm(!showEmisionForm)}
               style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>
-              <Plus size={13}/> Nueva emisión
+              <Plus size={13}/> Nueva emision
             </button>
           </div>
           {showEmisionForm && (
@@ -559,7 +619,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                     </select>
                   </div>
                   <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima emisión (Q) *</label>
+                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima emision (Q) *</label>
                     <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required style={inputStyle}/>
                   </div>
                   <div>
@@ -576,7 +636,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                   </div>
                 </div>
                 <div style={{display:'flex',gap:'8px'}}>
-                  <button type="submit" style={{padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>Crear emisión</button>
+                  <button type="submit" style={{padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>Crear emision</button>
                   <button type="button" onClick={()=>setShowEmisionForm(false)} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
                 </div>
               </form>
@@ -593,8 +653,8 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                     <Icon size={15} color={estadoColors[em.estado]}/>
                   </div>
                   <div style={{flex:1,minWidth:0}}>
-                    <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px'}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
-                    <p style={{fontSize:'12px',color:'#64748b'}}>{new Date(em.fecha_inicio).toLocaleDateString('es-GT')} → {new Date(em.fecha_fin).toLocaleDateString('es-GT')} · {em.emision_vehiculos?.length||0} vehículos</p>
+                    <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px',margin:0}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{new Date(em.fecha_inicio).toLocaleDateString('es-GT')} → {new Date(em.fecha_fin).toLocaleDateString('es-GT')} · {em.emision_vehiculos?.length||0} vehiculos</p>
                   </div>
                   <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',marginRight:'12px',flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
                   <div style={{display:'flex',gap:'4px',marginRight:'8px',flexShrink:0}}>
@@ -612,13 +672,13 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                 {expandedEmision===em.id && (
                   <div style={{padding:'12px 20px 16px',background:'#f8fafc'}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
-                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151'}}>Vehículos asignados</p>
+                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>Vehiculos asignados</p>
                       <button onClick={()=>setShowAsignarVehiculo(showAsignarVehiculo===em.id?null:em.id)}
                         style={{fontSize:'11px',padding:'3px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontWeight:500}}>
-                        + Asignar vehículo
+                        + Asignar vehiculo
                       </button>
                     </div>
-                    {em.emision_vehiculos?.length===0&&<p style={{fontSize:'13px',color:'#94a3b8',marginBottom:'8px'}}>Sin vehículos asignados</p>}
+                    {em.emision_vehiculos?.length===0&&<p style={{fontSize:'13px',color:'#94a3b8',marginBottom:'8px'}}>Sin vehiculos asignados</p>}
                     {em.emision_vehiculos?.map(ev=>(
                       <div key={ev.vehiculos?.id} style={{display:'flex',gap:'8px',padding:'8px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center'}}>
                         <Car size={14} color="#1A6BBA"/>
@@ -632,10 +692,10 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                     ))}
                     {showAsignarVehiculo===em.id && (
                       <div style={{marginTop:'8px',padding:'10px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
-                        <input value={vehiculoSearch} onChange={e=>setVehiculoSearch(e.target.value)} placeholder="Buscar vehículo disponible..."
+                        <input value={vehiculoSearch} onChange={e=>setVehiculoSearch(e.target.value)} placeholder="Buscar vehiculo disponible..."
                           style={{width:'100%',padding:'7px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'12px',marginBottom:'8px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
                         {vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+(v.placa||'')).toLowerCase().includes(vehiculoSearch.toLowerCase())).length===0
-                          ? <p style={{fontSize:'12px',color:'#94a3b8',textAlign:'center',padding:'8px'}}>No hay vehículos disponibles para este cliente</p>
+                          ? <p style={{fontSize:'12px',color:'#94a3b8',textAlign:'center',padding:'8px'}}>No hay vehiculos disponibles para este cliente</p>
                           : vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+(v.placa||'')).toLowerCase().includes(vehiculoSearch.toLowerCase())).map(v=>(
                           <div key={v.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 8px',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',background:'#f8fafc'}}>
                             <Car size={13} color="#1A6BBA"/>
@@ -658,8 +718,8 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
 
       {activeTab==='vehiculos' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-          <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px'}}>Vehículos en esta póliza</h3>
-          {emisiones.every(em=>!em.emision_vehiculos?.length) ? <p style={{color:'#94a3b8',fontSize:'14px',textAlign:'center',padding:'16px 0'}}>Sin vehículos asignados. Asignalos desde la pestaña de Emisiones.</p> :
+          <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px',margin:0}}>Vehiculos en esta poliza</h3>
+          {emisiones.every(em=>!em.emision_vehiculos?.length) ? <p style={{color:'#94a3b8',fontSize:'14px',textAlign:'center',padding:'16px 0'}}>Sin vehiculos asignados. Asignalos desde la pestana de Emisiones.</p> :
            emisiones.filter(em=>em.emision_vehiculos?.length>0).map(em=>(
             <div key={em.id} style={{marginBottom:'16px'}}>
               <p style={{fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'8px'}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
@@ -669,10 +729,10 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                     <Car size={16} color="#1A6BBA"/>
                   </div>
                   <div style={{flex:1}}>
-                    <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px'}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
-                    <p style={{fontSize:'12px',color:'#64748b'}}>{ev.vehiculos?.tipo} · Placa: {ev.vehiculos?.placa||'N/A'} · Color: {ev.vehiculos?.color||'N/A'}</p>
+                    <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px',margin:0}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{ev.vehiculos?.tipo} · Placa: {ev.vehiculos?.placa||'N/A'} · Color: {ev.vehiculos?.color||'N/A'}</p>
                   </div>
-                  {ev.vehiculos?.valor_asegurado>0&&<p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA'}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>}
+                  {ev.vehiculos?.valor_asegurado>0&&<p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA',margin:0}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>}
                 </div>
               ))}
             </div>
@@ -684,15 +744,15 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
         <div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px',marginBottom:'16px'}}>
             {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total reqs',reqs.length,'#1A6BBA']].map(([label,val,color])=>(
-              <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px',border:'1px solid #e2e8f0'}}>
-                <p style={{fontSize:'12px',color:'#64748b',marginBottom:'4px'}}>{label}</p>
-                <p style={{fontSize:'16px',fontWeight:700,color}}>{val}</p>
+              <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px',border:'1px solid #e2e8f0',borderLeft:`4px solid ${color}`}}>
+                <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{label}</p>
+                <p style={{fontSize:'16px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
               </div>
             ))}
           </div>
           <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-              <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D'}}>Requerimientos de pago</h3>
+              <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Requerimientos de pago</h3>
               <button onClick={()=>setShowReqForm(!showReqForm)}
                 style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>
                 <Plus size={13}/> Nuevo req.
@@ -711,7 +771,7 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
                       <input type="date" value={reqForm.fecha_vencimiento} onChange={e=>setReqForm({...reqForm,fecha_vencimiento:e.target.value})} required style={inputStyle}/>
                     </div>
                     <div>
-                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de cuotas</label>
+                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Numero de cuotas</label>
                       <input type="number" min="1" max="24" value={reqForm.total_cuotas} onChange={e=>setReqForm({...reqForm,total_cuotas:e.target.value})} style={inputStyle}/>
                     </div>
                   </div>
@@ -726,10 +786,10 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
              reqs.map((r,i)=>(
               <div key={r.id} style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:i<reqs.length-1?'1px solid #f1f5f9':'none'}}>
                 <div style={{flex:1}}>
-                  <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px'}}>{r.codigo} <span style={{fontWeight:400,color:'#64748b'}}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
-                  <p style={{fontSize:'12px',color:'#64748b'}}>Vence: {new Date(r.fecha_vencimiento).toLocaleDateString('es-GT')}{r.fecha_pago?' · Pagado: '+new Date(r.fecha_pago).toLocaleDateString('es-GT'):''}</p>
+                  <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px',margin:0}}>{r.codigo} <span style={{fontWeight:400,color:'#64748b'}}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Vence: {new Date(r.fecha_vencimiento).toLocaleDateString('es-GT')}{r.fecha_pago?' · Pagado: '+new Date(r.fecha_pago).toLocaleDateString('es-GT'):''}</p>
                 </div>
-                <p style={{fontSize:'14px',fontWeight:700,color:'#1e293b',marginRight:'12px'}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
+                <p style={{fontSize:'14px',fontWeight:700,color:'#1e293b',marginRight:'12px',margin:0}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
                 <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'8px',
                   background:r.estado==='pagado'?'#dcfce7':r.estado==='vencido'?'#fef2f2':'#fef9c3',
                   color:r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207',fontWeight:500}}>
@@ -745,14 +805,14 @@ function PolizaDetalle({ poliza, onBack, onEdit }) {
       {activeTab==='tareas' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D'}}>Tareas pendientes</h3>
+            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Tareas pendientes</h3>
           </div>
-          {tareas.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin tareas pendientes 🎉</p>:
+          {tareas.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin tareas pendientes</p>:
            tareas.map((t,i)=>(
             <div key={t.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 20px',borderBottom:i<tareas.length-1?'1px solid #f1f5f9':'none'}}>
               <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:t.tipo==='automatica'?'#dbeafe':'#f0fdf4',color:t.tipo==='automatica'?'#1d4ed8':'#15803d',flexShrink:0}}>{t.tipo}</span>
-              <p style={{flex:1,fontSize:'13px',color:'#1e293b'}}>{t.titulo}</p>
-              {t.fecha_vencimiento&&<p style={{fontSize:'12px',color:new Date(t.fecha_vencimiento)<new Date()?'#ef4444':'#64748b',flexShrink:0}}>{new Date(t.fecha_vencimiento).toLocaleDateString('es-GT')}</p>}
+              <p style={{flex:1,fontSize:'13px',color:'#1e293b',margin:0}}>{t.titulo}</p>
+              {t.fecha_vencimiento&&<p style={{fontSize:'12px',color:new Date(t.fecha_vencimiento)<new Date()?'#ef4444':'#64748b',flexShrink:0,margin:0}}>{new Date(t.fecha_vencimiento).toLocaleDateString('es-GT')}</p>}
             </div>
           ))}
         </div>
