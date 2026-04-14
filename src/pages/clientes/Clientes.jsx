@@ -388,8 +388,8 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
     const polizaIds = (pData || []).map(p => p.id)
     if (polizaIds.length > 0) {
       const { data: reqData } = await supabase.from('requerimientos_pago')
-      .select('*, polizas(numero_poliza), emisiones(numero_emision)')
-      .in('poliza_id', polizaIds)
+        .select('*, polizas(numero_poliza)')
+        .in('poliza_id', polizaIds)
         .order('fecha_vencimiento', { ascending: true })
       setReqs(reqData || [])
     } else {
@@ -542,7 +542,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
       {activeTab === 'estado_cuenta' && (
         <div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'16px' }}>
-            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#1A6BBA']].map(([l,v,c])=>(
+            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length+' reqs','#1A6BBA']].map(([l,v,c])=>(
               <div key={l} style={{ background:'white', borderRadius:'10px', padding:'14px', border:'1px solid #e2e8f0', borderLeft:`4px solid ${c}` }}>
                 <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{l}</p>
                 <p style={{ fontSize:'16px', fontWeight:700, color:c, margin:'4px 0 0' }}>{v}</p>
@@ -564,66 +564,24 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
                 ))}
               </div>
             </div>
-            {reqsFiltrados.length === 0 ? (
-  <div style={{ overflowX:'auto' }}>
-    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
-      <thead>
-        <tr style={{ background:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
-          {['# Req.','Emisión','Vencimiento','Fecha pago','Monto','Estado',''].map(h => (
-            <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td colSpan={7} style={{ padding:'32px', textAlign:'center', color:'#94a3b8' }}>Sin requerimientos</td></tr>
-      </tbody>
-    </table>
-  </div>
-) : (
-  <div style={{ overflowX:'auto' }}>
-    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
-      <thead>
-        <tr style={{ background:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
-          {['# Req.','Emisión','Vencimiento','Fecha pago','Monto','Estado',''].map(h => (
-            <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {reqsFiltrados.map((r, i) => (
-          <tr key={r.id} style={{ borderBottom:'1px solid #f1f5f9', background: i%2===0 ? 'white' : '#fafafa' }}>
-            <td style={{ padding:'12px 16px', fontWeight:600, color:'#0C1E3D', whiteSpace:'nowrap' }}>
-              {r.codigo} <span style={{ fontWeight:400, color:'#94a3b8' }}>· {r.numero_cuota}/{r.total_cuotas}</span>
-            </td>
-            <td style={{ padding:'12px 16px', color:'#64748b' }}>{r.emisiones?.numero_emision || '—'}</td>
-            <td style={{ padding:'12px 16px', color: new Date(r.fecha_vencimiento)<new Date() && r.estado!=='pagado' ? '#ef4444' : '#64748b', whiteSpace:'nowrap' }}>
-              {r.fecha_vencimiento ? new Date(r.fecha_vencimiento).toLocaleDateString('es-GT') : '—'}
-            </td>
-            <td style={{ padding:'12px 16px', color:'#64748b', whiteSpace:'nowrap' }}>
-              {r.fecha_pago ? new Date(r.fecha_pago).toLocaleDateString('es-GT') : '—'}
-            </td>
-            <td style={{ padding:'12px 16px', fontWeight:700, color:'#1e293b', whiteSpace:'nowrap' }}>Q {parseFloat(r.monto||0).toLocaleString()}</td>
-            <td style={{ padding:'12px 16px' }}>
-              <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px',
-                background: r.estado==='pagado'?'#dcfce7':r.estado==='vencido'?'#fef2f2':'#fef9c3',
-                color: r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207', fontWeight:500 }}>
-                {r.estado}
-              </span>
-            </td>
-            <td style={{ padding:'12px 16px' }}>
-              {r.estado !== 'pagado' && (
-                <button onClick={() => marcarPagado(r.id)} style={{ padding:'5px 10px', background:'#dcfce7', color:'#15803d', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer', whiteSpace:'nowrap' }}>
-                  Pagar
-                </button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    </div>
-  </div>
-)}
+            {reqsFiltrados.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><p style={{ color:'#94a3b8', margin:0 }}>Sin requerimientos</p></div> :
+              reqsFiltrados.map((r, i) => (
+                <div key={r.id} style={{ display:'flex', alignItems:'center', padding:'12px 20px', borderBottom: i<reqsFiltrados.length-1 ? '1px solid #f1f5f9' : 'none' }}>
+                  <div style={{ flex:1 }}>
+                    <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0 }}>{r.codigo} <span style={{ fontWeight:400, color:'#64748b' }}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
+                    <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{r.polizas?.numero_poliza || 'Sin póliza'}</p>
+                  </div>
+                  <p style={{ fontSize:'14px', fontWeight:700, color:'#1e293b', marginRight:'12px' }}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
+                  <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'8px',
+                    background: r.estado==='pagado'?'#dcfce7':r.estado==='vencido'?'#fef2f2':'#fef9c3',
+                    color: r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207', fontWeight:500 }}>
+                    {r.estado}
+                  </span>
+                  {r.estado !== 'pagado' && (
+                    <button onClick={() => marcarPagado(r.id)} style={{ padding:'5px 10px', background:'#dcfce7', color:'#15803d', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>
+                      Pagar
+                    </button>
+                  )}
                 </div>
               ))}
           </div>
