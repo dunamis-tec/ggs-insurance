@@ -67,6 +67,7 @@ export default function Vehiculos() {
   const [chasisError, setChasisError] = useState('')
   const location = useLocation()
   const fromClienteId = location.state?.fromClienteId || null
+  const fromPolizaId  = location.state?.fromPolizaId  || null
 
   useEffect(() => { fetchAll() }, [])
 
@@ -164,7 +165,7 @@ export default function Vehiculos() {
   const labelStyle = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }
 
   if (view === 'detalle' && selected) return (
-    <VehiculoDetalle vehiculo={selected} fromClienteId={fromClienteId} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
+    <VehiculoDetalle vehiculo={selected} fromClienteId={fromClienteId} fromPolizaId={fromPolizaId} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -317,13 +318,15 @@ export default function Vehiculos() {
   )
 }
 
-function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId }) {
+function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId }) {
   const navigate = useNavigate()
   const [historial, setHistorial] = useState([])
   const [loading, setLoading] = useState(true)
 
   const handleBack = () => {
-    if (fromClienteId) {
+    if (fromPolizaId) {
+      navigate('/polizas', { state: { openPolizaId: fromPolizaId } })
+    } else if (fromClienteId) {
       navigate('/clientes', { state: { openClienteId: fromClienteId, fromVehiculo: true } })
     } else {
       onBack()
@@ -345,7 +348,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId }) {
   return (
     <div>
       <button onClick={handleBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> {fromClienteId ? 'Volver al cliente' : 'Volver a vehiculos'}
+        <ArrowLeft size={16}/> {fromPolizaId ? 'Volver a la póliza' : fromClienteId ? 'Volver al cliente' : 'Volver a vehiculos'}
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>

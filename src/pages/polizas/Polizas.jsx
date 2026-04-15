@@ -661,6 +661,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [uploadingPdf, setUploadingPdf] = useState(false)
   const [inclusionVehiculos, setInclusionVehiculos] = useState([])
   const [inclusionVehiculosSelected, setInclusionVehiculosSelected] = useState([])
+  const [exclusionVehiculosSelected, setExclusionVehiculosSelected] = useState([])
   const [allClientVehiculos, setAllClientVehiculos] = useState([])
 
   useEffect(() => { fetchData() }, [poliza.id])
@@ -797,16 +798,24 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const abrirFormEmision = (tipo) => {
     setEmisionForm({ ...emptyEmision, tipo }); setPreselectedTipo(tipo)
+    setInclusionVehiculosSelected([]); setExclusionVehiculosSelected([])
     setShowEmisionForm(true); setActiveTab('emisiones')
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' }), 100)
   }
 
   const handleEmisionSubmit = async (e) => {
     e.preventDefault()
+    const isExclusion = emisionForm.tipo === 'exclusion'
+    if (isExclusion && exclusionVehiculosSelected.length === 0) {
+      toast.error('Selecciona al menos un vehículo para excluir'); return
+    }
     const { data: { user } } = await supabase.auth.getUser()
-    const numEmision = `${poliza.numero_poliza||'SOL'}-INC${(emisiones.filter(em=>em.tipo==='inclusion').length+1).toString().padStart(2,'0')}`
+    const tipoCode = isExclusion ? 'EXC' : 'INC'
+    const tipoFilter = isExclusion ? 'exclusion' : 'inclusion'
+    const count = emisiones.filter(em=>em.tipo===tipoFilter).length + 1
+    const numEmision = `${poliza.numero_poliza||'SOL'}-${tipoCode}${count.toString().padStart(2,'0')}`
     const { data: emData, error } = await supabase.from('emisiones').insert({
-      poliza_id: poliza.id, tipo: 'inclusion', estado: 'solicitud',
+      poliza_id: poliza.id, tipo: emisionForm.tipo, estado: 'solicitud',
       numero_emision: numEmision,
       prima_emision: parseFloat(emisionForm.prima_emision) || 0,
       fecha_inicio: emisionForm.fecha_inicio,
@@ -815,17 +824,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       created_by: user?.id
     }).select().single()
     if (error) { toast.error('Error: ' + error.message); return }
-    // Assign selected vehicles
-    if (inclusionVehiculosSelected.length > 0) {
+    // Assign selected vehicles (track which vehicles are being included/excluded)
+    const selectedVids = isExclusion ? exclusionVehiculosSelected : inclusionVehiculosSelected
+    if (selectedVids.length > 0) {
       await supabase.from('emision_vehiculos').insert(
-        inclusionVehiculosSelected.map(vid => ({ emision_id: emData.id, vehiculo_id: vid }))
+        selectedVids.map(vid => ({ emision_id: emData.id, vehiculo_id: vid }))
       )
     }
     // Log in bitácora
-    await addBitacora(null, 'solicitud', `Inclusión ${numEmision} creada`)
-    toast.success('Inclusión creada · ' + numEmision)
+    const tipoLabel = isExclusion ? 'Exclusión' : 'Inclusión'
+    await addBitacora(null, 'solicitud', `${tipoLabel} ${numEmision} creada`)
+    toast.success(`${tipoLabel} creada · ` + numEmision)
     setEmisionForm(emptyEmision); setShowEmisionForm(false)
-    setInclusionVehiculosSelected([])
+    setInclusionVehiculosSelected([]); setExclusionVehiculosSelected([])
     fetchData()
   }
 
@@ -839,7 +850,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     setShowAsignarVehiculo(null); setVehiculoSearch(''); fetchData()
   }
 
-  const quitarVehiculo = async (vehiculoId, emisionVehiculoId) => {
+  const quitarVehiculo = async (vehiculoId, emisionVehiculoId, emisionId) => {
+    // Prevent removing the last vehicle from an existing emission
+    const em = emisiones.find(e => e.id === emisionId)
+    if (em && em.emision_vehiculos?.length <= 1) {
+      toast.error('No puedes quitar el único vehículo de esta gestión')
+      return
+    }
     await supabase.from('emision_vehiculos').delete().eq('id', emisionVehiculoId)
     await supabase.from('vehiculos').update({ poliza_id: null }).eq('id', vehiculoId)
     toast.success('Vehiculo removido'); fetchData()
@@ -877,12 +894,24 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     const estadoLabel = { solicitud:'Solicitud', enviada:'Enviada a aseguradora', en_reproceso:'En reproceso', emitida:'Emitida' }
     const desc = `[Gestión] ${tipoLabel} ${em.numero_emision} — ${estadoLabel[em.estado]||em.estado} → ${estadoLabel[nuevoEstado]||nuevoEstado}`
     await addBitacora(em.estado, nuevoEstado, desc)
+    // When an exclusion is emitida → remove excluded vehicles from the poliza
+    if (nuevoEstado === 'emitida' && em.tipo === 'exclusion') {
+      const excVehiculos = em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || []
+      if (excVehiculos.length > 0) {
+        await Promise.all(excVehiculos.map(vid =>
+          supabase.from('vehiculos').update({ poliza_id: null }).eq('id', vid)
+        ))
+      }
+    }
     fetchData()
   }
 
   const totalPagado   = reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
   const totalPendiente = reqs.filter(r=>r.estado!=='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
   const totalVehiculos = emisiones.reduce((s,em)=>s+(em.emision_vehiculos?.length||0),0)
+  const primaTotal = isEmitida
+    ? emisiones.filter(em=>em.estado==='emitida').reduce((s,em)=>s+parseFloat(em.prima_emision||0),0)
+    : parseFloat(poliza.prima_total||0)
   const inputStyle = { width:'100%', padding:'8px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   const hoy = new Date()
@@ -1016,7 +1045,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         {/* Info cards */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'12px',padding:'16px 24px'}}>
           {[
-            ['Prima total','Q '+parseFloat(poliza.prima_total||0).toLocaleString(),'#1A6BBA'],
+            ['Prima total','Q '+primaTotal.toLocaleString(),'#1A6BBA'],
             ['Tipo de pago', poliza.tipo_pago==='financiado'?`Financiado · ${fraccionamientoLabels[poliza.fraccionamiento]||poliza.fraccionamiento}`:'Contado','#0C1E3D'],
             ['Inicio', poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—','#64748b'],
             ['Vencimiento', vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#64748b'],
@@ -1058,7 +1087,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       {/* ─ TAB: Detalle ─ */}
       {activeTab === 'detalle' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-          <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:'0 0 16px'}}>Datos del cliente</h3>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Datos del cliente</h3>
+            <button onClick={()=>navigate('/clientes',{state:{openClienteId:poliza.cliente_id}})}
+              style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 12px',background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
+              Ver perfil del cliente →
+            </button>
+          </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'12px'}}>
             {[
               ['Nombre', `${poliza.clientes?.nombre||''} ${poliza.clientes?.apellido||''}`],
@@ -1085,60 +1120,114 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       )}
 
       {/* ─ TAB: Bitácora ─ */}
-      {activeTab === 'bitacora' && (
-        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-          <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
-            <History size={16} color='#1A6BBA'/>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Bitácora de la solicitud</h3>
-            <span style={{marginLeft:'auto',background:'#dbeafe',color:'#1d4ed8',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>{bitacora.length}</span>
-          </div>
-          {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
-           bitacora.length === 0 ? (
-            <div style={{padding:'32px',textAlign:'center'}}>
-              <History size={28} color='#cbd5e1' style={{marginBottom:'10px'}}/>
-              <p style={{color:'#94a3b8',margin:0}}>Sin registros en la bitácora</p>
-            </div>
-           ) : (
-            <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:'0'}}>
-              {bitacora.map((entry, i) => {
-                const isGestion = entry.descripcion?.startsWith('[Gestión]')
-                const color = isGestion ? '#7c3aed' : (estadoBitacora[entry.estado_nuevo] || '#64748b')
-                const cleanDesc = isGestion ? entry.descripcion.replace('[Gestión] ','') : entry.descripcion
+      {activeTab === 'bitacora' && (() => {
+        const polizaEntries = bitacora.filter(e => !e.descripcion?.startsWith('[Gestión]'))
+        const gestionEntries = bitacora.filter(e => e.descripcion?.startsWith('[Gestión]'))
+        // Group gestion entries by emission number
+        const gestionGroups = {}
+        gestionEntries.forEach(e => {
+          const cleanDesc = e.descripcion.replace('[Gestión] ','')
+          const matchedEm = emisiones.find(em => cleanDesc.includes(em.numero_emision))
+          const key = matchedEm ? matchedEm.numero_emision : 'otras'
+          if (!gestionGroups[key]) {
+            gestionGroups[key] = { em: matchedEm, entries: [], key }
+          }
+          gestionGroups[key].entries.push(e)
+        })
+        const groupKeys = Object.keys(gestionGroups)
+        const thStyle = { padding:'8px 12px', fontSize:'11px', fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.5px', textAlign:'left', background:'#f8fafc', borderBottom:'1px solid #e2e8f0' }
+        const tdStyle = { padding:'9px 12px', fontSize:'13px', color:'#374151', borderBottom:'1px solid #f8fafc', verticalAlign:'middle' }
+        const renderTable = (entries) => (
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Fecha</th>
+                <th style={thStyle}>Evento</th>
+                <th style={thStyle}>Estado anterior</th>
+                <th style={thStyle}>Estado nuevo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(entry => {
+                const cleanDesc = entry.descripcion?.startsWith('[Gestión]') ? entry.descripcion.replace('[Gestión] ','') : (entry.descripcion||'')
+                // Strip the "X — prev → next" part from gestion descriptions if we have columns
+                const displayDesc = cleanDesc.replace(/ — .+→.+$/,'').trim() || cleanDesc
+                const eAnterior = polizaEstados[entry.estado_anterior]
+                const eNuevo    = polizaEstados[entry.estado_nuevo]
                 return (
-                  <div key={entry.id} style={{display:'flex',gap:'14px',paddingBottom: i<bitacora.length-1?'20px':'0'}}>
-                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
-                      <div style={{width:'34px',height:'34px',borderRadius:'50%',background:color+'20',border:`2px solid ${color}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                        <CheckCircle size={14} color={color}/>
-                      </div>
-                      {i < bitacora.length-1 && <div style={{width:'2px',flex:1,background:'#e2e8f0',marginTop:'6px'}}/>}
-                    </div>
-                    <div style={{flex:1,paddingTop:'4px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap',marginBottom:'3px'}}>
-                        {/* Source badge */}
-                        <span style={{fontSize:'10px',padding:'1px 7px',borderRadius:'20px',fontWeight:700,
-                          background: isGestion ? '#ede9fe' : '#f1f5f9',
-                          color: isGestion ? '#7c3aed' : '#475569'}}>
-                          {isGestion ? 'GESTIÓN' : 'PÓLIZA'}
+                  <tr key={entry.id} onMouseEnter={e=>e.currentTarget.style.background='#fafbff'} onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                    <td style={{...tdStyle, whiteSpace:'nowrap', color:'#64748b', fontSize:'12px'}}>
+                      {new Date(entry.created_at).toLocaleDateString('es-GT')}<br/>
+                      <span style={{color:'#94a3b8'}}>{new Date(entry.created_at).toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'})}</span>
+                    </td>
+                    <td style={tdStyle}>{displayDesc}</td>
+                    <td style={tdStyle}>
+                      {entry.estado_anterior ? (
+                        <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:eAnterior?.bg||'#f1f5f9',color:eAnterior?.color||'#64748b',fontWeight:600,whiteSpace:'nowrap'}}>
+                          {eAnterior?.label||entry.estado_anterior}
                         </span>
-                        {/* Estado badge */}
-                        {entry.estado_nuevo && (
-                          <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:(polizaEstados[entry.estado_nuevo]?.bg||'#f1f5f9'),color:(polizaEstados[entry.estado_nuevo]?.color||'#64748b'),fontWeight:600}}>
-                            {polizaEstados[entry.estado_nuevo]?.label || entry.estado_nuevo}
-                          </span>
-                        )}
-                        <p style={{fontSize:'11px',color:'#94a3b8',margin:0,marginLeft:'auto'}}>
-                          {new Date(entry.created_at).toLocaleDateString('es-GT')} · {new Date(entry.created_at).toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'})}
-                        </p>
-                      </div>
-                      <p style={{fontSize:'13px',color:'#374151',margin:0,lineHeight:'1.4'}}>{cleanDesc}</p>
-                    </div>
-                  </div>
+                      ) : <span style={{color:'#94a3b8',fontSize:'12px'}}>—</span>}
+                    </td>
+                    <td style={tdStyle}>
+                      {entry.estado_nuevo ? (
+                        <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:eNuevo?.bg||'#f1f5f9',color:eNuevo?.color||'#64748b',fontWeight:600,whiteSpace:'nowrap'}}>
+                          {eNuevo?.label||entry.estado_nuevo}
+                        </span>
+                      ) : <span style={{color:'#94a3b8',fontSize:'12px'}}>—</span>}
+                    </td>
+                  </tr>
                 )
               })}
-            </div>
-           )}
-        </div>
-      )}
+            </tbody>
+          </table>
+        )
+        return (
+          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+            {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
+             bitacora.length === 0 ? (
+              <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'32px',textAlign:'center'}}>
+                <History size={28} color='#cbd5e1' style={{marginBottom:'10px'}}/>
+                <p style={{color:'#94a3b8',margin:0}}>Sin registros en la bitácora</p>
+              </div>
+             ) : (
+              <>
+                {/* Póliza events */}
+                {polizaEntries.length > 0 && (
+                  <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+                    <div style={{padding:'12px 16px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
+                      <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',fontWeight:700,background:'#f1f5f9',color:'#475569'}}>PÓLIZA</span>
+                      <span style={{fontSize:'13px',fontWeight:600,color:'#0C1E3D'}}>Historial de la póliza</span>
+                      <span style={{marginLeft:'auto',fontSize:'12px',color:'#94a3b8'}}>{polizaEntries.length} evento(s)</span>
+                    </div>
+                    <div style={{overflowX:'auto'}}>{renderTable(polizaEntries)}</div>
+                  </div>
+                )}
+                {/* Gestión events grouped by emission */}
+                {groupKeys.map(key => {
+                  const grp = gestionGroups[key]
+                  const tipoLabel = grp.em ? ({ emision:'Emisión principal', inclusion:'Inclusión', exclusion:'Exclusión', renovacion:'Renovación' }[grp.em.tipo] || grp.em.tipo) : 'Gestión'
+                  const eEst = grp.em ? (polizaEstados[grp.em.estado] || { bg:'#f1f5f9', color:'#64748b', label:grp.em.estado }) : null
+                  const isExpanded = expandedEmision === ('bit-'+key)
+                  return (
+                    <div key={key} style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+                      <div style={{padding:'12px 16px',borderBottom: isExpanded?'1px solid #f1f5f9':'none',display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}}
+                        onClick={()=>setExpandedEmision(isExpanded?null:'bit-'+key)}>
+                        <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',fontWeight:700,background:'#ede9fe',color:'#7c3aed'}}>GESTIÓN</span>
+                        <span style={{fontSize:'13px',fontWeight:600,color:'#0C1E3D'}}>{key}</span>
+                        <span style={{fontSize:'12px',color:'#64748b'}}>{tipoLabel}</span>
+                        {eEst && <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:eEst.bg,color:eEst.color,fontWeight:600}}>{eEst.label}</span>}
+                        <span style={{marginLeft:'auto',fontSize:'12px',color:'#94a3b8'}}>{grp.entries.length} evento(s)</span>
+                        {isExpanded ? <ChevronUp size={14} color="#94a3b8"/> : <ChevronDown size={14} color="#94a3b8"/>}
+                      </div>
+                      {isExpanded && <div style={{overflowX:'auto'}}>{renderTable(grp.entries)}</div>}
+                    </div>
+                  )
+                })}
+              </>
+             )}
+          </div>
+        )
+      })()}
 
       {/* ─ TAB: Vehículos ─ */}
       {activeTab === 'vehiculos_sol' && (
@@ -1162,7 +1251,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             ) : solicitudVehiculos.map((sv, i) => (
               <div key={sv.id}
                 style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<solicitudVehiculos.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
-                onClick={() => navigate('/vehiculos', { state: { openVehiculoId: sv.vehiculos?.id } })}
+                onClick={() => navigate('/vehiculos', { state: { openVehiculoId: sv.vehiculos?.id, fromPolizaId: poliza.id } })}
                 onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
                 onMouseLeave={e=>e.currentTarget.style.background='white'}>
                 <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
@@ -1192,7 +1281,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 return (
                   <div key={ev.id}
                     style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:idx<allEv.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
-                    onClick={() => navigate('/vehiculos', { state: { openVehiculoId: ev.vehiculos?.id } })}
+                    onClick={() => navigate('/vehiculos', { state: { openVehiculoId: ev.vehiculos?.id, fromPolizaId: poliza.id } })}
                     onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
                     onMouseLeave={e=>e.currentTarget.style.background='white'}>
                     <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
@@ -1202,6 +1291,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                       <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
                       <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(ev.vehiculos)} · {em.numero_emision}</p>
                     </div>
+                    {(() => { const emEst = polizaEstados[em.estado]||{bg:'#f1f5f9',color:'#64748b',label:em.estado}; return <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:emEst.bg,color:emEst.color,fontWeight:600,flexShrink:0,marginRight:'4px'}}>{emEst.label}</span> })()}
                     {ev.vehiculos?.valor_asegurado > 0 && (
                       <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:'0 8px 0 0',flexShrink:0}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>
                     )}
@@ -1234,14 +1324,27 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             </button>
           </div>
 
-          {/* Nueva inclusión form */}
-          {showEmisionForm && (
-            <div style={{padding:'20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
-              <p style={{fontSize:'13px',fontWeight:700,color:'#0C1E3D',margin:'0 0 14px'}}>Nueva inclusión</p>
+          {/* Nueva inclusión / exclusión form */}
+          {showEmisionForm && (() => {
+            const isExclusion = emisionForm.tipo === 'exclusion'
+            const formTitle = isExclusion ? 'Nueva exclusión' : 'Nueva inclusión'
+            const submitLabel = isExclusion ? 'Crear exclusión' : 'Crear inclusión'
+            // Vehicles currently active in the poliza (in any emission)
+            const vehiculosEnPoliza = emisiones.flatMap(em =>
+              (em.emision_vehiculos||[]).map(ev => ({
+                ...ev.vehiculos, evId: ev.id, emisionNumero: em.numero_emision, emisionEstado: em.estado
+              }))
+            ).filter(v => v?.id)
+            return (
+            <div style={{padding:'20px',borderBottom:'1px solid #f1f5f9',background:isExclusion?'#fff8f8':'#f8fafc'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'14px'}}>
+                {isExclusion ? <Minus size={15} color='#ef4444'/> : <Plus size={15} color='#1d4ed8'/>}
+                <p style={{fontSize:'13px',fontWeight:700,color:isExclusion?'#ef4444':'#0C1E3D',margin:0}}>{formTitle}</p>
+              </div>
               <form onSubmit={handleEmisionSubmit}>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'14px'}}>
                   <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima de inclusión (Q) *</label>
+                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima {isExclusion?'de exclusión':'de inclusión'} (Q) *</label>
                     <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required style={inputStyle} placeholder="0.00"/>
                   </div>
                   <div>
@@ -1256,42 +1359,73 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   </div>
                   <div style={{gridColumn:'1/-1'}}>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas</label>
-                    <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle} placeholder="Descripción de la inclusión"/>
+                    <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle} placeholder={`Descripción de la ${isExclusion?'exclusión':'inclusión'}`}/>
                   </div>
                 </div>
 
                 {/* Vehicle selection */}
                 <div style={{marginBottom:'14px'}}>
-                  <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:'0 0 8px'}}>Vehículos a incluir <span style={{fontWeight:400,color:'#94a3b8'}}>(del cliente, no asignados a otra emisión)</span></p>
-                  {vehiculosParaInclusion.length === 0 ? (
-                    <p style={{fontSize:'12px',color:'#94a3b8',padding:'8px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0',margin:0}}>Sin vehículos disponibles</p>
+                  {isExclusion ? (
+                    <>
+                      <p style={{fontSize:'12px',fontWeight:600,color:'#ef4444',margin:'0 0 8px'}}>Vehículos a excluir * <span style={{fontWeight:400,color:'#94a3b8'}}>(activos en la póliza)</span></p>
+                      {vehiculosEnPoliza.length === 0 ? (
+                        <p style={{fontSize:'12px',color:'#94a3b8',padding:'8px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0',margin:0}}>Sin vehículos en la póliza</p>
+                      ) : (
+                        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                          {vehiculosEnPoliza.map(v => {
+                            const sel = exclusionVehiculosSelected.includes(v.id)
+                            const eEst = polizaEstados[v.emisionEstado] || { bg:'#f1f5f9', color:'#64748b', label: v.emisionEstado }
+                            return (
+                              <div key={v.id} onClick={()=>setExclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
+                                style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:sel?'#fef2f2':'white',border:`1px solid ${sel?'#ef4444':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
+                                <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#ef4444':'#cbd5e1'}`,background:sel?'#ef4444':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                  {sel && <CheckCircle size={12} color="white"/>}
+                                </div>
+                                <Car size={14} color={sel?'#ef4444':'#64748b'}/>
+                                <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#ef4444':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
+                                <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
+                                <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'20px',background:eEst.bg,color:eEst.color,fontWeight:600,flexShrink:0}}>{v.emisionNumero}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
-                      {vehiculosParaInclusion.map(v=>{
-                        const sel = inclusionVehiculosSelected.includes(v.id)
-                        return (
-                          <div key={v.id} onClick={()=>setInclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
-                            style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:sel?'#eff6ff':'white',border:`1px solid ${sel?'#3b82f6':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
-                            <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#3b82f6':'#cbd5e1'}`,background:sel?'#3b82f6':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              {sel && <CheckCircle size={12} color="white"/>}
-                            </div>
-                            <Car size={14} color={sel?'#1d4ed8':'#64748b'}/>
-                            <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#1d4ed8':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
-                            <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
+                    <>
+                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:'0 0 8px'}}>Vehículos a incluir <span style={{fontWeight:400,color:'#94a3b8'}}>(del cliente, no asignados a otra emisión)</span></p>
+                      {vehiculosParaInclusion.length === 0 ? (
+                        <p style={{fontSize:'12px',color:'#94a3b8',padding:'8px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0',margin:0}}>Sin vehículos disponibles</p>
+                      ) : (
+                        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                          {vehiculosParaInclusion.map(v=>{
+                            const sel = inclusionVehiculosSelected.includes(v.id)
+                            return (
+                              <div key={v.id} onClick={()=>setInclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
+                                style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:sel?'#eff6ff':'white',border:`1px solid ${sel?'#3b82f6':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
+                                <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#3b82f6':'#cbd5e1'}`,background:sel?'#3b82f6':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                  {sel && <CheckCircle size={12} color="white"/>}
+                                </div>
+                                <Car size={14} color={sel?'#1d4ed8':'#64748b'}/>
+                                <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#1d4ed8':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
+                                <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
                 <div style={{display:'flex',gap:'8px'}}>
-                  <button type="submit" style={{padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>Crear inclusión</button>
-                  <button type="button" onClick={()=>{setShowEmisionForm(false);setInclusionVehiculosSelected([])}} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
+                  <button type="submit" style={{padding:'8px 16px',background:isExclusion?'#dc2626':'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>{submitLabel}</button>
+                  <button type="button" onClick={()=>{setShowEmisionForm(false);setInclusionVehiculosSelected([]);setExclusionVehiculosSelected([])}} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
                 </div>
               </form>
             </div>
-          )}
+            )
+          })()}
 
           {/* List of ALL gestiones */}
           {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
@@ -1395,12 +1529,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     {em.emision_vehiculos?.length===0 && <p style={{fontSize:'13px',color:'#94a3b8',marginBottom:'8px'}}>Sin vehículos asignados</p>}
                     {em.emision_vehiculos?.map(ev=>(
                       <div key={ev.id} style={{display:'flex',gap:'8px',padding:'8px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center',cursor:'pointer'}}
-                        onClick={()=>navigate('/vehiculos',{state:{openVehiculoId:ev.vehiculos?.id}})}>
+                        onClick={()=>navigate('/vehiculos',{state:{openVehiculoId:ev.vehiculos?.id,fromPolizaId:poliza.id}})}>
                         <Car size={14} color="#1A6BBA"/>
                         <span style={{fontWeight:500,flex:1}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</span>
                         <span style={{color:'#64748b'}}>Placa: {fp(ev.vehiculos)}</span>
                         {!isLocked && (
-                          <button onClick={e=>{e.stopPropagation();quitarVehiculo(ev.vehiculos?.id, ev.id)}}
+                          <button onClick={e=>{e.stopPropagation();quitarVehiculo(ev.vehiculos?.id, ev.id, em.id)}}
                             style={{padding:'2px 8px',background:'#fef2f2',color:'#ef4444',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px'}}>Quitar</button>
                         )}
                       </div>
