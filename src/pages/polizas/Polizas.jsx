@@ -72,6 +72,7 @@ export default function Polizas() {
   const location = useLocation()
   const navigate = useNavigate()
   const fromClienteId = location.state?.fromClienteId || null
+  const fromReqId = location.state?.fromReqId || null
   const prefilledClienteId = location.state?.prefilledClienteId || null
 
   useEffect(() => { fetchAll() }, [])
@@ -226,15 +227,15 @@ export default function Polizas() {
   const inputStyle = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   if (view === 'detalle' && selected) return (
-    <PolizaDetalle poliza={selected} fromCliente={!!fromClienteId}
-      onBack={()=>{ if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } }); else { setView('list'); fetchAll() } }}
+    <PolizaDetalle poliza={selected} fromCliente={!!fromClienteId} fromReq={!!fromReqId}
+      onBack={()=>{ if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } }); else if (fromReqId) navigate('/requerimientos', { state: { openReqId: fromReqId } }); else { setView('list'); fetchAll() } }}
       onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
     <div>
-      <button onClick={()=>{ if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } }); else { setView('list'); setEditing(null); setForm(emptyPoliza) } }} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> {fromClienteId ? 'Volver al cliente' : 'Volver a polizas'}
+      <button onClick={()=>{ if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } }); else if (fromReqId) navigate('/requerimientos', { state: { openReqId: fromReqId } }); else { setView('list'); setEditing(null); setForm(emptyPoliza) } }} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
+        <ArrowLeft size={16}/> {fromClienteId ? 'Volver al cliente' : fromReqId ? 'Volver al requerimiento' : 'Volver a polizas'}
       </button>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',maxWidth:'800px'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
@@ -345,7 +346,7 @@ export default function Polizas() {
               <button type="submit" style={{padding:'11px 24px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
                 {editing ? 'Actualizar poliza' : 'Crear poliza'}
               </button>
-              <button type="button" onClick={()=>{ if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } }); else { setView('list'); setEditing(null); setForm(emptyPoliza) } }}
+              <button type="button" onClick={()=>{ if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } }); else if (fromReqId) navigate('/requerimientos', { state: { openReqId: fromReqId } }); else { setView('list'); setEditing(null); setForm(emptyPoliza) } }}
                 style={{padding:'11px 24px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
                 Cancelar
               </button>
@@ -448,7 +449,7 @@ export default function Polizas() {
   )
 }
 
-function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
+function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
   const [emisiones, setEmisiones] = useState([])
   const [reqs, setReqs] = useState([])
   const [vehiculosDisponibles, setVehiculosDisponibles] = useState([])
@@ -575,7 +576,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
   return (
     <div>
       <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> {fromCliente ? 'Volver al cliente' : 'Volver a polizas'}
+        <ArrowLeft size={16}/> {fromCliente ? 'Volver al cliente' : fromReq ? 'Volver al requerimiento' : 'Volver a polizas'}
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
 const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
@@ -23,8 +23,17 @@ export default function Clientes() {
   const [editing, setEditing] = useState(null)
   const [conglomeradoSearch, setConglomeradoSearch] = useState('')
   const [showConglomeradoDropdown, setShowConglomeradoDropdown] = useState(false)
+  const location = useLocation()
+  const fromReqId = location.state?.fromReqId || null
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (location.state?.openClienteId && clientes.length > 0) {
+      const c = clientes.find(c => c.id === location.state.openClienteId)
+      if (c) { setSelected(c); setView('detalle') }
+    }
+  }, [location.state, clientes])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -117,7 +126,7 @@ export default function Clientes() {
   const getNombreDisplay = (c) => c.tipo === 'empresa' ? (c.razon_social || c.nombre_empresa || c.nombre) : `${c.nombre} ${c.apellido||''}`.trim()
 
   if (view === 'detalle' && selected) return (
-    <ClienteDetalle cliente={selected} conglomerados={conglomerados} onBack={() => { setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
+    <ClienteDetalle cliente={selected} conglomerados={conglomerados} fromReqId={fromReqId} onBack={() => { setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -344,7 +353,7 @@ export default function Clientes() {
   )
 }
 
-function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
+function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId }) {
   const navigate = useNavigate()
   const [polizas, setPolizas] = useState([])
   const [personas, setPersonas] = useState([])
@@ -429,8 +438,8 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ display:'flex', alignItems:'center', gap:'6px', color:'#64748b', background:'none', border:'none', cursor:'pointer', fontSize:'14px', marginBottom:'20px', padding:'0' }}>
-        <ArrowLeft size={16} /> Volver a clientes
+      <button onClick={()=>{ if (fromReqId) navigate('/requerimientos', { state: { openReqId: fromReqId } }); else onBack() }} style={{ display:'flex', alignItems:'center', gap:'6px', color:'#64748b', background:'none', border:'none', cursor:'pointer', fontSize:'14px', marginBottom:'20px', padding:'0' }}>
+        <ArrowLeft size={16} /> {fromReqId ? 'Volver al requerimiento' : 'Volver a clientes'}
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'16px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
