@@ -96,8 +96,9 @@ export default function Requerimientos() {
     const Icon = estadoIcons[displayEstado] || Clock
     return (
       <div>
-        <button onClick={()=>setSelected(null)} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-          <ArrowLeft size={16}/> Volver a requerimientos
+        <button onClick={()=>{ if (location.state?.fromInforme) navigate('/liquidaciones',{state:{activeTab:'historial'}}); else setSelected(null) }}
+          style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
+          <ArrowLeft size={16}/> {location.state?.fromInforme ? 'Volver a informes' : 'Volver a requerimientos'}
         </button>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 360px',gap:'16px',alignItems:'start'}}>
