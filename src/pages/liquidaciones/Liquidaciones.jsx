@@ -87,8 +87,27 @@ export default function Liquidaciones() {
     return matchAseg && matchDesde && matchHasta
   })
 
-  const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i=>i!==id) : [...prev, id])
-  const selectAll = () => { if (selectedIds.length === filtered.length) setSelectedIds([]); else setSelectedIds(filtered.map(r=>r.id)) }
+  const selectedAsegId = selectedIds.length > 0 ? filtered.find(r=>r.id===selectedIds[0])?.polizas?.aseguradoras?.id : null
+
+  const toggleSelect = (id) => {
+    if (selectedIds.includes(id)) { setSelectedIds(prev => prev.filter(i=>i!==id)); return }
+    if (selectedIds.length > 0) {
+      const thisAsegId = filtered.find(r=>r.id===id)?.polizas?.aseguradoras?.id
+      if (selectedAsegId !== thisAsegId) {
+        toast.error('Solo puedes seleccionar requerimientos de la misma aseguradora')
+        return
+      }
+    }
+    setSelectedIds(prev => [...prev, id])
+  }
+
+  const selectableIds = selectedAsegId
+    ? filtered.filter(r=>r.polizas?.aseguradoras?.id===selectedAsegId).map(r=>r.id)
+    : filtered.map(r=>r.id)
+  const selectAll = () => {
+    if (selectedIds.length === selectableIds.length) setSelectedIds([])
+    else setSelectedIds(selectableIds)
+  }
   const totalSeleccionado = filtered.filter(r=>selectedIds.includes(r.id)).reduce((s,r)=>s+parseFloat(r.monto||0),0)
 
   const generarResumenTexto = () => {
@@ -201,7 +220,7 @@ export default function Liquidaciones() {
 
           <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
             <div style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
-              <input type="checkbox" checked={selectedIds.length===filtered.length&&filtered.length>0} onChange={selectAll}
+              <input type="checkbox" checked={selectedIds.length===selectableIds.length&&selectableIds.length>0} onChange={selectAll}
                 style={{width:'16px',height:'16px',cursor:'pointer',accentColor:'#1A6BBA',marginRight:'12px'}}/>
               <span style={{fontSize:'13px',fontWeight:600,color:'#374151',flex:1}}>Requerimiento</span>
               <span style={{fontSize:'13px',fontWeight:600,color:'#374151',width:'140px'}}>Aseguradora</span>
@@ -214,13 +233,16 @@ export default function Liquidaciones() {
                 <CheckCircle size={32} color="#22c55e" style={{marginBottom:'12px'}}/>
                 <p style={{color:'#94a3b8',fontWeight:500}}>No hay requerimientos pendientes de liquidar</p>
               </div>
-            ) : filtered.map((r,i)=>(
-              <div key={r.id} style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',background:selectedIds.includes(r.id)?'#eff6ff':'white',cursor:'pointer'}}
-                onClick={()=>toggleSelect(r.id)}
-                onMouseEnter={e=>{if(!selectedIds.includes(r.id))e.currentTarget.style.background='#f8fafc'}}
-                onMouseLeave={e=>{if(!selectedIds.includes(r.id))e.currentTarget.style.background='white'}}>
-                <input type="checkbox" checked={selectedIds.includes(r.id)} onChange={()=>toggleSelect(r.id)}
-                  style={{width:'16px',height:'16px',cursor:'pointer',accentColor:'#1A6BBA',marginRight:'12px'}} onClick={e=>e.stopPropagation()}/>
+            ) : filtered.map((r,i)=>{
+              const isDimmed = selectedAsegId && r.polizas?.aseguradoras?.id !== selectedAsegId
+              const isSelected = selectedIds.includes(r.id)
+              return (
+              <div key={r.id} style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',background:isSelected?'#eff6ff':isDimmed?'#fafafa':'white',cursor:isDimmed?'not-allowed':'pointer',opacity:isDimmed?0.45:1,transition:'opacity 0.15s'}}
+                onClick={()=>!isDimmed&&toggleSelect(r.id)}
+                onMouseEnter={e=>{if(!isSelected&&!isDimmed)e.currentTarget.style.background='#f8fafc'}}
+                onMouseLeave={e=>{if(!isSelected&&!isDimmed)e.currentTarget.style.background='white'}}>
+                <input type="checkbox" checked={isSelected} disabled={isDimmed} onChange={()=>toggleSelect(r.id)}
+                  style={{width:'16px',height:'16px',cursor:isDimmed?'not-allowed':'pointer',accentColor:'#1A6BBA',marginRight:'12px'}} onClick={e=>e.stopPropagation()}/>
                 <div style={{flex:1,minWidth:0}}>
                   <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px',textAlign:'left',margin:0}}>{r.codigo}</p>
                   <p style={{fontSize:'12px',color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textAlign:'left',margin:0}}>
@@ -234,7 +256,8 @@ export default function Liquidaciones() {
                 <p style={{width:'100px',fontSize:'12px',color:'#64748b',margin:0}}>{r.fecha_pago?new Date(r.fecha_pago+'T12:00:00').toLocaleDateString('es-GT'):'-'}</p>
                 <p style={{width:'100px',fontSize:'14px',fontWeight:700,color:'#1e293b',textAlign:'right',margin:0}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
               </div>
-            ))}
+              )
+            })}
             {filtered.length > 0 && (
               <div style={{padding:'12px 20px',background:'#f8fafc',borderTop:'1px solid #e2e8f0',display:'flex',justifyContent:'flex-end',gap:'24px'}}>
                 <span style={{fontSize:'13px',color:'#64748b'}}>{filtered.length} requerimientos</span>
