@@ -45,7 +45,7 @@ export default function Requerimientos() {
   const fetchReqs = async () => {
     setLoading(true)
     const { data } = await supabase.from('requerimientos_pago')
-      .select('*, polizas(id, numero_poliza, clientes(id, nombre, apellido), aseguradoras(nombre, logo_url))')
+      .select('*, polizas(id, numero_poliza, clientes(id, nombre, apellido), aseguradoras(nombre, logo_url)), informe_liquidacion_enviado, fecha_informe_liquidacion')
       .order('fecha_vencimiento', { ascending: true })
     setReqs(data || [])
     setLoading(false)
@@ -164,6 +164,28 @@ export default function Requerimientos() {
 
           {/* Columna derecha */}
           <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+            {/* Liquidación */}
+            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+              <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Liquidación</p>
+              {selected.informe_liquidacion_enviado ? (
+                <div>
+                  <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#dcfce7',borderRadius:'8px',marginBottom:'8px'}}>
+                    <CheckCircle size={15} color='#15803d'/>
+                    <span style={{fontSize:'14px',fontWeight:600,color:'#15803d'}}>Liquidado</span>
+                  </div>
+                  {selected.fecha_informe_liquidacion && (
+                    <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>
+                      Enviado el {new Date(selected.fecha_informe_liquidacion).toLocaleDateString('es-GT', {day:'2-digit',month:'long',year:'numeric'})}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#f1f5f9',borderRadius:'8px'}}>
+                  <Clock size={15} color='#64748b'/>
+                  <span style={{fontSize:'14px',fontWeight:600,color:'#64748b'}}>Pendiente de liquidar</span>
+                </div>
+              )}
+            </div>
             {/* Estado */}
             <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
               <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Estado</p>
@@ -268,7 +290,7 @@ export default function Requerimientos() {
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead>
               <tr style={{background:'#f8fafc',borderBottom:'2px solid #e2e8f0'}}>
-                {['Nº Req.','Cuota','Póliza','Vencimiento','Monto','Estado'].map(h=>(
+                {['Nº Req.','Cuota','Póliza','Vencimiento','Monto','Estado','Liquidación'].map(h=>(
                   <th key={h} style={{padding:'10px 16px',textAlign:'left',fontSize:'12px',fontWeight:600,color:'#64748b',whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
@@ -296,6 +318,13 @@ export default function Requerimientos() {
                       <span style={{display:'inline-flex',alignItems:'center',gap:'5px',padding:'3px 10px',borderRadius:'20px',fontSize:'12px',fontWeight:500,background:estadoBg[displayEstado],color:estadoColors[displayEstado]}}>
                         <Icon size={11}/>{estadoLabel[displayEstado]}
                       </span>
+                    </td>
+                    <td style={{padding:'12px 16px'}}>
+                      {r.estado === 'pagado' ? (
+                        r.informe_liquidacion_enviado
+                          ? <span style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',borderRadius:'20px',fontSize:'12px',fontWeight:500,background:'#dcfce7',color:'#15803d'}}><CheckCircle size={11}/>Liquidado</span>
+                          : <span style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',borderRadius:'20px',fontSize:'12px',fontWeight:500,background:'#fef9c3',color:'#a16207'}}><Clock size={11}/>Pendiente</span>
+                      ) : <span style={{fontSize:'12px',color:'#cbd5e1'}}>—</span>}
                     </td>
                   </tr>
                 )
