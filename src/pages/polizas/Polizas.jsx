@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
+import { FileText, Plus, Minus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
   CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge,
-  AlertTriangle, Download, History, CheckSquare, Square, Upload } from 'lucide-react'
+  AlertTriangle, Download, History, CheckSquare, Square, Upload, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -873,8 +873,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const actualizarEstadoEmision = async (em, nuevoEstado) => {
     await supabase.from('emisiones').update({ estado: nuevoEstado }).eq('id', em.id)
-    const labels = { solicitud:'Solicitud', enviada:'Enviada', en_reproceso:'En reproceso', emitida:'Emitida' }
-    await addBitacora(em.estado, nuevoEstado, `Inclusión ${em.numero_emision}: ${labels[em.estado]||em.estado} → ${labels[nuevoEstado]||nuevoEstado}`)
+    const tipoLabel = { emision:'Emisión principal', inclusion:'Inclusión', exclusion:'Exclusión' }[em.tipo] || em.tipo
+    const estadoLabel = { solicitud:'Solicitud', enviada:'Enviada a aseguradora', en_reproceso:'En reproceso', emitida:'Emitida' }
+    const desc = `[Gestión] ${tipoLabel} ${em.numero_emision} — ${estadoLabel[em.estado]||em.estado} → ${estadoLabel[nuevoEstado]||nuevoEstado}`
+    await addBitacora(em.estado, nuevoEstado, desc)
     fetchData()
   }
 
@@ -994,7 +996,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   </button>
                   <button onClick={()=>abrirFormEmision('exclusion')}
                     style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                    <Plus size={13}/> Exclusión
+                    <Minus size={13}/> Exclusión
                   </button>
                   <button onClick={renovarPoliza}
                     style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
@@ -1034,7 +1036,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           ['bitacora',`Bitácora (${bitacora.length})`],
           ['vehiculos_sol', isEmitida ? `Vehículos (${totalVehiculos})` : `Vehículos (${solicitudVehiculos.length})`],
           ...(isEmitida ? [
-            ['emisiones',`Emisiones (${emisiones.length})`],
+            ['emisiones',`Gestiones (${emisiones.length})`],
             ['pagos',`Pagos (${reqs.length})`],
           ] : []),
           ['tareas',`Tareas (${tareas.length})`],
@@ -1099,7 +1101,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
            ) : (
             <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:'0'}}>
               {bitacora.map((entry, i) => {
-                const color = estadoBitacora[entry.estado_nuevo] || '#64748b'
+                const isGestion = entry.descripcion?.startsWith('[Gestión]')
+                const color = isGestion ? '#7c3aed' : (estadoBitacora[entry.estado_nuevo] || '#64748b')
+                const cleanDesc = isGestion ? entry.descripcion.replace('[Gestión] ','') : entry.descripcion
                 return (
                   <div key={entry.id} style={{display:'flex',gap:'14px',paddingBottom: i<bitacora.length-1?'20px':'0'}}>
                     <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
@@ -1108,16 +1112,25 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                       </div>
                       {i < bitacora.length-1 && <div style={{width:'2px',flex:1,background:'#e2e8f0',marginTop:'6px'}}/>}
                     </div>
-                    <div style={{flex:1,paddingTop:'6px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                    <div style={{flex:1,paddingTop:'4px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap',marginBottom:'3px'}}>
+                        {/* Source badge */}
+                        <span style={{fontSize:'10px',padding:'1px 7px',borderRadius:'20px',fontWeight:700,
+                          background: isGestion ? '#ede9fe' : '#f1f5f9',
+                          color: isGestion ? '#7c3aed' : '#475569'}}>
+                          {isGestion ? 'GESTIÓN' : 'PÓLIZA'}
+                        </span>
+                        {/* Estado badge */}
                         {entry.estado_nuevo && (
                           <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:(polizaEstados[entry.estado_nuevo]?.bg||'#f1f5f9'),color:(polizaEstados[entry.estado_nuevo]?.color||'#64748b'),fontWeight:600}}>
                             {polizaEstados[entry.estado_nuevo]?.label || entry.estado_nuevo}
                           </span>
                         )}
-                        <p style={{fontSize:'12px',color:'#94a3b8',margin:0}}>{new Date(entry.created_at).toLocaleDateString('es-GT')} · {new Date(entry.created_at).toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'})}</p>
+                        <p style={{fontSize:'11px',color:'#94a3b8',margin:0,marginLeft:'auto'}}>
+                          {new Date(entry.created_at).toLocaleDateString('es-GT')} · {new Date(entry.created_at).toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'})}
+                        </p>
                       </div>
-                      <p style={{fontSize:'13px',color:'#374151',margin:'4px 0 0'}}>{entry.descripcion}</p>
+                      <p style={{fontSize:'13px',color:'#374151',margin:0,lineHeight:'1.4'}}>{cleanDesc}</p>
                     </div>
                   </div>
                 )
@@ -1201,15 +1214,20 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         </div>
       )}
 
-      {/* ─ TAB: Emisiones / Inclusiones ─ */}
+      {/* ─ TAB: Gestiones ─ */}
       {activeTab === 'emisiones' && isEmitida && (() => {
-        // Vehicles available for new inclusion: client vehicles not already in any emission
+        // Vehicles available for new inclusion:
+        // - client vehicles not already in any emission of this policy
+        // - AND not assigned to a DIFFERENT policy
         const vehiculosEnEmisiones = new Set(emisiones.flatMap(em=>em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[]))
-        const vehiculosParaInclusion = allClientVehiculos.filter(v => !vehiculosEnEmisiones.has(v.id))
+        const vehiculosParaInclusion = allClientVehiculos.filter(v =>
+          !vehiculosEnEmisiones.has(v.id) &&
+          (!v.poliza_id || v.poliza_id === poliza.id)
+        )
         return (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Inclusiones</h3>
+            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Gestiones</h3>
             <button onClick={()=>{ setEmisionForm({prima_emision:'',fecha_inicio:'',notas:''}); setInclusionVehiculosSelected([]); setShowEmisionForm(!showEmisionForm) }}
               style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
               <Plus size={13}/> Inclusión
@@ -1275,35 +1293,43 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             </div>
           )}
 
-          {/* List of emisiones */}
+          {/* List of ALL gestiones */}
           {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
-           emisiones.filter(em=>em.tipo!=='emision').length===0 ? (
-             <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin inclusiones. La emisión principal se creó al emitir la póliza.</p>
+           emisiones.length===0 ? (
+             <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin gestiones registradas.</p>
            ) :
-           emisiones.filter(em=>em.tipo!=='emision').map(em=>{
+           emisiones.map(em=>{
             const eEst = polizaEstados[em.estado] || { bg:'#f1f5f9', color:'#64748b', label: em.estado }
+            const tipoLabel = { emision:'Emisión principal', inclusion:'Inclusión', exclusion:'Exclusión', renovacion:'Renovación' }[em.tipo] || em.tipo
+            const isPrincipal = em.tipo === 'emision'
+            const isLocked = em.estado === 'enviada' || em.estado === 'emitida'
             return (
               <div key={em.id} style={{borderBottom:'1px solid #f1f5f9'}}>
                 {/* Row */}
-                <div style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer',gap:'10px'}} onClick={()=>setExpandedEmision(expandedEmision===em.id?null:em.id)}>
+                <div style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer',gap:'10px',background: isPrincipal ? '#fafbff' : 'white'}} onClick={()=>setExpandedEmision(expandedEmision===em.id?null:em.id)}>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
                       <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'13px',margin:0}}>{em.numero_emision}</p>
+                      <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'20px',fontWeight:600,
+                        background: isPrincipal ? '#0C1E3D' : (em.tipo==='exclusion' ? '#fef2f2' : '#eff6ff'),
+                        color: isPrincipal ? 'white' : (em.tipo==='exclusion' ? '#ef4444' : '#1d4ed8')}}>
+                        {tipoLabel}
+                      </span>
                       <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'20px',fontWeight:600,background:eEst.bg,color:eEst.color}}>{eEst.label}</span>
                     </div>
                     <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>{em.fecha_inicio ? new Date(em.fecha_inicio).toLocaleDateString('es-GT') : '—'} → {em.fecha_fin ? new Date(em.fecha_fin).toLocaleDateString('es-GT') : '—'} · {em.emision_vehiculos?.length||0} vehículos</p>
                   </div>
                   <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0,flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
 
-                  {/* Flow buttons (stop propagation) */}
+                  {/* Flow buttons (stop propagation) — not shown on principal emission */}
                   <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
-                    {em.estado==='solicitud' && (
+                    {!isPrincipal && em.estado==='solicitud' && (
                       <button onClick={()=>actualizarEstadoEmision(em,'enviada')}
                         style={{padding:'4px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                         Enviar
                       </button>
                     )}
-                    {em.estado==='enviada' && (
+                    {!isPrincipal && em.estado==='enviada' && (
                       <>
                         <button onClick={()=>actualizarEstadoEmision(em,'en_reproceso')}
                           style={{padding:'4px 10px',background:'rgba(239,68,68,0.1)',color:'#ef4444',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
@@ -1315,7 +1341,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                         </button>
                       </>
                     )}
-                    {em.estado==='en_reproceso' && (
+                    {!isPrincipal && em.estado==='en_reproceso' && (
                       <button onClick={()=>actualizarEstadoEmision(em,'enviada')}
                         style={{padding:'4px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                         Re-enviar
@@ -1355,10 +1381,16 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     {/* Vehicles */}
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
                       <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>Vehículos</p>
-                      <button onClick={()=>setShowAsignarVehiculo(showAsignarVehiculo===em.id?null:em.id)}
-                        style={{fontSize:'11px',padding:'3px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontWeight:500}}>
-                        + Agregar
-                      </button>
+                      {isLocked ? (
+                        <span style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'11px',color:'#94a3b8'}}>
+                          <Lock size={11}/> Bloqueado ({eEst.label})
+                        </span>
+                      ) : (
+                        <button onClick={()=>setShowAsignarVehiculo(showAsignarVehiculo===em.id?null:em.id)}
+                          style={{fontSize:'11px',padding:'3px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontWeight:500}}>
+                          + Agregar
+                        </button>
+                      )}
                     </div>
                     {em.emision_vehiculos?.length===0 && <p style={{fontSize:'13px',color:'#94a3b8',marginBottom:'8px'}}>Sin vehículos asignados</p>}
                     {em.emision_vehiculos?.map(ev=>(
@@ -1367,11 +1399,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                         <Car size={14} color="#1A6BBA"/>
                         <span style={{fontWeight:500,flex:1}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</span>
                         <span style={{color:'#64748b'}}>Placa: {fp(ev.vehiculos)}</span>
-                        <button onClick={e=>{e.stopPropagation();quitarVehiculo(ev.vehiculos?.id, ev.id)}}
-                          style={{padding:'2px 8px',background:'#fef2f2',color:'#ef4444',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px'}}>Quitar</button>
+                        {!isLocked && (
+                          <button onClick={e=>{e.stopPropagation();quitarVehiculo(ev.vehiculos?.id, ev.id)}}
+                            style={{padding:'2px 8px',background:'#fef2f2',color:'#ef4444',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px'}}>Quitar</button>
+                        )}
                       </div>
                     ))}
-                    {showAsignarVehiculo===em.id && (
+                    {!isLocked && showAsignarVehiculo===em.id && (
                       <div style={{marginTop:'8px',padding:'10px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
                         <input value={vehiculoSearch} onChange={e=>setVehiculoSearch(e.target.value)} placeholder="Buscar vehículo..."
                           style={{width:'100%',padding:'7px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'12px',marginBottom:'8px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
