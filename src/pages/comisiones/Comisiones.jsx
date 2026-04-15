@@ -167,7 +167,7 @@ export default function Comisiones() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {[['pendientes', 'Pendientes de envío'], ['historial', 'Historial de informes']].map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding: '8px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer',
@@ -229,6 +229,8 @@ export default function Comisiones() {
           )}
 
           <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+            <div style={{ minWidth: '540px' }}>
             <div style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
               <input type='checkbox' checked={selectedIds.length === selectableIds.length && selectableIds.length > 0} onChange={selectAll}
                 style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#1A6BBA', marginRight: '12px' }} />
@@ -257,12 +259,12 @@ export default function Comisiones() {
                       <p style={{ fontWeight: 600, color: '#0C1E3D', fontSize: '13px', textAlign: 'left', margin: 0 }}>{r.codigo} <span style={{ fontWeight: 400, color: '#64748b' }}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
                       <p style={{ fontSize: '12px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', margin: 0 }}>{r.polizas?.numero_poliza} · {r.polizas?.clientes?.nombre} {r.polizas?.clientes?.apellido || ''}</p>
                     </div>
-                    <div style={{ width: '160px' }}>
-                      <p style={{ fontSize: '12px', color: '#374151', fontWeight: 500, margin: 0, textAlign: 'left' }}>{r.polizas?.aseguradoras?.nombre}</p>
-                      <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0, textAlign: 'left' }}>{r.polizas?.productos?.nombre}</p>
+                    <div style={{ width: '160px', flexShrink: 0 }}>
+                      <p style={{ fontSize: '12px', color: '#374151', fontWeight: 500, margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.polizas?.aseguradoras?.nombre}</p>
+                      <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.polizas?.productos?.nombre}</p>
                     </div>
-                    <p style={{ width: '100px', fontSize: '12px', color: '#64748b', margin: 0 }}>{r.fecha_pago ? new Date(r.fecha_pago + 'T12:00:00').toLocaleDateString('es-GT') : '-'}</p>
-                    <p style={{ width: '100px', fontSize: '14px', fontWeight: 700, color: '#1e293b', textAlign: 'right', margin: 0 }}>Q {parseFloat(r.monto || 0).toLocaleString()}</p>
+                    <p style={{ width: '100px', fontSize: '12px', color: '#64748b', margin: 0, flexShrink: 0 }}>{r.fecha_pago ? new Date(r.fecha_pago + 'T12:00:00').toLocaleDateString('es-GT') : '-'}</p>
+                    <p style={{ width: '100px', fontSize: '14px', fontWeight: 700, color: '#1e293b', textAlign: 'right', margin: 0, flexShrink: 0 }}>Q {parseFloat(r.monto || 0).toLocaleString()}</p>
                   </div>
                 )
               })}
@@ -272,6 +274,8 @@ export default function Comisiones() {
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#0C1E3D' }}>Total: Q {filtered.reduce((s, r) => s + parseFloat(r.monto || 0), 0).toLocaleString()}</span>
               </div>
             )}
+            </div>
+            </div>
           </div>
         </>
       )}
@@ -344,13 +348,13 @@ export default function Comisiones() {
                         <Send size={15} color='#15803d' />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontWeight: 600, color: '#0C1E3D', fontSize: '14px', margin: 0, textAlign: 'left' }}>{inf.aseguradoras?.nombre}</p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, textAlign: 'left' }}>
+                        <p style={{ fontWeight: 600, color: '#0C1E3D', fontSize: '14px', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inf.aseguradoras?.nombre}</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {inf.fecha_desde ? new Date(inf.fecha_desde + 'T12:00:00').toLocaleDateString('es-GT') : '—'} → {inf.fecha_hasta ? new Date(inf.fecha_hasta + 'T12:00:00').toLocaleDateString('es-GT') : '—'} · {inf.total_requerimientos} reqs
                         </p>
                       </div>
-                      <div style={{ textAlign: 'right', marginRight: '16px' }}>
-                        <p style={{ fontSize: '14px', fontWeight: 700, color: '#1A6BBA', margin: 0 }}>Q {parseFloat(inf.total_monto || 0).toLocaleString()}</p>
+                      <div style={{ textAlign: 'right', marginRight: '8px', flexShrink: 0 }}>
+                        <p style={{ fontSize: '14px', fontWeight: 700, color: '#1A6BBA', margin: 0, whiteSpace: 'nowrap' }}>Q {parseFloat(inf.total_monto || 0).toLocaleString()}</p>
                         <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>{new Date(inf.created_at).toLocaleDateString('es-GT')}</p>
                       </div>
                       {isExpanded ? <ChevronUp size={16} color='#64748b' /> : <ChevronDown size={16} color='#64748b' />}

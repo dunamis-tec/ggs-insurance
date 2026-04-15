@@ -10,9 +10,10 @@ import { useBreakpoint } from '../../hooks/useBreakpoint'
 
 // Bottom-tab items (mobile primary nav)
 const tabItems = [
-  { to: '/polizas',   icon: FileText, label: 'Pólizas' },
-  { to: '/vehiculos', icon: Car,      label: 'Vehículos' },
-  { to: '/clientes',  icon: Users,    label: 'Clientes' },
+  { to: '/',          icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/polizas',   icon: FileText,        label: 'Pólizas' },
+  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
+  { to: '/clientes',  icon: Users,           label: 'Clientes' },
 ]
 
 // All nav items (sidebar + menu sheet)
@@ -29,9 +30,8 @@ const navItems = [
   { to: '/configuracion', icon: Settings,        label: 'Configuración' },
 ]
 
-// Items shown only in "Menú" sheet (all except the 3 tab items)
+// Items shown in "Menú" sheet (all except the 4 tab items)
 const menuSheetItems = [
-  { to: '/',              icon: LayoutDashboard, label: 'Dashboard',       end: true },
   { to: '/aseguradoras',  icon: Building2,       label: 'Aseguradoras' },
   { to: '/requerimientos',icon: CreditCard,      label: 'Requerimientos' },
   { to: '/liquidaciones', icon: BookOpen,        label: 'Liquidaciones' },
@@ -172,10 +172,10 @@ export default function MainLayout({ session }) {
           paddingBottom: 'env(safe-area-inset-bottom)',
           boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
         }}>
-          {tabItems.map(({ to, icon: Icon, label }) => {
-            const isActive = location.pathname.startsWith(to)
+          {tabItems.map(({ to, icon: Icon, label, end }) => {
+            const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
             return (
-              <NavLink key={to} to={to}
+              <NavLink key={to} to={to} end={end}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', textDecoration: 'none', padding: '6px 0', color: isActive ? '#1A6BBA' : '#94a3b8' }}>
                 <Icon size={22} color={isActive ? '#1A6BBA' : '#94a3b8'} strokeWidth={isActive ? 2.5 : 1.8} />
                 <span style={{ fontSize: '10px', fontWeight: isActive ? 700 : 500 }}>{label}</span>
