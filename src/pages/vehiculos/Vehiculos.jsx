@@ -288,14 +288,10 @@ export default function Vehiculos() {
                 <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
                   <Car size={18} color='#1A6BBA'/>
                 </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{v.marca} {v.modelo} {v.anio}</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {fp(v)} · {v.tipo}</p>
+                <div style={{flex:1,minWidth:0,textAlign:'left'}}>
+                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {fp(v)} · {v.tipo}</p>
                 </div>
-                {v.valor_asegurado > 0 && <p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA',marginRight:'12px',margin:0,flexShrink:0}}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
-                <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'12px',background:enPoliza?'#dcfce7':'#f1f5f9',color:enPoliza?'#15803d':'#64748b',fontWeight:500,flexShrink:0}}>
-                  {enPoliza ? 'En poliza activa' : 'Disponible'}
-                </span>
                 <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>handleEdit(v)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color='#64748b'/></button>
                   <button onClick={()=>handleDelete(v.id)} disabled={!!enPoliza}
