@@ -8,6 +8,7 @@ const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
 const tiposPlaca = ['M','C','P','CD','A','MI','TC']
 const emptyForm = { marca:'', modelo:'', anio:'', placa:'', tipo_placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
 const placaRegex = /^\d{3}[A-Z]{3}$/
+const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const tipoLabels = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
 
@@ -146,7 +147,7 @@ export default function Vehiculos() {
   }
 
   const filtered = vehiculos.filter(v =>
-    (v.marca+' '+v.modelo+' '+v.anio+' '+(v.placa||'')+' '+(v.clientes?.nombre||'')).toLowerCase().includes(search.toLowerCase())
+    (v.marca+' '+v.modelo+' '+v.anio+' '+fp(v)+' '+(v.clientes?.nombre||'')).toLowerCase().includes(search.toLowerCase())
   )
 
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
@@ -289,7 +290,7 @@ export default function Vehiculos() {
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{v.marca} {v.modelo} {v.anio}</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {v.placa||'N/A'} · {v.tipo}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {fp(v)} · {v.tipo}</p>
                 </div>
                 {v.valor_asegurado > 0 && <p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA',marginRight:'12px',margin:0,flexShrink:0}}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
                 <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'12px',background:enPoliza?'#dcfce7':'#f1f5f9',color:enPoliza?'#15803d':'#64748b',fontWeight:500,flexShrink:0}}>
@@ -349,7 +350,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
           </button>
         </div>
         <div style={{padding:'16px 24px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px'}}>
-          {[['Placa',vehiculo.placa||'N/A'],['Chasis / VIN',vehiculo.chasis||'N/A'],['Motor',vehiculo.motor||'N/A'],['Color',vehiculo.color||'N/A']].map(([label,val])=>(
+          {[['Placa',fp(vehiculo)],['Chasis / VIN',vehiculo.chasis||'N/A'],['Motor',vehiculo.motor||'N/A'],['Color',vehiculo.color||'N/A']].map(([label,val])=>(
             <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'10px 14px'}}>
               <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{label}</p>
               <p style={{fontSize:'14px',fontWeight:600,color:'#1e293b',margin:'3px 0 0'}}>{val}</p>

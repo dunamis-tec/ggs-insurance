@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const fraccionamientoOpciones = [2,6,8,10,12]
+const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const estadoIcons = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
@@ -707,7 +708,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
                       <div key={ev.vehiculos?.id} style={{display:'flex',gap:'8px',padding:'8px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center'}}>
                         <Car size={14} color="#1A6BBA"/>
                         <span style={{fontWeight:500,flex:1}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</span>
-                        <span style={{color:'#64748b'}}>Placa: {ev.vehiculos?.placa||'N/A'}</span>
+                        <span style={{color:'#64748b'}}>Placa: {fp(ev.vehiculos)}</span>
                         <button onClick={()=>quitarVehiculo(ev.vehiculos?.id, ev.id)}
                           style={{padding:'2px 8px',background:'#fef2f2',color:'#ef4444',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px'}}>
                           Quitar
@@ -718,12 +719,12 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
                       <div style={{marginTop:'8px',padding:'10px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
                         <input value={vehiculoSearch} onChange={e=>setVehiculoSearch(e.target.value)} placeholder="Buscar vehiculo disponible..."
                           style={{width:'100%',padding:'7px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'12px',marginBottom:'8px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
-                        {vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+(v.placa||'')).toLowerCase().includes(vehiculoSearch.toLowerCase())).length===0
+                        {vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+fp(v)).toLowerCase().includes(vehiculoSearch.toLowerCase())).length===0
                           ? <p style={{fontSize:'12px',color:'#94a3b8',textAlign:'center',padding:'8px'}}>No hay vehiculos disponibles para este cliente</p>
-                          : vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+(v.placa||'')).toLowerCase().includes(vehiculoSearch.toLowerCase())).map(v=>(
+                          : vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+fp(v)).toLowerCase().includes(vehiculoSearch.toLowerCase())).map(v=>(
                           <div key={v.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 8px',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',background:'#f8fafc'}}>
                             <Car size={13} color="#1A6BBA"/>
-                            <span style={{flex:1,fontSize:'12px',fontWeight:500}}>{v.marca} {v.modelo} {v.anio} — {v.placa||'Sin placa'}</span>
+                            <span style={{flex:1,fontSize:'12px',fontWeight:500}}>{v.marca} {v.modelo} {v.anio} — {fp(v)}</span>
                             <button onClick={()=>asignarVehiculo(v.id, em.id)}
                               style={{padding:'3px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px',fontWeight:500}}>
                               Asignar
@@ -754,7 +755,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente }) {
                   </div>
                   <div style={{flex:1}}>
                     <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px',margin:0}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
-                    <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{ev.vehiculos?.tipo} · Placa: {ev.vehiculos?.placa||'N/A'} · Color: {ev.vehiculos?.color||'N/A'}</p>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{ev.vehiculos?.tipo} · Placa: {fp(ev.vehiculos)} · Color: {ev.vehiculos?.color||'N/A'}</p>
                   </div>
                   {ev.vehiculos?.valor_asegurado>0&&<p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA',margin:0}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>}
                 </div>
