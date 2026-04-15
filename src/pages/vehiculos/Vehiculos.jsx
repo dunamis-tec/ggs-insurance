@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Car, Plus, Edit2, Trash2, Search, ArrowLeft, FileText, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
-const emptyForm = { marca:'', modelo:'', anio:'', placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
+const tiposPlaca = ['M','C','P','CD','A','MI','TC']
+const emptyForm = { marca:'', modelo:'', anio:'', placa:'', tipo_placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
+const placaRegex = /^\d{3}[A-Z]{3}$/
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const tipoLabels = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
 
@@ -60,18 +62,10 @@ export default function Vehiculos() {
   const [form, setForm] = useState(emptyForm)
   const [clienteId, setClienteId] = useState('')
   const [editing, setEditing] = useState(null)
-  const location = useLocation()
-  const navigate = useNavigate()
-  const fromClienteId = location.state?.fromClienteId || null
+  const [placaError, setPlacaError] = useState('')
+  const [chasisError, setChasisError] = useState('')
 
   useEffect(() => { fetchAll() }, [])
-
-  useEffect(() => {
-    if (location.state?.openVehiculoId && vehiculos.length > 0) {
-      const v = vehiculos.find(v => v.id === location.state.openVehiculoId)
-      if (v) { setSelected(v); setView('detalle') }
-    }
-  }, [location.state, vehiculos])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -84,20 +78,35 @@ export default function Vehiculos() {
     setLoading(false)
   }
 
+  const checkPlacaDuplicado = async (placa) => {
+    if (!placa) return
+    if (!placaRegex.test(placa)) { setPlacaError('Formato inválido. Usa 3 números seguidos de 3 letras (ej: 123ABC)'); return }
+    const { data } = await supabase.from('vehiculos').select('id').eq('placa', placa).eq('activo', true).neq('id', editing || '')
+    setPlacaError(data?.length > 0 ? 'Esta placa ya está registrada' : '')
+  }
+
+  const checkChasisDuplicado = async (chasis) => {
+    if (!chasis) { setChasisError(''); return }
+    const { data } = await supabase.from('vehiculos').select('id').eq('chasis', chasis).eq('activo', true).neq('id', editing || '')
+    setChasisError(data?.length > 0 ? 'Este número de chasis/VIN ya está registrado' : '')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!clienteId) { toast.error('Selecciona un cliente'); return }
     if (!form.marca) { toast.error('La marca es obligatoria'); return }
     if (!form.modelo) { toast.error('El modelo es obligatorio'); return }
     if (!form.placa) { toast.error('La placa es obligatoria'); return }
+    if (!placaRegex.test(form.placa)) { toast.error('Formato de placa inválido. Usa 123ABC (3 números + 3 letras)'); return }
+    if (placaError || chasisError) { toast.error('Corrige los errores antes de continuar'); return }
 
     if (form.placa) {
       const { data: existePlaca } = await supabase.from('vehiculos').select('id').eq('placa', form.placa).eq('activo', true).neq('id', editing || '')
-      if (existePlaca?.length > 0) { toast.error('Ya existe un vehiculo con esa placa'); return }
+      if (existePlaca?.length > 0) { setPlacaError('Esta placa ya está registrada'); return }
     }
     if (form.chasis) {
       const { data: existeChasis } = await supabase.from('vehiculos').select('id').eq('chasis', form.chasis).eq('activo', true).neq('id', editing || '')
-      if (existeChasis?.length > 0) { toast.error('Ya existe un vehiculo con ese numero de chasis (VIN)'); return }
+      if (existeChasis?.length > 0) { setChasisError('Este número de chasis/VIN ya está registrado'); return }
     }
 
     const payload = { ...form, cliente_id: clienteId, anio: parseInt(form.anio), valor_asegurado: parseFloat(form.valor_asegurado || 0) }
@@ -113,14 +122,18 @@ export default function Vehiculos() {
     setForm(emptyForm)
     setClienteId('')
     setEditing(null)
+    setPlacaError('')
+    setChasisError('')
     setView('list')
     fetchAll()
   }
 
   const handleEdit = (v) => {
-    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'sedan', valor_asegurado:v.valor_asegurado||'' })
+    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', tipo_placa:v.tipo_placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'sedan', valor_asegurado:v.valor_asegurado||'' })
     setClienteId(v.cliente_id)
     setEditing(v.id)
+    setPlacaError('')
+    setChasisError('')
     setView('form')
     window.scrollTo(0,0)
   }
@@ -140,18 +153,12 @@ export default function Vehiculos() {
   const labelStyle = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }
 
   if (view === 'detalle' && selected) return (
-    <VehiculoDetalle vehiculo={selected}
-      onBack={() => {
-        if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } })
-        else { setSelected(null); setView('list'); fetchAll() }
-      }}
-      fromCliente={!!fromClienteId}
-      onEdit={handleEdit} />
+    <VehiculoDetalle vehiculo={selected} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
     <div>
-      <button onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId('') }}
+      <button onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId(''); setPlacaError(''); setChasisError('') }}
         style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
         <ArrowLeft size={16}/> Volver a vehiculos
       </button>
@@ -176,8 +183,21 @@ export default function Vehiculos() {
                 <input value={form.modelo} onChange={e=>setForm({...form,modelo:e.target.value})} required style={inp} placeholder="Ej: Hilux"/>
               </div>
               <div>
-                <label style={labelStyle}>Placa *</label>
-                <input value={form.placa} onChange={e=>setForm({...form,placa:e.target.value})} required style={inp} placeholder="Ej: P-123ABC"/>
+                <label style={labelStyle}>Tipo de placa *</label>
+                <select value={form.tipo_placa} onChange={e=>setForm({...form,tipo_placa:e.target.value})} required style={inp}>
+                  <option value="">Selecciona tipo...</option>
+                  {tiposPlaca.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Placa * <span style={{color:'#94a3b8',fontWeight:400,fontSize:'12px'}}>(formato: 123ABC)</span></label>
+                <input value={form.placa}
+                  onChange={e=>{ const v=e.target.value.toUpperCase().replace(/[^0-9A-Z]/g,''); setForm({...form,placa:v}); setPlacaError('') }}
+                  onBlur={e=>checkPlacaDuplicado(e.target.value)}
+                  required maxLength={6}
+                  style={{...inp, borderColor: placaError ? '#ef4444' : '#e2e8f0', background: placaError ? '#fef2f2' : 'white'}}
+                  placeholder="Ej: 123ABC"/>
+                {placaError && <p style={{color:'#ef4444',fontSize:'12px',margin:'4px 0 0'}}>{placaError}</p>}
               </div>
               <div>
                 <label style={labelStyle}>Año</label>
@@ -185,7 +205,11 @@ export default function Vehiculos() {
               </div>
               <div>
                 <label style={labelStyle}>No. Chasis / VIN</label>
-                <input value={form.chasis} onChange={e=>setForm({...form,chasis:e.target.value})} style={inp}/>
+                <input value={form.chasis}
+                  onChange={e=>{ setForm({...form,chasis:e.target.value}); setChasisError('') }}
+                  onBlur={e=>checkChasisDuplicado(e.target.value)}
+                  style={{...inp, borderColor: chasisError ? '#ef4444' : '#e2e8f0', background: chasisError ? '#fef2f2' : 'white'}}/>
+                {chasisError && <p style={{color:'#ef4444',fontSize:'12px',margin:'4px 0 0'}}>{chasisError}</p>}
               </div>
               <div>
                 <label style={labelStyle}>No. Motor</label>
@@ -210,7 +234,7 @@ export default function Vehiculos() {
               <button type='submit' style={{padding:'11px 24px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
                 {editing ? 'Actualizar' : 'Crear vehiculo'}
               </button>
-              <button type='button' onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId('') }}
+              <button type='button' onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId(''); setPlacaError(''); setChasisError('') }}
                 style={{padding:'11px 24px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
                 Cancelar
               </button>
@@ -225,16 +249,11 @@ export default function Vehiculos() {
     <div>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <Car size={22} color='white'/>
-            </div>
-            <div style={{textAlign:'left'}}>
-              <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Vehiculos</h1>
-              <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
-                {vehiculos.length} vehiculos · {vehiculos.filter(v=>v.polizas?.activa).length} en poliza activa
-              </p>
-            </div>
+          <div style={{textAlign:'left'}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Vehiculos</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {vehiculos.length} vehiculos · {vehiculos.filter(v=>v.polizas?.activa).length} en poliza activa
+            </p>
           </div>
           <button onClick={()=>{ setView('form'); setEditing(null); setForm(emptyForm); setClienteId('') }}
             style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
@@ -291,7 +310,7 @@ export default function Vehiculos() {
   )
 }
 
-function VehiculoDetalle({ vehiculo, onBack, onEdit, fromCliente }) {
+function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
   const navigate = useNavigate()
   const [historial, setHistorial] = useState([])
   const [loading, setLoading] = useState(true)
@@ -311,7 +330,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromCliente }) {
   return (
     <div>
       <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> {fromCliente ? 'Volver al cliente' : 'Volver a vehículos'}
+        <ArrowLeft size={16}/> Volver a vehiculos
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
