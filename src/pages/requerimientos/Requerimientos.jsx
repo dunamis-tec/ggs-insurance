@@ -45,7 +45,7 @@ export default function Requerimientos() {
   const fetchReqs = async () => {
     setLoading(true)
     const { data } = await supabase.from('requerimientos_pago')
-      .select('*, polizas(id, numero_poliza, clientes(id, nombre, apellido), aseguradoras(nombre, logo_url)), informe_liquidacion_enviado, fecha_informe_liquidacion')
+      .select('*, polizas(id, numero_poliza, clientes(id, nombre, apellido), aseguradoras(nombre, logo_url)), informe_liquidacion_enviado, fecha_informe_liquidacion, informe_comision_enviado, fecha_informe_comision')
       .order('fecha_vencimiento', { ascending: true })
     setReqs(data || [])
     setLoading(false)
@@ -96,9 +96,13 @@ export default function Requerimientos() {
     const Icon = estadoIcons[displayEstado] || Clock
     return (
       <div>
-        <button onClick={()=>{ if (location.state?.fromInforme) navigate('/liquidaciones',{state:{activeTab:'historial'}}); else setSelected(null) }}
+        <button onClick={()=>{
+          if (location.state?.fromInforme) navigate('/liquidaciones',{state:{activeTab:'historial'}})
+          else if (location.state?.fromInformeComision) navigate('/comisiones',{state:{activeTab:'historial'}})
+          else setSelected(null)
+        }}
           style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-          <ArrowLeft size={16}/> {location.state?.fromInforme ? 'Volver a informes' : 'Volver a requerimientos'}
+          <ArrowLeft size={16}/> {location.state?.fromInforme || location.state?.fromInformeComision ? 'Volver a informes' : 'Volver a requerimientos'}
         </button>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 360px',gap:'16px',alignItems:'start'}}>
@@ -187,6 +191,29 @@ export default function Requerimientos() {
                 </div>
               )}
             </div>
+            {/* Comisión */}
+            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+              <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Comisión</p>
+              {selected.informe_comision_enviado ? (
+                <div>
+                  <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#dcfce7',borderRadius:'8px',marginBottom:'8px'}}>
+                    <CheckCircle size={15} color='#15803d'/>
+                    <span style={{fontSize:'14px',fontWeight:600,color:'#15803d'}}>Enviado</span>
+                  </div>
+                  {selected.fecha_informe_comision && (
+                    <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>
+                      Enviado el {new Date(selected.fecha_informe_comision).toLocaleDateString('es-GT', {day:'2-digit',month:'long',year:'numeric'})}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#f1f5f9',borderRadius:'8px'}}>
+                  <Clock size={15} color='#64748b'/>
+                  <span style={{fontSize:'14px',fontWeight:600,color:'#64748b'}}>Pendiente de envío</span>
+                </div>
+              )}
+            </div>
+
             {/* Estado */}
             <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
               <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Estado</p>
