@@ -4,7 +4,12 @@ import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronU
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
-const fraccionamientoOpciones = [2,6,8,10,12]
+const fraccionamientoOpciones = [
+  { value:'semestral',  label:'Semestral',  sub:'2 pagos/año' },
+  { value:'trimestral', label:'Trimestral', sub:'4 pagos/año' },
+  { value:'mensual',    label:'Mensual',    sub:'12 pagos/año' },
+]
+const fraccionamientoLabels = { anual:'Contado', semestral:'Semestral', trimestral:'Trimestral', mensual:'Mensual' }
 const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
 const emisionEstadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
@@ -158,14 +163,17 @@ export default function Polizas() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.persona_facturable_id) { toast.error('Selecciona una persona facturable'); return }
+    if (form.tipo_pago === 'financiado' && !form.fraccionamiento) { toast.error('Selecciona la periodicidad de pago'); return }
     const { data: { user } } = await supabase.auth.getUser()
+    // Si la persona facturable seleccionada ES el cliente (no una persona_facturable real), pasar null
+    const personaFacturableId = form.persona_facturable_id === form.cliente_id ? null : (form.persona_facturable_id || null)
     const payload = {
       numero_poliza: form.numero_poliza || null,
       estado: form.estado || 'borrador',
       cliente_id: form.cliente_id,
       aseguradora_id: form.aseguradora_id,
       producto_id: form.producto_id,
-      persona_facturable_id: form.persona_facturable_id || null,
+      persona_facturable_id: personaFacturableId,
       prima_total: parseFloat(form.prima_total),
       tipo_pago: form.tipo_pago,
       fraccionamiento: form.tipo_pago === 'financiado' ? form.fraccionamiento : 'anual',
@@ -330,15 +338,17 @@ export default function Polizas() {
               </div>
               {form.tipo_pago==='financiado' && (
                 <div>
-                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Numero de cuotas *</label>
-                  <div style={{display:'flex',gap:'6px'}}>
-                    {fraccionamientoOpciones.map(n=>(
-                      <button key={n} type="button" onClick={()=>setForm({...form,fraccionamiento:String(n)})}
-                        style={{flex:1,padding:'9px 0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
-                          background:form.fraccionamiento===String(n)?'#1A6BBA':'white',
-                          color:form.fraccionamiento===String(n)?'white':'#64748b',
-                          border:`1px solid ${form.fraccionamiento===String(n)?'#1A6BBA':'#e2e8f0'}`}}>
-                        {n}
+                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Periodicidad de pago *</label>
+                  <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                    {fraccionamientoOpciones.map(({value,label,sub})=>(
+                      <button key={value} type="button" onClick={()=>setForm({...form,fraccionamiento:value})}
+                        style={{flex:1,minWidth:'80px',padding:'9px 6px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                          background:form.fraccionamiento===value?'#1A6BBA':'white',
+                          color:form.fraccionamiento===value?'white':'#64748b',
+                          border:`1px solid ${form.fraccionamiento===value?'#1A6BBA':'#e2e8f0'}`,
+                          display:'flex',flexDirection:'column',alignItems:'center',gap:'2px'}}>
+                        <span>{label}</span>
+                        <span style={{fontSize:'10px',opacity:0.75}}>{sub}</span>
                       </button>
                     ))}
                   </div>
@@ -465,7 +475,7 @@ export default function Polizas() {
               </div>
               <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
                 <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0}}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
-                <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{p.tipo_pago==='financiado'?`${p.fraccionamiento} cuotas`:'Contado'}</p>
+                <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{p.tipo_pago==='financiado'?(fraccionamientoLabels[p.fraccionamiento]||p.fraccionamiento):'Contado'}</p>
               </div>
               {p.fecha_vencimiento && (
                 <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
@@ -742,7 +752,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',padding:'16px 24px'}}>
           {[
             ['Prima total','Q '+parseFloat(poliza.prima_total||0).toLocaleString(),'#1A6BBA'],
-            ['Tipo de pago',(poliza.tipo_pago||'contado').charAt(0).toUpperCase()+(poliza.tipo_pago||'contado').slice(1),'#0C1E3D'],
+            ['Tipo de pago', poliza.tipo_pago==='financiado' ? `Financiado · ${fraccionamientoLabels[poliza.fraccionamiento]||poliza.fraccionamiento}` : 'Contado','#0C1E3D'],
             ['Inicio', poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—','#64748b'],
             ['Vencimiento', vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#64748b']
           ].map(([label,val,color])=>(
