@@ -408,7 +408,10 @@ export default function Polizas() {
             <FileText size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/>
             <p style={{color:'#94a3b8'}}>No hay polizas registradas</p>
           </div>
-        ) : filtered.map((p,i)=>{
+        ) : (
+        <div style={{overflowX:'auto'}}>
+        <div style={{minWidth:'580px'}}>
+        {filtered.map((p,i)=>{
           const estado = getEstadoPoliza(p)
           const estadoBadge = {
             activa: { bg:'#dcfce7', color:'#15803d', label:'Activa' },
@@ -432,7 +435,7 @@ export default function Polizas() {
                 <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{p.tipo_pago==='financiado'?`${p.fraccionamiento} cuotas`:'Contado'}</p>
               </div>
               <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
-                <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}</p>
+                <p style={{fontSize:'12px',color:'#64748b',margin:0,whiteSpace:'nowrap'}}>Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}</p>
               </div>
               <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'12px',background:estadoBadge.bg,color:estadoBadge.color,fontWeight:500,flexShrink:0,whiteSpace:'nowrap'}}>
                 {estadoBadge.label}
@@ -444,6 +447,9 @@ export default function Polizas() {
             </div>
           )
         })}
+        </div>
+        </div>
+        )}
       </div>
     </div>
   )
