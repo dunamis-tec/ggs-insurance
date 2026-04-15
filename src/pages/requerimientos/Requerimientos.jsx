@@ -100,158 +100,201 @@ export default function Requerimientos() {
           if (location.state?.fromInforme) navigate('/liquidaciones',{state:{activeTab:'historial'}})
           else if (location.state?.fromInformeComision) navigate('/comisiones',{state:{activeTab:'historial'}})
           else setSelected(null)
-        }}
-          style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
+        }} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
           <ArrowLeft size={16}/> {location.state?.fromInforme || location.state?.fromInformeComision ? 'Volver a informes' : 'Volver a requerimientos'}
         </button>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 360px',gap:'16px',alignItems:'start'}}>
+        {/* ── Header full-width ── */}
+        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
+          <div style={{padding:'24px 28px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
+              <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <CreditCard size={24} color='white'/>
+              </div>
+              <div>
+                <h2 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0,letterSpacing:'-0.3px'}}>{selected.codigo}</h2>
+                <p style={{fontSize:'13px',color:'rgba(255,255,255,0.65)',margin:'4px 0 0'}}>
+                  Cuota {selected.numero_cuota} de {selected.total_cuotas}
+                  {selected.polizas?.aseguradoras?.nombre && <span style={{marginLeft:'10px',opacity:0.8}}>· {selected.polizas.aseguradoras.nombre}</span>}
+                </p>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:'12px',flexShrink:0}}>
+              <div style={{textAlign:'right'}}>
+                <p style={{fontSize:'11px',color:'rgba(255,255,255,0.55)',margin:0}}>Monto</p>
+                <p style={{fontSize:'26px',fontWeight:800,color:'white',margin:'2px 0 0',letterSpacing:'-0.5px'}}>Q {parseFloat(selected.monto||0).toLocaleString()}</p>
+              </div>
+              <div style={{width:'1px',height:'40px',background:'rgba(255,255,255,0.2)'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',background:selected.estado==='pagado'?'rgba(34,197,94,0.25)':displayEstado==='vencido'?'rgba(239,68,68,0.25)':displayEstado==='por_cobrar'?'rgba(245,158,11,0.25)':'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.2)'}}>
+                <Icon size={13} color='white'/>
+                <span style={{fontSize:'13px',fontWeight:600,color:'white'}}>{estadoLabel[displayEstado]}</span>
+              </div>
+            </div>
+          </div>
+          {/* Stats strip */}
+          <div style={{display:'flex',borderTop:'1px solid #f1f5f9'}}>
+            {[
+              ['Vencimiento', selected.fecha_vencimiento ? new Date(selected.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT') : '—', displayEstado==='vencido'?'#ef4444':displayEstado==='por_cobrar'?'#f59e0b':'#1e293b'],
+              ['Fecha de pago', selected.fecha_pago ? new Date(selected.fecha_pago+'T12:00:00').toLocaleDateString('es-GT') : '—', '#22c55e'],
+              ['Póliza', selected.polizas?.numero_poliza || '—', '#1A6BBA'],
+              ['Cliente', `${selected.polizas?.clientes?.nombre||''} ${selected.polizas?.clientes?.apellido||''}`.trim() || '—', '#0C1E3D'],
+            ].map(([label, value, color], idx, arr) => (
+              <div key={label} style={{flex:1,padding:'14px 20px',borderRight:idx<arr.length-1?'1px solid #f1f5f9':'none'}}>
+                <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.5px'}}>{label}</p>
+                <p style={{fontSize:'14px',fontWeight:600,color,margin:'4px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Body 2-col ── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:'16px',alignItems:'start'}}>
+
           {/* Columna izquierda */}
           <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
-            {/* Header */}
+
+            {/* Vínculos */}
             <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-              <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-                  <div style={{width:'48px',height:'48px',borderRadius:'10px',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <CreditCard size={22} color='white'/>
-                  </div>
-                  <div>
-                    <h2 style={{fontSize:'18px',fontWeight:700,color:'white',margin:0}}>{selected.codigo}</h2>
-                    <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'3px 0 0'}}>Cuota {selected.numero_cuota} de {selected.total_cuotas}</p>
-                  </div>
-                </div>
+              <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
+                <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:0}}>Vínculos</p>
               </div>
-              <div style={{padding:'20px 24px',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px'}}>
-                <div style={{background:'#f8fafc',borderRadius:'8px',padding:'12px 14px'}}>
-                  <p style={{fontSize:'11px',color:'#64748b',margin:0,textAlign:'left'}}>Monto</p>
-                  <p style={{fontSize:'18px',fontWeight:700,color:'#0C1E3D',margin:'3px 0 0',textAlign:'left'}}>Q {parseFloat(selected.monto||0).toLocaleString()}</p>
-                </div>
-                <div style={{background:'#f8fafc',borderRadius:'8px',padding:'12px 14px'}}>
-                  <p style={{fontSize:'11px',color:'#64748b',margin:0,textAlign:'left'}}>Vencimiento</p>
-                  <p style={{fontSize:'14px',fontWeight:600,color:'#1e293b',margin:'3px 0 0',textAlign:'left'}}>{selected.fecha_vencimiento ? new Date(selected.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT') : 'N/A'}</p>
-                </div>
-                {selected.estado === 'pagado' && (
-                  <div style={{background:'#dcfce7',borderRadius:'8px',padding:'12px 14px'}}>
-                    <p style={{fontSize:'11px',color:'#15803d',margin:0,textAlign:'left'}}>Fecha de pago</p>
-                    <p style={{fontSize:'14px',fontWeight:600,color:'#15803d',margin:'3px 0 0',textAlign:'left'}}>{selected.fecha_pago ? new Date(selected.fecha_pago+'T12:00:00').toLocaleDateString('es-GT') : 'N/A'}</p>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderRight:'1px solid #f1f5f9',cursor:'pointer'}}
+                  onClick={()=>navigate('/polizas',{state:{openPolizaId:selected.polizas?.id, fromReqId:selected.id}})}
+                  onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                  onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                    <div style={{width:'38px',height:'38px',borderRadius:'8px',background:'#eff6ff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <FileText size={16} color='#1A6BBA'/>
+                    </div>
+                    <div>
+                      <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Póliza</p>
+                      <p style={{fontSize:'15px',fontWeight:700,color:'#0C1E3D',margin:'2px 0 0'}}>{selected.polizas?.numero_poliza||'Sin número'}</p>
+                    </div>
                   </div>
-                )}
+                  <ExternalLink size={14} color='#94a3b8'/>
+                </div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',cursor:'pointer'}}
+                  onClick={()=>navigate('/clientes',{state:{openClienteId:selected.polizas?.clientes?.id, fromReqId:selected.id}})}
+                  onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                  onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                    <div style={{width:'38px',height:'38px',borderRadius:'8px',background:'#f0fdf4',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <User size={16} color='#15803d'/>
+                    </div>
+                    <div>
+                      <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Cliente</p>
+                      <p style={{fontSize:'15px',fontWeight:700,color:'#0C1E3D',margin:'2px 0 0'}}>{selected.polizas?.clientes?.nombre} {selected.polizas?.clientes?.apellido||''}</p>
+                    </div>
+                  </div>
+                  <ExternalLink size={14} color='#94a3b8'/>
+                </div>
               </div>
             </div>
 
-            {/* Links póliza y cliente */}
-            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px',display:'flex',flexDirection:'column',gap:'10px'}}>
-              <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 4px',textAlign:'left'}}>Vínculos</p>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',background:'#f8fafc',borderRadius:'8px',cursor:'pointer'}}
-                onClick={()=>navigate('/polizas',{state:{openPolizaId:selected.polizas?.id, fromReqId:selected.id}})}>
-                <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                  <FileText size={16} color='#1A6BBA'/>
-                  <div>
-                    <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>Póliza</p>
-                    <p style={{fontSize:'14px',fontWeight:600,color:'#0C1E3D',margin:0,textAlign:'left'}}>{selected.polizas?.numero_poliza||'Sin número'}</p>
-                  </div>
-                </div>
-                <ExternalLink size={14} color='#94a3b8'/>
+            {/* Comprobante */}
+            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+              <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:0}}>Comprobante de pago</p>
+                {selected.comprobante_url && (
+                  <a href={selected.comprobante_url} target="_blank" rel="noreferrer"
+                    style={{display:'flex',alignItems:'center',gap:'5px',fontSize:'12px',color:'#1d4ed8',fontWeight:500,textDecoration:'none'}}>
+                    <ExternalLink size={12}/> Ver archivo
+                  </a>
+                )}
               </div>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',background:'#f8fafc',borderRadius:'8px',cursor:'pointer'}}
-                onClick={()=>navigate('/clientes',{state:{openClienteId:selected.polizas?.clientes?.id, fromReqId:selected.id}})}>
-                <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                  <User size={16} color='#1A6BBA'/>
-                  <div>
-                    <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>Cliente</p>
-                    <p style={{fontSize:'14px',fontWeight:600,color:'#0C1E3D',margin:0,textAlign:'left'}}>{selected.polizas?.clientes?.nombre} {selected.polizas?.clientes?.apellido||''}</p>
+              <div style={{padding:'16px 20px'}}>
+                {selected.comprobante_url ? (
+                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                    <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <FileText size={18} color='#1d4ed8'/>
+                    </div>
+                    <div style={{flex:1}}>
+                      <p style={{fontSize:'13px',fontWeight:600,color:'#0C1E3D',margin:0}}>Comprobante subido</p>
+                      <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>Archivo adjunto disponible</p>
+                    </div>
+                    <label style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 12px',background:'#f1f5f9',color:'#374151',borderRadius:'7px',fontSize:'12px',fontWeight:500,cursor:'pointer',whiteSpace:'nowrap'}}>
+                      <Upload size={12}/> {uploading===selected.id?'Subiendo...':'Cambiar'}
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleComprobante(e,selected)} style={{display:'none'}} disabled={uploading===selected.id}/>
+                    </label>
                   </div>
-                </div>
-                <ExternalLink size={14} color='#94a3b8'/>
+                ) : (
+                  <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',padding:'20px',background:'#f8fafc',color:'#64748b',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',border:'2px dashed #e2e8f0',transition:'all 0.15s'}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='#eff6ff';e.currentTarget.style.borderColor='#93c5fd';e.currentTarget.style.color='#1d4ed8'}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='#f8fafc';e.currentTarget.style.borderColor='#e2e8f0';e.currentTarget.style.color='#64748b'}}>
+                    <Upload size={16}/> {uploading===selected.id?'Subiendo...':'Subir comprobante'}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleComprobante(e,selected)} style={{display:'none'}} disabled={uploading===selected.id}/>
+                  </label>
+                )}
               </div>
             </div>
           </div>
 
           {/* Columna derecha */}
           <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
-            {/* Liquidación */}
-            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-              <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Liquidación</p>
-              {selected.informe_liquidacion_enviado ? (
-                <div>
-                  <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#dcfce7',borderRadius:'8px',marginBottom:'8px'}}>
-                    <CheckCircle size={15} color='#15803d'/>
-                    <span style={{fontSize:'14px',fontWeight:600,color:'#15803d'}}>Liquidado</span>
-                  </div>
-                  {selected.fecha_informe_liquidacion && (
-                    <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>
-                      Enviado el {new Date(selected.fecha_informe_liquidacion).toLocaleDateString('es-GT', {day:'2-digit',month:'long',year:'numeric'})}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#f1f5f9',borderRadius:'8px'}}>
-                  <Clock size={15} color='#64748b'/>
-                  <span style={{fontSize:'14px',fontWeight:600,color:'#64748b'}}>Pendiente de liquidar</span>
-                </div>
-              )}
-            </div>
-            {/* Comisión */}
-            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-              <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Comisión</p>
-              {selected.informe_comision_enviado ? (
-                <div>
-                  <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#dcfce7',borderRadius:'8px',marginBottom:'8px'}}>
-                    <CheckCircle size={15} color='#15803d'/>
-                    <span style={{fontSize:'14px',fontWeight:600,color:'#15803d'}}>Enviado</span>
-                  </div>
-                  {selected.fecha_informe_comision && (
-                    <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>
-                      Enviado el {new Date(selected.fecha_informe_comision).toLocaleDateString('es-GT', {day:'2-digit',month:'long',year:'numeric'})}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:'#f1f5f9',borderRadius:'8px'}}>
-                  <Clock size={15} color='#64748b'/>
-                  <span style={{fontSize:'14px',fontWeight:600,color:'#64748b'}}>Pendiente de envío</span>
-                </div>
-              )}
-            </div>
 
-            {/* Estado */}
-            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-              <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Estado</p>
-              <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',background:estadoBg[displayEstado],borderRadius:'8px',marginBottom:'14px'}}>
-                <Icon size={16} color={estadoColors[displayEstado]}/>
-                <span style={{fontSize:'14px',fontWeight:600,color:estadoColors[displayEstado]}}>{estadoLabel[displayEstado]}</span>
+            {/* Estado + acción */}
+            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+              <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
+                <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:0}}>Estado</p>
               </div>
-              {selected.estado !== 'pagado'
-                ? <button onClick={()=>marcarPagado(selected.id)} style={{width:'100%',padding:'10px',background:'#dcfce7',color:'#15803d',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                    <CheckCircle size={14} style={{marginRight:'6px',verticalAlign:'middle'}}/>Marcar como pagado
-                  </button>
-                : <button onClick={()=>marcarPendiente(selected.id)} style={{width:'100%',padding:'10px',background:'#fef9c3',color:'#a16207',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                    Revertir a pendiente
-                  </button>
-              }
+              <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:'10px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px 16px',background:estadoBg[displayEstado],borderRadius:'10px',border:`1px solid ${estadoColors[displayEstado]}22`}}>
+                  <Icon size={18} color={estadoColors[displayEstado]}/>
+                  <span style={{fontSize:'15px',fontWeight:700,color:estadoColors[displayEstado]}}>{estadoLabel[displayEstado]}</span>
+                </div>
+                {selected.estado !== 'pagado'
+                  ? <button onClick={()=>marcarPagado(selected.id)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'7px',width:'100%',padding:'11px',background:'#16a34a',color:'white',border:'none',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                      <CheckCircle size={15}/> Marcar como pagado
+                    </button>
+                  : <button onClick={()=>marcarPendiente(selected.id)} style={{width:'100%',padding:'11px',background:'#fef9c3',color:'#a16207',border:'1px solid #fde68a',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                      Revertir a pendiente
+                    </button>
+                }
+              </div>
             </div>
 
-            {/* Comprobante */}
-            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-              <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 12px',textAlign:'left'}}>Comprobante</p>
-              {selected.comprobante_url ? (
-                <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                  <a href={selected.comprobante_url} target="_blank" rel="noreferrer"
-                    style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',padding:'10px',background:'#dbeafe',color:'#1d4ed8',borderRadius:'8px',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>
-                    <ExternalLink size={14}/> Ver comprobante
-                  </a>
-                  <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',padding:'9px',background:'#f1f5f9',color:'#374151',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
-                    <Upload size={13}/> {uploading===selected.id?'Subiendo...':'Cambiar comprobante'}
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleComprobante(e,selected)} style={{display:'none'}} disabled={uploading===selected.id}/>
-                  </label>
+            {/* Informes (Liquidación + Comisión) */}
+            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+              <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
+                <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:0}}>Informes</p>
+              </div>
+              {/* Fila Liquidación */}
+              <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'12px'}}>
+                <div style={{width:'34px',height:'34px',borderRadius:'8px',background:selected.informe_liquidacion_enviado?'#dcfce7':'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  {selected.informe_liquidacion_enviado ? <CheckCircle size={16} color='#15803d'/> : <Clock size={16} color='#94a3b8'/>}
                 </div>
-              ) : (
-                <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',padding:'10px',background:'#f1f5f9',color:'#374151',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',border:'2px dashed #e2e8f0'}}>
-                  <Upload size={14}/> {uploading===selected.id?'Subiendo...':'Subir comprobante'}
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleComprobante(e,selected)} style={{display:'none'}} disabled={uploading===selected.id}/>
-                </label>
-              )}
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:'12px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Liquidación</p>
+                  <p style={{fontSize:'13px',fontWeight:600,color:selected.informe_liquidacion_enviado?'#15803d':'#64748b',margin:'2px 0 0'}}>
+                    {selected.informe_liquidacion_enviado ? 'Liquidado' : 'Pendiente'}
+                  </p>
+                  {selected.informe_liquidacion_enviado && selected.fecha_informe_liquidacion && (
+                    <p style={{fontSize:'11px',color:'#94a3b8',margin:'1px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {new Date(selected.fecha_informe_liquidacion).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric'})}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {/* Fila Comisión */}
+              <div style={{padding:'14px 20px',display:'flex',alignItems:'center',gap:'12px'}}>
+                <div style={{width:'34px',height:'34px',borderRadius:'8px',background:selected.informe_comision_enviado?'#dcfce7':'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  {selected.informe_comision_enviado ? <CheckCircle size={16} color='#15803d'/> : <Clock size={16} color='#94a3b8'/>}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:'12px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Comisión</p>
+                  <p style={{fontSize:'13px',fontWeight:600,color:selected.informe_comision_enviado?'#15803d':'#64748b',margin:'2px 0 0'}}>
+                    {selected.informe_comision_enviado ? 'Enviado' : 'Pendiente'}
+                  </p>
+                  {selected.informe_comision_enviado && selected.fecha_informe_comision && (
+                    <p style={{fontSize:'11px',color:'#94a3b8',margin:'1px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {new Date(selected.fecha_informe_comision).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric'})}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
+
           </div>
         </div>
       </div>
