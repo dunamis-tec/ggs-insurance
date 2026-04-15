@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp,
+import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
   CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge,
-  AlertTriangle, Download, History, CheckSquare, Square } from 'lucide-react'
+  AlertTriangle, Download, History, CheckSquare, Square, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -22,7 +22,7 @@ const polizaEstados = {
 }
 // Flujo lineal simple (un solo siguiente): solicitud→enviada, en_reproceso→enviada (regresa)
 const estadoFlujo  = { solicitud:'enviada', en_reproceso:'enviada' }
-const estadoFlujoLabel = { solicitud:'Enviar a aseguradora', en_reproceso:'Re-enviar a aseguradora' }
+const estadoFlujoLabel = { solicitud:'Enviada a la aseguradora', en_reproceso:'Re-enviada a la aseguradora' }
 
 const camposClienteReq = [
   { key:'nombre',   label:'Nombre' },
@@ -97,6 +97,7 @@ export default function Polizas() {
   const [selected, setSelected]     = useState(null)
   const [form, setForm]             = useState(emptyPoliza)
   const [editing, setEditing]       = useState(null)
+  const [returnToPolizaId, setReturnToPolizaId] = useState(null)
   const [productosFiltered, setProductosFiltered] = useState([])
   // Client validation & vehicle selection
   const [clienteVehiculos, setClienteVehiculos]     = useState([])
@@ -215,6 +216,19 @@ export default function Polizas() {
         )
       }
       toast.success('Solicitud actualizada')
+      // Return to detail view if we came from there
+      if (returnToPolizaId) {
+        const { data: updatedPoliza } = await supabase.from('polizas')
+          .select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+          .eq('id', returnToPolizaId).single()
+        if (updatedPoliza) setSelected(updatedPoliza)
+        setView('detalle')
+        setEditing(null); setReturnToPolizaId(null)
+        setForm(emptyPoliza); setProductosFiltered([]); setClienteVehiculos([])
+        setVehiculosSeleccionados([]); setClienteValidation([])
+        fetchAll()
+        return
+      }
     } else {
       /* ── CREATE mode ── */
       const { data: numData } = await supabase.rpc('generate_numero_solicitud')
@@ -252,7 +266,8 @@ export default function Polizas() {
     setView('list')
   }
 
-  const handleEdit = async (p) => {
+  const handleEdit = async (p, fromDetalle = false) => {
+    if (fromDetalle) setReturnToPolizaId(p.id)
     const aseg = aseguradoras.find(a => a.id === p.aseguradora_id)
     setProductosFiltered(aseg?.productos?.filter(pr=>pr.activo) || [])
     await handleClienteChange(p.cliente_id)
@@ -306,7 +321,7 @@ export default function Polizas() {
   if (view === 'detalle' && selected) return (
     <PolizaDetalle poliza={selected} fromCliente={!!fromClienteId} fromReq={!!fromReqId}
       onBack={()=>{ if (fromClienteId) navigate('/clientes',{state:{openClienteId:fromClienteId}}); else if (fromReqId) navigate('/requerimientos',{state:{openReqId:fromReqId}}); else { setView('list'); fetchAll() } }}
-      onEdit={handleEdit} />
+      onEdit={(p) => handleEdit(p, true)} />
   )
 
   /* ── VIEW: FORM ── */
@@ -641,7 +656,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [expandedEmision, setExpandedEmision] = useState(null)
   const [vehiculoSearch, setVehiculoSearch]   = useState('')
   const [showEmitirModal, setShowEmitirModal] = useState(false)
-  const [emitirForm, setEmitirForm]   = useState({ numero_poliza:'', pdf_url:'' })
+  const [emitirForm, setEmitirForm]   = useState({ numero_poliza:'' })
+  const [emitirPdfFile, setEmitirPdfFile] = useState(null)
+  const [uploadingPdf, setUploadingPdf] = useState(false)
+  const [inclusionVehiculos, setInclusionVehiculos] = useState([])
+  const [inclusionVehiculosSelected, setInclusionVehiculosSelected] = useState([])
+  const [allClientVehiculos, setAllClientVehiculos] = useState([])
 
   useEffect(() => { fetchData() }, [poliza.id])
 
@@ -655,13 +675,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const fetchData = async () => {
     setLoading(true)
     const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }, { data: vDisp },
-           { data: bitacoraData }, { data: svData }] = await Promise.all([
-      supabase.from('emisiones').select('*, emision_vehiculos(vehiculos(*))').eq('poliza_id', poliza.id).order('created_at'),
+           { data: bitacoraData }, { data: svData }, { data: allVData }] = await Promise.all([
+      supabase.from('emisiones').select('*, emision_vehiculos(id, vehiculos(*))').eq('poliza_id', poliza.id).order('created_at'),
       supabase.from('requerimientos_pago').select('*').eq('poliza_id', poliza.id).order('fecha_vencimiento'),
       supabase.from('tareas').select('*').eq('poliza_id', poliza.id).eq('estado', 'pendiente'),
       supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true).is('poliza_id', null),
       supabase.from('bitacora_polizas').select('*').eq('poliza_id', poliza.id).order('created_at'),
       supabase.from('solicitud_vehiculos').select('*, vehiculos(*)').eq('poliza_id', poliza.id),
+      supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true),
     ])
     setEmisiones(emisionesData || [])
     setReqs(reqsData || [])
@@ -669,6 +690,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     setVehiculosDisponibles(vDisp || [])
     setBitacora(bitacoraData || [])
     setSolicitudVehiculos(svData || [])
+    setAllClientVehiculos(allVData || [])
     setLoading(false)
   }
 
@@ -690,7 +712,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const marcarEnReproceso = async () => {
     await supabase.from('polizas').update({ estado: 'en_reproceso' }).eq('id', poliza.id)
-    await addBitacora('enviada', 'en_reproceso', 'Marcada en reproceso — requiere correcciones')
+    await addBitacora('enviada', 'en_reproceso', 'Marcada en reproceso — requiere correcciones por la aseguradora')
     toast.success('Marcada en reproceso')
     await reloadPoliza(); fetchData()
   }
@@ -700,10 +722,24 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     if (!emitirForm.numero_poliza) { toast.error('Ingresa el número de póliza'); return }
     const { data: { user } } = await supabase.auth.getUser()
 
+    // Upload PDF if provided
+    let pdf_url = null
+    if (emitirPdfFile) {
+      setUploadingPdf(true)
+      const ext = emitirPdfFile.name.split('.').pop()
+      const path = `${poliza.id}/poliza.${ext}`
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('polizas-pdfs').upload(path, emitirPdfFile, { upsert: true })
+      setUploadingPdf(false)
+      if (uploadErr) { toast.error('Error subiendo PDF: ' + uploadErr.message); return }
+      const { data: urlData } = supabase.storage.from('polizas-pdfs').getPublicUrl(uploadData.path)
+      pdf_url = urlData.publicUrl
+    }
+
     // 1. Update poliza
     await supabase.from('polizas').update({
       estado: 'emitida', numero_poliza: emitirForm.numero_poliza,
-      poliza_pdf_url: emitirForm.pdf_url || null
+      poliza_pdf_url: pdf_url
     }).eq('id', poliza.id)
 
     // 2. Auto-create first emision
@@ -726,9 +762,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     }
 
     // 4. Bitácora
-    await addBitacora('en_reproceso', 'emitida', `Póliza emitida · Núm: ${emitirForm.numero_poliza}`)
+    await addBitacora(poliza.estado, 'emitida', `Póliza emitida · Núm: ${emitirForm.numero_poliza}`)
 
     setShowEmitirModal(false)
+    setEmitirPdfFile(null)
     toast.success('¡Póliza emitida exitosamente!')
     await reloadPoliza(); fetchData()
   }
@@ -767,14 +804,28 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const handleEmisionSubmit = async (e) => {
     e.preventDefault()
     const { data: { user } } = await supabase.auth.getUser()
-    const { error } = await supabase.from('emisiones').insert({
-      poliza_id: poliza.id, ...emisionForm,
-      numero_emision: `${poliza.numero_poliza||'POL'}-E${(emisiones.length+1).toString().padStart(2,'0')}`,
-      prima_emision: parseFloat(emisionForm.prima_emision), created_by: user?.id
-    })
+    const numEmision = `${poliza.numero_poliza||'SOL'}-INC${(emisiones.filter(em=>em.tipo==='inclusion').length+1).toString().padStart(2,'0')}`
+    const { data: emData, error } = await supabase.from('emisiones').insert({
+      poliza_id: poliza.id, tipo: 'inclusion', estado: 'solicitud',
+      numero_emision: numEmision,
+      prima_emision: parseFloat(emisionForm.prima_emision) || 0,
+      fecha_inicio: emisionForm.fecha_inicio,
+      fecha_fin: poliza.fecha_vencimiento,
+      notas: emisionForm.notas || null,
+      created_by: user?.id
+    }).select().single()
     if (error) { toast.error('Error: ' + error.message); return }
-    toast.success('Emision creada')
-    setEmisionForm(emptyEmision); setPreselectedTipo(null); setShowEmisionForm(false)
+    // Assign selected vehicles
+    if (inclusionVehiculosSelected.length > 0) {
+      await supabase.from('emision_vehiculos').insert(
+        inclusionVehiculosSelected.map(vid => ({ emision_id: emData.id, vehiculo_id: vid }))
+      )
+    }
+    // Log in bitácora
+    await addBitacora(null, 'solicitud', `Inclusión ${numEmision} creada`)
+    toast.success('Inclusión creada · ' + numEmision)
+    setEmisionForm(emptyEmision); setShowEmisionForm(false)
+    setInclusionVehiculosSelected([])
     fetchData()
   }
 
@@ -820,8 +871,11 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     toast.success('Marcado como pagado'); fetchData()
   }
 
-  const actualizarEstadoEmision = async (id, estado) => {
-    await supabase.from('emisiones').update({ estado }).eq('id', id); fetchData()
+  const actualizarEstadoEmision = async (em, nuevoEstado) => {
+    await supabase.from('emisiones').update({ estado: nuevoEstado }).eq('id', em.id)
+    const labels = { solicitud:'Solicitud', enviada:'Enviada', en_reproceso:'En reproceso', emitida:'Emitida' }
+    await addBitacora(em.estado, nuevoEstado, `Inclusión ${em.numero_emision}: ${labels[em.estado]||em.estado} → ${labels[nuevoEstado]||nuevoEstado}`)
+    fetchData()
   }
 
   const totalPagado   = reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
@@ -886,11 +940,20 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
             {/* Right: action buttons */}
             <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center',flexShrink:0}}>
-              {/* PDF */}
-              <button onClick={()=>toast('Generación de PDF próximamente', {icon:'📄'})}
-                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
-                <Download size={13}/> PDF
-              </button>
+              {/* PDF solicitud: solo visible cuando NO emitida */}
+              {!isEmitida && (
+                <button onClick={()=>toast('Generación de PDF próximamente', {icon:'📄'})}
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+                  <Download size={13}/> PDF solicitud
+                </button>
+              )}
+              {/* PDF póliza: visible cuando emitida y tiene PDF */}
+              {isEmitida && poliza.poliza_pdf_url && (
+                <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
+                  <Download size={13}/> Póliza PDF
+                </a>
+              )}
 
               {/* solicitud → Enviar a aseguradora */}
               {poliza.estado === 'solicitud' && (
@@ -969,10 +1032,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         {[
           ['detalle','Detalle'],
           ['bitacora',`Bitácora (${bitacora.length})`],
-          ['vehiculos_sol',`Vehículos (${solicitudVehiculos.length})`],
+          ['vehiculos_sol', isEmitida ? `Vehículos (${totalVehiculos})` : `Vehículos (${solicitudVehiculos.length})`],
           ...(isEmitida ? [
             ['emisiones',`Emisiones (${emisiones.length})`],
-            ['vehiculos',`En póliza (${totalVehiculos})`],
             ['pagos',`Pagos (${reqs.length})`],
           ] : []),
           ['tareas',`Tareas (${tareas.length})`],
@@ -1065,141 +1127,257 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         </div>
       )}
 
-      {/* ─ TAB: Vehículos de la solicitud ─ */}
+      {/* ─ TAB: Vehículos ─ */}
       {activeTab === 'vehiculos_sol' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
             <Car size={16} color='#1A6BBA'/>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Vehículos de la solicitud</h3>
-            <span style={{marginLeft:'auto',background:'#dbeafe',color:'#1d4ed8',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>{solicitudVehiculos.length}</span>
+            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>
+              {isEmitida ? 'Vehículos de la póliza' : 'Vehículos de la solicitud'}
+            </h3>
+            <span style={{marginLeft:'auto',background:'#dbeafe',color:'#1d4ed8',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>
+              {isEmitida ? totalVehiculos : solicitudVehiculos.length}
+            </span>
           </div>
           {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
-           solicitudVehiculos.length === 0 ? (
-            <div style={{padding:'32px',textAlign:'center'}}>
-              <Car size={28} color='#cbd5e1' style={{marginBottom:'10px'}}/>
-              <p style={{color:'#94a3b8',margin:0}}>Sin vehículos asignados a esta solicitud</p>
-            </div>
-           ) : solicitudVehiculos.map((sv, i) => (
-            <div key={sv.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<solicitudVehiculos.length-1?'1px solid #f1f5f9':'none'}}>
-              <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
-                <Car size={18} color='#1A6BBA'/>
+           !isEmitida ? (
+            solicitudVehiculos.length === 0 ? (
+              <div style={{padding:'32px',textAlign:'center'}}>
+                <Car size={28} color='#cbd5e1' style={{marginBottom:'10px'}}/>
+                <p style={{color:'#94a3b8',margin:0}}>Sin vehículos asignados a esta solicitud</p>
               </div>
-              <div style={{flex:1}}>
-                <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{sv.vehiculos?.marca} {sv.vehiculos?.modelo} {sv.vehiculos?.anio}</p>
-                <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(sv.vehiculos)} · {sv.vehiculos?.tipo}{sv.vehiculos?.color?` · ${sv.vehiculos.color}`:''}</p>
+            ) : solicitudVehiculos.map((sv, i) => (
+              <div key={sv.id}
+                style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<solicitudVehiculos.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
+                onClick={() => navigate('/vehiculos', { state: { openVehiculoId: sv.vehiculos?.id } })}
+                onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
+                  <Car size={18} color='#1A6BBA'/>
+                </div>
+                <div style={{flex:1}}>
+                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{sv.vehiculos?.marca} {sv.vehiculos?.modelo} {sv.vehiculos?.anio}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(sv.vehiculos)} · {sv.vehiculos?.tipo}{sv.vehiculos?.color?` · ${sv.vehiculos.color}`:''}</p>
+                </div>
+                {sv.vehiculos?.valor_asegurado > 0 && (
+                  <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:'0 8px 0 0',flexShrink:0}}>Q {parseFloat(sv.vehiculos.valor_asegurado).toLocaleString()}</p>
+                )}
+                <ChevronRight size={16} color='#94a3b8'/>
               </div>
-              {sv.vehiculos?.valor_asegurado > 0 && (
-                <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0,flexShrink:0}}>Q {parseFloat(sv.vehiculos.valor_asegurado).toLocaleString()}</p>
-              )}
-            </div>
-          ))}
+            ))
+           ) : (
+            // Emitida: show all vehicles from all emissions
+            totalVehiculos === 0 ? (
+              <div style={{padding:'32px',textAlign:'center'}}>
+                <Car size={28} color='#cbd5e1' style={{marginBottom:'10px'}}/>
+                <p style={{color:'#94a3b8',margin:0}}>Sin vehículos en la póliza</p>
+              </div>
+            ) : emisiones.filter(em=>em.emision_vehiculos?.length>0).map(em => (
+              em.emision_vehiculos.map((ev, i) => {
+                const allEv = emisiones.flatMap(e=>e.emision_vehiculos||[])
+                const idx = allEv.indexOf(ev)
+                return (
+                  <div key={ev.id}
+                    style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:idx<allEv.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
+                    onClick={() => navigate('/vehiculos', { state: { openVehiculoId: ev.vehiculos?.id } })}
+                    onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                    onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                    <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
+                      <Car size={18} color='#1A6BBA'/>
+                    </div>
+                    <div style={{flex:1}}>
+                      <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
+                      <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(ev.vehiculos)} · {em.numero_emision}</p>
+                    </div>
+                    {ev.vehiculos?.valor_asegurado > 0 && (
+                      <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:'0 8px 0 0',flexShrink:0}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>
+                    )}
+                    <ChevronRight size={16} color='#94a3b8'/>
+                  </div>
+                )
+              })
+            ))
+           )}
         </div>
       )}
 
-      {/* ─ TAB: Emisiones ─ */}
-      {activeTab === 'emisiones' && isEmitida && (
+      {/* ─ TAB: Emisiones / Inclusiones ─ */}
+      {activeTab === 'emisiones' && isEmitida && (() => {
+        // Vehicles available for new inclusion: client vehicles not already in any emission
+        const vehiculosEnEmisiones = new Set(emisiones.flatMap(em=>em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[]))
+        const vehiculosParaInclusion = allClientVehiculos.filter(v => !vehiculosEnEmisiones.has(v.id))
+        return (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Emisiones</h3>
-            <button onClick={()=>{ setEmisionForm(emptyEmision); setPreselectedTipo(null); setShowEmisionForm(!showEmisionForm) }}
-              style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>
-              <Plus size={13}/> Nueva emision
+            <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Inclusiones</h3>
+            <button onClick={()=>{ setEmisionForm({prima_emision:'',fecha_inicio:'',notas:''}); setInclusionVehiculosSelected([]); setShowEmisionForm(!showEmisionForm) }}
+              style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
+              <Plus size={13}/> Inclusión
             </button>
           </div>
+
+          {/* Nueva inclusión form */}
           {showEmisionForm && (
-            <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
+            <div style={{padding:'20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
+              <p style={{fontSize:'13px',fontWeight:700,color:'#0C1E3D',margin:'0 0 14px'}}>Nueva inclusión</p>
               <form onSubmit={handleEmisionSubmit}>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'12px'}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'14px'}}>
                   <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo</label>
-                    {preselectedTipo ? (
-                      <div style={{padding:'8px 12px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#374151',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                        <span>{emisionTipos[preselectedTipo]}</span>
-                        <span style={{fontSize:'11px',background:'#0C1E3D',color:'white',padding:'2px 7px',borderRadius:'8px'}}>Pre-seleccionado</span>
-                      </div>
-                    ) : (
-                      <select value={emisionForm.tipo} onChange={e=>setEmisionForm({...emisionForm,tipo:e.target.value})} style={{...inputStyle,padding:'8px 10px'}}>
-                        {Object.entries(emisionTipos).map(([k,v])=><option key={k} value={k}>{v}</option>)}
-                      </select>
-                    )}
+                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima de inclusión (Q) *</label>
+                    <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required style={inputStyle} placeholder="0.00"/>
                   </div>
                   <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima emision (Q) *</label>
-                    <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required style={inputStyle}/>
-                  </div>
-                  <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha inicio *</label>
+                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de inicio *</label>
                     <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required style={inputStyle}/>
                   </div>
                   <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha fin *</label>
-                    <input type="date" value={emisionForm.fecha_fin} onChange={e=>setEmisionForm({...emisionForm,fecha_fin:e.target.value})} required style={inputStyle}/>
+                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha fin</label>
+                    <div style={{padding:'8px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#374151'}}>
+                      {poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—'} <span style={{fontSize:'11px',color:'#94a3b8'}}>(fecha venc. póliza)</span>
+                    </div>
                   </div>
                   <div style={{gridColumn:'1/-1'}}>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas</label>
-                    <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle}/>
+                    <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle} placeholder="Descripción de la inclusión"/>
                   </div>
                 </div>
+
+                {/* Vehicle selection */}
+                <div style={{marginBottom:'14px'}}>
+                  <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:'0 0 8px'}}>Vehículos a incluir <span style={{fontWeight:400,color:'#94a3b8'}}>(del cliente, no asignados a otra emisión)</span></p>
+                  {vehiculosParaInclusion.length === 0 ? (
+                    <p style={{fontSize:'12px',color:'#94a3b8',padding:'8px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0',margin:0}}>Sin vehículos disponibles</p>
+                  ) : (
+                    <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                      {vehiculosParaInclusion.map(v=>{
+                        const sel = inclusionVehiculosSelected.includes(v.id)
+                        return (
+                          <div key={v.id} onClick={()=>setInclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
+                            style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:sel?'#eff6ff':'white',border:`1px solid ${sel?'#3b82f6':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
+                            <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#3b82f6':'#cbd5e1'}`,background:sel?'#3b82f6':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              {sel && <CheckCircle size={12} color="white"/>}
+                            </div>
+                            <Car size={14} color={sel?'#1d4ed8':'#64748b'}/>
+                            <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#1d4ed8':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
+                            <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 <div style={{display:'flex',gap:'8px'}}>
-                  <button type="submit" style={{padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>Crear emision</button>
-                  <button type="button" onClick={()=>setShowEmisionForm(false)} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
+                  <button type="submit" style={{padding:'8px 16px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>Crear inclusión</button>
+                  <button type="button" onClick={()=>{setShowEmisionForm(false);setInclusionVehiculosSelected([])}} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
                 </div>
               </form>
             </div>
           )}
+
+          {/* List of emisiones */}
           {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
-           emisiones.length===0 ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin emisiones</p> :
-           emisiones.map(em=>{
-            const Icon = emisionEstadoIcons[em.estado] || Clock
+           emisiones.filter(em=>em.tipo!=='emision').length===0 ? (
+             <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin inclusiones. La emisión principal se creó al emitir la póliza.</p>
+           ) :
+           emisiones.filter(em=>em.tipo!=='emision').map(em=>{
+            const eEst = polizaEstados[em.estado] || { bg:'#f1f5f9', color:'#64748b', label: em.estado }
             return (
               <div key={em.id} style={{borderBottom:'1px solid #f1f5f9'}}>
-                <div style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer'}} onClick={()=>setExpandedEmision(expandedEmision===em.id?null:em.id)}>
-                  <div style={{width:'34px',height:'34px',borderRadius:'8px',background:(emisionEstadoColors[em.estado]||'#94a3b8')+'20',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'10px',flexShrink:0}}>
-                    <Icon size={15} color={emisionEstadoColors[em.estado]||'#94a3b8'}/>
-                  </div>
+                {/* Row */}
+                <div style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer',gap:'10px'}} onClick={()=>setExpandedEmision(expandedEmision===em.id?null:em.id)}>
                   <div style={{flex:1,minWidth:0}}>
-                    <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px',margin:0}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
-                    <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{new Date(em.fecha_inicio).toLocaleDateString('es-GT')} → {new Date(em.fecha_fin).toLocaleDateString('es-GT')} · {em.emision_vehiculos?.length||0} vehículos</p>
+                    <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                      <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'13px',margin:0}}>{em.numero_emision}</p>
+                      <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'20px',fontWeight:600,background:eEst.bg,color:eEst.color}}>{eEst.label}</span>
+                    </div>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>{em.fecha_inicio ? new Date(em.fecha_inicio).toLocaleDateString('es-GT') : '—'} → {em.fecha_fin ? new Date(em.fecha_fin).toLocaleDateString('es-GT') : '—'} · {em.emision_vehiculos?.length||0} vehículos</p>
                   </div>
-                  <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',marginRight:'12px',flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
-                  <div style={{display:'flex',gap:'4px',marginRight:'8px',flexShrink:0}}>
-                    {['solicitada','reproceso','emitida'].map(s=>(
-                      <button key={s} onClick={e=>{e.stopPropagation();actualizarEstadoEmision(em.id,s)}}
-                        style={{padding:'3px 7px',borderRadius:'4px',fontSize:'11px',fontWeight:500,cursor:'pointer',
-                          background:em.estado===s?emisionEstadoColors[s]:'white',color:em.estado===s?'white':emisionEstadoColors[s],
-                          border:`1px solid ${emisionEstadoColors[s]}`}}>
-                        {s.charAt(0).toUpperCase()+s.slice(1)}
+                  <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0,flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
+
+                  {/* Flow buttons (stop propagation) */}
+                  <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
+                    {em.estado==='solicitud' && (
+                      <button onClick={()=>actualizarEstadoEmision(em,'enviada')}
+                        style={{padding:'4px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                        Enviar
                       </button>
-                    ))}
+                    )}
+                    {em.estado==='enviada' && (
+                      <>
+                        <button onClick={()=>actualizarEstadoEmision(em,'en_reproceso')}
+                          style={{padding:'4px 10px',background:'rgba(239,68,68,0.1)',color:'#ef4444',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                          Reproceso
+                        </button>
+                        <button onClick={()=>actualizarEstadoEmision(em,'emitida')}
+                          style={{padding:'4px 10px',background:'#16a34a',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                          Emitir
+                        </button>
+                      </>
+                    )}
+                    {em.estado==='en_reproceso' && (
+                      <button onClick={()=>actualizarEstadoEmision(em,'enviada')}
+                        style={{padding:'4px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                        Re-enviar
+                      </button>
+                    )}
                   </div>
                   {expandedEmision===em.id ? <ChevronUp size={16} color="#64748b"/> : <ChevronDown size={16} color="#64748b"/>}
                 </div>
+
+                {/* Expanded detail */}
                 {expandedEmision===em.id && (
-                  <div style={{padding:'12px 20px 16px',background:'#f8fafc'}}>
+                  <div style={{padding:'12px 20px 16px',background:'#f8fafc',borderTop:'1px solid #f1f5f9'}}>
+                    {/* PDF row */}
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>PDF de la inclusión</p>
+                      {em.pdf_url ? (
+                        <a href={em.pdf_url} target="_blank" rel="noopener noreferrer"
+                          style={{display:'flex',alignItems:'center',gap:'5px',padding:'4px 10px',background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',fontWeight:600,textDecoration:'none'}}>
+                          <Download size={11}/> Descargar PDF
+                        </a>
+                      ) : (
+                        <label style={{display:'flex',alignItems:'center',gap:'5px',padding:'4px 10px',background:'#f1f5f9',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'11px',fontWeight:500,cursor:'pointer'}}>
+                          <Upload size={11}/> Adjuntar PDF
+                          <input type="file" accept=".pdf" style={{display:'none'}} onChange={async(e)=>{
+                            const file = e.target.files[0]; if (!file) return
+                            const { data: ud, error: ue } = await supabase.storage.from('polizas-pdfs').upload(`${poliza.id}/${em.id}.pdf`, file, {upsert:true})
+                            if (ue) { toast.error('Error: '+ue.message); return }
+                            const { data: uUrl } = supabase.storage.from('polizas-pdfs').getPublicUrl(ud.path)
+                            await supabase.from('emisiones').update({ pdf_url: uUrl.publicUrl }).eq('id', em.id)
+                            toast.success('PDF adjuntado')
+                            fetchData()
+                          }}/>
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Vehicles */}
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
-                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>Vehículos asignados</p>
+                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>Vehículos</p>
                       <button onClick={()=>setShowAsignarVehiculo(showAsignarVehiculo===em.id?null:em.id)}
                         style={{fontSize:'11px',padding:'3px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontWeight:500}}>
-                        + Asignar vehículo
+                        + Agregar
                       </button>
                     </div>
                     {em.emision_vehiculos?.length===0 && <p style={{fontSize:'13px',color:'#94a3b8',marginBottom:'8px'}}>Sin vehículos asignados</p>}
                     {em.emision_vehiculos?.map(ev=>(
-                      <div key={ev.vehiculos?.id} style={{display:'flex',gap:'8px',padding:'8px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center'}}>
+                      <div key={ev.id} style={{display:'flex',gap:'8px',padding:'8px 10px',background:'white',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',fontSize:'13px',alignItems:'center',cursor:'pointer'}}
+                        onClick={()=>navigate('/vehiculos',{state:{openVehiculoId:ev.vehiculos?.id}})}>
                         <Car size={14} color="#1A6BBA"/>
                         <span style={{fontWeight:500,flex:1}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</span>
                         <span style={{color:'#64748b'}}>Placa: {fp(ev.vehiculos)}</span>
-                        <button onClick={()=>quitarVehiculo(ev.vehiculos?.id, ev.id)}
+                        <button onClick={e=>{e.stopPropagation();quitarVehiculo(ev.vehiculos?.id, ev.id)}}
                           style={{padding:'2px 8px',background:'#fef2f2',color:'#ef4444',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px'}}>Quitar</button>
                       </div>
                     ))}
                     {showAsignarVehiculo===em.id && (
                       <div style={{marginTop:'8px',padding:'10px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
-                        <input value={vehiculoSearch} onChange={e=>setVehiculoSearch(e.target.value)} placeholder="Buscar vehículo disponible..."
+                        <input value={vehiculoSearch} onChange={e=>setVehiculoSearch(e.target.value)} placeholder="Buscar vehículo..."
                           style={{width:'100%',padding:'7px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'12px',marginBottom:'8px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
-                        {vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+fp(v)).toLowerCase().includes(vehiculoSearch.toLowerCase())).length===0
+                        {vehiculosParaInclusion.filter(v=>(v.marca+' '+v.modelo+' '+fp(v)).toLowerCase().includes(vehiculoSearch.toLowerCase())).length===0
                           ? <p style={{fontSize:'12px',color:'#94a3b8',textAlign:'center',padding:'8px'}}>No hay vehículos disponibles</p>
-                          : vehiculosDisponibles.filter(v=>(v.marca+' '+v.modelo+' '+fp(v)).toLowerCase().includes(vehiculoSearch.toLowerCase())).map(v=>(
+                          : vehiculosParaInclusion.filter(v=>(v.marca+' '+v.modelo+' '+fp(v)).toLowerCase().includes(vehiculoSearch.toLowerCase())).map(v=>(
                           <div key={v.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 8px',borderRadius:'6px',border:'1px solid #f1f5f9',marginBottom:'4px',background:'#f8fafc'}}>
                             <Car size={13} color="#1A6BBA"/>
                             <span style={{flex:1,fontSize:'12px',fontWeight:500}}>{v.marca} {v.modelo} {v.anio} — {fp(v)}</span>
@@ -1215,33 +1393,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             )
           })}
         </div>
-      )}
+        )
+      })()}
 
-      {/* ─ TAB: Vehículos en póliza ─ */}
-      {activeTab === 'vehiculos' && isEmitida && (
-        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-          <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px',margin:0}}>Vehículos en esta póliza</h3>
-          {emisiones.every(em=>!em.emision_vehiculos?.length) ? (
-            <p style={{color:'#94a3b8',fontSize:'14px',textAlign:'center',padding:'16px 0'}}>Sin vehículos asignados. Asígnalos desde la pestaña de Emisiones.</p>
-          ) : emisiones.filter(em=>em.emision_vehiculos?.length>0).map(em=>(
-            <div key={em.id} style={{marginBottom:'16px'}}>
-              <p style={{fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'8px'}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
-              {em.emision_vehiculos.map(ev=>(
-                <div key={ev.vehiculos?.id} style={{display:'flex',alignItems:'center',padding:'12px 16px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #f1f5f9',marginBottom:'6px'}}>
-                  <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
-                    <Car size={16} color="#1A6BBA"/>
-                  </div>
-                  <div style={{flex:1}}>
-                    <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px',margin:0}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
-                    <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{ev.vehiculos?.tipo} · Placa: {fp(ev.vehiculos)} · Color: {ev.vehiculos?.color||'N/A'}</p>
-                  </div>
-                  {ev.vehiculos?.valor_asegurado>0 && <p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA',margin:0}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ─ TAB: Pagos ─ */}
       {activeTab === 'pagos' && isEmitida && (
@@ -1338,10 +1492,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   style={{width:'100%',padding:'10px 12px',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
               </div>
               <div style={{marginBottom:'20px'}}>
-                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'6px'}}>URL del PDF de la póliza <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
-                <input value={emitirForm.pdf_url} onChange={e=>setEmitirForm({...emitirForm,pdf_url:e.target.value})}
-                  placeholder="https://..."
-                  style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'6px'}}>PDF de la póliza <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+                <label style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',border:'2px dashed #e2e8f0',borderRadius:'8px',cursor:'pointer',background:emitirPdfFile?'#f0fdf4':'white'}}>
+                  <Upload size={16} color={emitirPdfFile?'#15803d':'#94a3b8'}/>
+                  <span style={{fontSize:'13px',color:emitirPdfFile?'#15803d':'#94a3b8'}}>
+                    {emitirPdfFile ? emitirPdfFile.name : 'Seleccionar PDF...'}
+                  </span>
+                  <input type="file" accept=".pdf" style={{display:'none'}} onChange={e=>setEmitirPdfFile(e.target.files[0]||null)}/>
+                </label>
               </div>
               <div style={{background:'#eff6ff',borderRadius:'8px',padding:'12px 14px',marginBottom:'20px',display:'flex',gap:'8px'}}>
                 <CheckCircle size={14} color='#1d4ed8' style={{flexShrink:0,marginTop:'1px'}}/>
@@ -1352,8 +1510,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 </div>
               </div>
               <div style={{display:'flex',gap:'8px'}}>
-                <button type="submit" style={{flex:1,padding:'11px',background:'#15803d',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:700,cursor:'pointer'}}>
-                  ✓ Confirmar emisión
+                <button type="submit" disabled={uploadingPdf} style={{flex:1,padding:'11px',background:uploadingPdf?'#86efac':'#15803d',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:700,cursor:uploadingPdf?'wait':'pointer'}}>
+                  {uploadingPdf ? 'Subiendo PDF...' : '✓ Confirmar emisión'}
                 </button>
                 <button type="button" onClick={()=>setShowEmitirModal(false)} style={{padding:'11px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
                   Cancelar
