@@ -397,6 +397,7 @@ export default function Liquidaciones() {
                             </tr>
                           </tfoot>
                         </table>
+                        </div>
                       )}
                     </div>
                   )}
