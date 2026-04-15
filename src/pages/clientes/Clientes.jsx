@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -42,6 +42,9 @@ export default function Clientes() {
       if (c) { setSelected(c); setView('detalle') }
     }
   }, [location.state, clientes])
+
+  // Pass the desired tab to ClienteDetalle when coming back from a vehicle
+  const initialTab = location.state?.openClienteId && location.state?.fromVehiculo ? 'vehiculos' : undefined
 
   const fetchAll = async () => {
     setLoading(true)
@@ -168,7 +171,7 @@ export default function Clientes() {
   const getNombreDisplay = (c) => c.tipo === 'empresa' ? (c.razon_social || c.nombre_empresa || c.nombre) : `${c.nombre} ${c.apellido||''}`.trim()
 
   if (view === 'detalle' && selected) return (
-    <ClienteDetalle cliente={selected} conglomerados={conglomerados} fromReqId={fromReqId} onBack={() => { setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
+    <ClienteDetalle cliente={selected} conglomerados={conglomerados} fromReqId={fromReqId} initialTab={initialTab} onBack={() => { setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -535,13 +538,16 @@ export default function Clientes() {
   )
 }
 
-function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId }) {
+const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
+
+function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, initialTab }) {
   const navigate = useNavigate()
   const [polizas, setPolizas] = useState([])
   const [personas, setPersonas] = useState([])
   const [reqs, setReqs] = useState([])
+  const [vehiculos, setVehiculos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('polizas')
+  const [activeTab, setActiveTab] = useState(initialTab || 'polizas')
   const [showPFForm, setShowPFForm] = useState(false)
   const [pfForm, setPfForm] = useState(emptyPF)
   const [editingPF, setEditingPF] = useState(null)
@@ -551,12 +557,14 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId }) {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: pData }, { data: pfData }] = await Promise.all([
+    const [{ data: pData }, { data: pfData }, { data: vData }] = await Promise.all([
       supabase.from('polizas').select('*, aseguradoras(nombre, logo_url), productos(nombre)').eq('cliente_id', cliente.id).eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('personas_facturables').select('*').eq('cliente_id', cliente.id).eq('activa', true).order('nombre'),
+      supabase.from('vehiculos').select('*').eq('cliente_id', cliente.id).eq('activo', true).order('created_at', { ascending: false }),
     ])
     setPolizas(pData || [])
     setPersonas(pfData || [])
+    setVehiculos(vData || [])
     const polizaIds = (pData || []).map(p => p.id)
     if (polizaIds.length > 0) {
       const { data: reqData } = await supabase.from('requerimientos_pago')
@@ -662,7 +670,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId }) {
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#0C1E3D' : 'white',
@@ -701,6 +709,42 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId }) {
                   <ChevronRight size={16} color='#94a3b8' />
                 </div>
               ))}
+        </div>
+      )}
+
+      {activeTab === 'vehiculos' && (
+        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
+            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Vehiculos del cliente</p>
+          </div>
+          {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
+            vehiculos.length === 0 ? (
+              <div style={{ padding:'32px', textAlign:'center' }}>
+                <Car size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} />
+                <p style={{ color:'#94a3b8', margin:0 }}>Sin vehiculos registrados</p>
+              </div>
+            ) : vehiculos.map((v, i) => (
+              <div key={v.id}
+                style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<vehiculos.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
+                onClick={() => navigate('/vehiculos', { state: { openVehiculoId: v.id, fromClienteId: cliente.id } })}
+                onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                onMouseLeave={e => e.currentTarget.style.background='white'}>
+                <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                  <Car size={18} color='#1A6BBA' />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>Placa: {fp(v)} · {v.tipo} {v.color ? `· ${v.color}` : ''}</p>
+                </div>
+                {v.valor_asegurado > 0 && (
+                  <div style={{ textAlign:'right', marginRight:'12px' }}>
+                    <p style={{ fontSize:'12px', color:'#1A6BBA', fontWeight:600, margin:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>
+                    <p style={{ fontSize:'11px', color:'#94a3b8', margin:0 }}>Valor asegurado</p>
+                  </div>
+                )}
+                <ChevronRight size={16} color='#94a3b8' />
+              </div>
+            ))}
         </div>
       )}
 

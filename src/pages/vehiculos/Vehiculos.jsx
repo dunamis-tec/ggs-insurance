@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Car, Plus, Edit2, Trash2, Search, ArrowLeft, FileText, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
 const tiposPlaca = ['M','C','P','CD','A','MI','TC']
@@ -65,8 +65,18 @@ export default function Vehiculos() {
   const [editing, setEditing] = useState(null)
   const [placaError, setPlacaError] = useState('')
   const [chasisError, setChasisError] = useState('')
+  const location = useLocation()
+  const fromClienteId = location.state?.fromClienteId || null
 
   useEffect(() => { fetchAll() }, [])
+
+  // Auto-open vehicle detail when navigated from a client
+  useEffect(() => {
+    if (location.state?.openVehiculoId && vehiculos.length > 0) {
+      const v = vehiculos.find(x => x.id === location.state.openVehiculoId)
+      if (v) { setSelected(v); setView('detalle') }
+    }
+  }, [location.state, vehiculos])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -154,7 +164,7 @@ export default function Vehiculos() {
   const labelStyle = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }
 
   if (view === 'detalle' && selected) return (
-    <VehiculoDetalle vehiculo={selected} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
+    <VehiculoDetalle vehiculo={selected} fromClienteId={fromClienteId} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -307,10 +317,18 @@ export default function Vehiculos() {
   )
 }
 
-function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
+function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId }) {
   const navigate = useNavigate()
   const [historial, setHistorial] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const handleBack = () => {
+    if (fromClienteId) {
+      navigate('/clientes', { state: { openClienteId: fromClienteId, fromVehiculo: true } })
+    } else {
+      onBack()
+    }
+  }
 
   useEffect(() => { fetchHistorial() }, [vehiculo.id])
 
@@ -326,8 +344,8 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> Volver a vehiculos
+      <button onClick={handleBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
+        <ArrowLeft size={16}/> {fromClienteId ? 'Volver al cliente' : 'Volver a vehiculos'}
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
@@ -341,7 +359,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
               <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'4px 0 0'}}>{vehiculo.clientes?.nombre} {vehiculo.clientes?.apellido||''} · {vehiculo.tipo}</p>
             </div>
           </div>
-          <button onClick={()=>onEdit(vehiculo)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
+          <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
             <Edit2 size={13}/> Editar
           </button>
         </div>
