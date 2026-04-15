@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
-const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
+const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
 const emptyPF = { nombre:'', apellido:'', nit:'', email:'', telefono:'', direccion:'' }
 
 const tipoColors = { prospecto:{ bg:'#fef9c3', color:'#a16207' }, individual:{ bg:'#dbeafe', color:'#1d4ed8' }, empresa:{ bg:'#fef3c7', color:'#d97706' } }
@@ -75,7 +75,7 @@ export default function Clientes() {
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       nombre: form.nombre, apellido: form.apellido || null, tipo: form.tipo,
-      email: form.email || null, telefono: form.telefono || null, nit: form.nit || null,
+      email: form.email || null, telefono: form.telefono || null, nit: form.nit || null, dpi: form.dpi || null,
       direccion: form.direccion || null, conglomerado_id: form.conglomerado_id || null,
       razon_social: form.razon_social || null, nombre_empresa: form.nombre_empresa || null,
       contacto_nombre: form.contacto_nombre || null, contacto_apellido: form.contacto_apellido || null,
@@ -105,7 +105,7 @@ export default function Clientes() {
       razon_social: c.razon_social || '', nombre_empresa: c.nombre_empresa || '',
       contacto_nombre: c.contacto_nombre || '', contacto_apellido: c.contacto_apellido || '',
       contacto_telefono: c.contacto_telefono || '', contacto_email: c.contacto_email || '',
-      contacto_cargo: c.contacto_cargo || ''
+      contacto_cargo: c.contacto_cargo || '', dpi: c.dpi || ''
     })
     const cong = conglomerados.find(x => x.id === c.conglomerado_id)
     setConglomeradoSearch(cong?.nombre || '')
@@ -219,6 +219,10 @@ export default function Clientes() {
                   <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} required style={inp} />
                 </div>
                 <div>
+                  <label style={labelStyle}>DPI representante</label>
+                  <input value={form.dpi} onChange={e => setForm({ ...form, dpi: e.target.value })} style={inp} placeholder='Número de identificación' />
+                </div>
+                <div>
                   <label style={labelStyle}>Telefono</label>
                   <input value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} style={inp} />
                 </div>
@@ -269,6 +273,10 @@ export default function Clientes() {
                 <div>
                   <label style={labelStyle}>NIT</label>
                   <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} style={inp} />
+                </div>
+                <div>
+                  <label style={labelStyle}>DPI</label>
+                  <input value={form.dpi} onChange={e => setForm({ ...form, dpi: e.target.value })} style={inp} placeholder='Número de identificación' />
                 </div>
                 <div>
                   <label style={labelStyle}>Telefono</label>
@@ -663,6 +671,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
           ) : (
             <>
               {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='NIT' value={cliente.nit} />}
+              {cliente.dpi && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='DPI' value={cliente.dpi} />}
               {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Telefono' value={cliente.telefono} />}
               {cliente.email && <InfoCard icon={<Mail size={14} color='#1A6BBA'/>} label='Email' value={cliente.email} />}
             </>
