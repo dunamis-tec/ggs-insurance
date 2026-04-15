@@ -20,8 +20,9 @@ const polizaEstados = {
   en_reproceso: { bg:'#fef2f2', color:'#ef4444', label:'En reproceso' },
   emitida:      { bg:'#dcfce7', color:'#15803d', label:'Emitida' },
 }
-const estadoFlujo  = { solicitud:'enviada', enviada:'en_reproceso', en_reproceso:'emitida' }
-const estadoFlujoLabel = { solicitud:'Enviar a aseguradora', enviada:'Marcar en reproceso', en_reproceso:'Emitir póliza' }
+// Flujo lineal simple (un solo siguiente): solicitud→enviada, en_reproceso→enviada (regresa)
+const estadoFlujo  = { solicitud:'enviada', en_reproceso:'enviada' }
+const estadoFlujoLabel = { solicitud:'Enviar a aseguradora', en_reproceso:'Re-enviar a aseguradora' }
 
 const camposClienteReq = [
   { key:'nombre',   label:'Nombre' },
@@ -681,10 +682,16 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const avanzarEstado = async () => {
     const siguiente = estadoFlujo[poliza.estado]
     if (!siguiente) return
-    if (siguiente === 'emitida') { setShowEmitirModal(true); return }
     await supabase.from('polizas').update({ estado: siguiente }).eq('id', poliza.id)
     await addBitacora(poliza.estado, siguiente, estadoFlujoLabel[poliza.estado])
-    toast.success(`Estado: ${polizaEstados[siguiente]?.label}`)
+    toast.success(`Estado actualizado: ${polizaEstados[siguiente]?.label}`)
+    await reloadPoliza(); fetchData()
+  }
+
+  const marcarEnReproceso = async () => {
+    await supabase.from('polizas').update({ estado: 'en_reproceso' }).eq('id', poliza.id)
+    await addBitacora('enviada', 'en_reproceso', 'Marcada en reproceso — requiere correcciones')
+    toast.success('Marcada en reproceso')
     await reloadPoliza(); fetchData()
   }
 
@@ -824,7 +831,6 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const hoy = new Date()
   const pEst = polizaEstados[poliza.estado] || polizaEstados.solicitud
-  const siguienteEstado = estadoFlujo[poliza.estado]
   const vencDate = poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento) : null
   const diasRestantes = vencDate ? Math.ceil((vencDate - hoy) / (1000*60*60*24)) : null
   const vencEst = vencDate ? (vencDate < hoy ? 'vencida' : diasRestantes <= 30 ? 'por_vencer' : 'activa') : 'activa'
@@ -844,32 +850,29 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       {/* Header */}
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
-          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}}>
-            <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-              <div style={{width:'52px',height:'52px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'rgba(255,255,255,0.15)',flexShrink:0}}>
-                {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={22} color="white"/>}
+          {/* Row 1: identity + actions */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}}>
+            {/* Left: logo + title + badge */}
+            <div style={{display:'flex',alignItems:'center',gap:'14px',minWidth:0}}>
+              <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'rgba(255,255,255,0.15)',flexShrink:0}}>
+                {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="white"/>}
               </div>
-              <div>
+              <div style={{minWidth:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
-                  <h1 style={{fontSize:'20px',fontWeight:700,color:'white',margin:0}}>
+                  <h1 style={{fontSize:'20px',fontWeight:700,color:'white',margin:0,whiteSpace:'nowrap'}}>
                     {poliza.numero_poliza || `SOL-${poliza.numero_solicitud||'?'}`}
                   </h1>
-                  {poliza.numero_solicitud && !poliza.numero_poliza && (
-                    <span style={{fontSize:'11px',color:'rgba(255,255,255,0.8)',background:'rgba(255,255,255,0.15)',padding:'2px 8px',borderRadius:'10px'}}>
-                      Solicitud #{poliza.numero_solicitud}
-                    </span>
-                  )}
-                  <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:pEst.bg,color:pEst.color,fontWeight:700}}>{pEst.label}</span>
+                  <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',fontWeight:700,background:pEst.bg,color:pEst.color}}>{pEst.label}</span>
                   {isEmitida && vencEst==='vencida' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef2f2',color:'#ef4444',fontWeight:600}}>Vencida</span>}
                   {isEmitida && vencEst==='por_vencer' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef9c3',color:'#a16207',fontWeight:600}}>Por vencer ({diasRestantes}d)</span>}
                 </div>
-                <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'4px 0 0'}}>
+                <p style={{fontSize:'13px',color:'rgba(255,255,255,0.65)',margin:'3px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                   {poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}
                 </p>
                 {poliza.poliza_origen && (
-                  <div style={{marginTop:'5px',display:'flex',alignItems:'center',gap:'5px'}}>
-                    <GitMerge size={12} color="rgba(255,255,255,0.6)"/>
-                    <span style={{fontSize:'12px',color:'rgba(255,255,255,0.7)'}}>
+                  <div style={{marginTop:'4px',display:'flex',alignItems:'center',gap:'4px'}}>
+                    <GitMerge size={11} color="rgba(255,255,255,0.55)"/>
+                    <span style={{fontSize:'12px',color:'rgba(255,255,255,0.65)'}}>
                       Renovación de&nbsp;
                       <button onClick={()=>navigate('/polizas',{state:{openPolizaId:poliza.poliza_origen.id}})}
                         style={{background:'none',border:'none',color:'rgba(255,255,255,0.9)',cursor:'pointer',fontSize:'12px',fontWeight:600,padding:0,textDecoration:'underline'}}>
@@ -880,36 +883,66 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 )}
               </div>
             </div>
-            <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center'}}>
-              {/* PDF button (placeholder) */}
+
+            {/* Right: action buttons */}
+            <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center',flexShrink:0}}>
+              {/* PDF */}
               <button onClick={()=>toast('Generación de PDF próximamente', {icon:'📄'})}
-                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
-                <Download size={13}/> PDF solicitud
+                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+                <Download size={13}/> PDF
               </button>
-              {siguienteEstado && (
+
+              {/* solicitud → Enviar a aseguradora */}
+              {poliza.estado === 'solicitud' && (
                 <button onClick={avanzarEstado}
-                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:polizaEstados[siguienteEstado].bg,color:polizaEstados[siguienteEstado].color,border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
-                  <SendHorizonal size={13}/> {estadoFlujoLabel[poliza.estado]}
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                  <SendHorizonal size={14}/> Enviar a aseguradora
                 </button>
               )}
+
+              {/* enviada → dos opciones */}
+              {poliza.estado === 'enviada' && (
+                <>
+                  <button onClick={marcarEnReproceso}
+                    style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 14px',background:'rgba(239,68,68,0.15)',color:'#fca5a5',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    <RefreshCw size={13}/> En reproceso
+                  </button>
+                  <button onClick={()=>setShowEmitirModal(true)}
+                    style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#16a34a',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                    <CheckCircle size={14}/> Emitir póliza
+                  </button>
+                </>
+              )}
+
+              {/* en_reproceso → Re-enviar */}
+              {poliza.estado === 'en_reproceso' && (
+                <button onClick={avanzarEstado}
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                  <SendHorizonal size={14}/> Re-enviar a aseguradora
+                </button>
+              )}
+
+              {/* emitida: Inclusión / Exclusión / Renovar */}
               {isEmitida && (
                 <>
                   <button onClick={()=>abrirFormEmision('inclusion')}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                     <Plus size={13}/> Inclusión
                   </button>
                   <button onClick={()=>abrirFormEmision('exclusion')}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                     <Plus size={13}/> Exclusión
                   </button>
                   <button onClick={renovarPoliza}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                     <RefreshCw size={13}/> Renovar
                   </button>
                 </>
               )}
+
+              {/* Editar siempre visible */}
               <button onClick={()=>onEdit(poliza)}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
                 <Edit2 size={13}/> Editar
               </button>
             </div>
