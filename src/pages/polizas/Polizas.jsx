@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Car, X } from 'lucide-react'
+import { FileText, Plus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const fraccionamientoOpciones = [2,6,8,10,12]
 const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
-const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
-const estadoIcons = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
-const emptyPoliza = { numero_poliza:'', cliente_id:'', aseguradora_id:'', producto_id:'', persona_facturable_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio' }
+const emisionEstadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
+const emisionEstadoIcons = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
+
+// Estados de la póliza (flujo de trabajo)
+const polizaEstados = {
+  borrador:     { bg:'#f1f5f9', color:'#64748b', label:'Borrador' },
+  enviada:      { bg:'#fef9c3', color:'#a16207', label:'Enviada' },
+  en_reproceso: { bg:'#fef2f2', color:'#ef4444', label:'En reproceso' },
+  emitida:      { bg:'#dcfce7', color:'#15803d', label:'Emitida' },
+}
+const estadoFlujo = { borrador:'enviada', enviada:'en_reproceso', en_reproceso:'emitida' }
+const estadoFlujoLabel = { borrador:'Enviar a aseguradora', enviada:'Marcar en reproceso', en_reproceso:'Marcar como emitida' }
+
+const emptyPoliza = { numero_poliza:'', estado:'borrador', cliente_id:'', aseguradora_id:'', producto_id:'', persona_facturable_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio' }
 const emptyEmision = { tipo:'emision', prima_emision:'', fraccionamiento:'', fecha_inicio:'', fecha_fin:'', notas:'' }
 const emptyReq = { monto:'', fecha_vencimiento:'', total_cuotas:1 }
 
@@ -96,7 +107,7 @@ export default function Polizas() {
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: polizasData }, { data: clientesData }, { data: aseguradorasData }] = await Promise.all([
-      supabase.from('polizas').select('*, clientes(nombre, apellido), aseguradoras(nombre, logo_url), productos(nombre)').eq('activa', true).order('created_at', { ascending: false }),
+      supabase.from('polizas').select('*, clientes(nombre, apellido), aseguradoras(nombre, logo_url), productos(nombre), poliza_origen:poliza_origen_id(id, numero_poliza)').eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('clientes').select('id, nombre, apellido, tipo').eq('activo', true).order('nombre'),
       supabase.from('aseguradoras').select('id, nombre, logo_url, productos(id, nombre, activo)').eq('activa', true).order('nombre')
     ])
@@ -150,6 +161,7 @@ export default function Polizas() {
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       numero_poliza: form.numero_poliza || null,
+      estado: form.estado || 'borrador',
       cliente_id: form.cliente_id,
       aseguradora_id: form.aseguradora_id,
       producto_id: form.producto_id,
@@ -186,7 +198,7 @@ export default function Polizas() {
       const clienteOption = cliente ? [{ id: p.cliente_id, nombre: cliente.nombre, apellido: cliente.apellido || '', nit: cliente.nit || '', _isCliente: true }] : []
       setPersonasFacturables([...clienteOption, ...(data || [])])
     }
-    setForm({ numero_poliza:p.numero_poliza||'', cliente_id:p.cliente_id, aseguradora_id:p.aseguradora_id, producto_id:p.producto_id, persona_facturable_id:p.persona_facturable_id||'', prima_total:p.prima_total, tipo_pago:p.tipo_pago||'contado', fraccionamiento:p.fraccionamiento||'', fecha_inicio:p.fecha_inicio, fecha_vencimiento:p.fecha_vencimiento, vigencia:'manual' })
+    setForm({ numero_poliza:p.numero_poliza||'', estado:p.estado||'borrador', cliente_id:p.cliente_id, aseguradora_id:p.aseguradora_id, producto_id:p.producto_id, persona_facturable_id:p.persona_facturable_id||'', prima_total:p.prima_total, tipo_pago:p.tipo_pago||'contado', fraccionamiento:p.fraccionamiento||'', fecha_inicio:p.fecha_inicio, fecha_vencimiento:p.fecha_vencimiento, vigencia:'manual' })
     setEditing(p.id)
     setView('form')
     window.scrollTo(0,0)
@@ -203,7 +215,8 @@ export default function Polizas() {
   const en30dias = new Date()
   en30dias.setDate(en30dias.getDate() + 30)
 
-  const getEstadoPoliza = (p) => {
+  const getVencimientoEstado = (p) => {
+    if (!p.fecha_vencimiento) return 'activa'
     const venc = new Date(p.fecha_vencimiento)
     if (venc < hoy) return 'vencida'
     if (venc <= en30dias) return 'por_vencer'
@@ -212,16 +225,16 @@ export default function Polizas() {
 
   const filtered = polizas.filter(p => {
     const matchSearch = ((p.numero_poliza||'')+' '+(p.clientes?.nombre||'')+' '+(p.clientes?.apellido||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
-    const estado = getEstadoPoliza(p)
-    const matchEstado = filtroEstado === 'todas' || estado === filtroEstado
+    const matchEstado = filtroEstado === 'todas' || p.estado === filtroEstado
     return matchSearch && matchEstado
   })
 
   const counts = {
     todas: polizas.length,
-    activa: polizas.filter(p => getEstadoPoliza(p) === 'activa').length,
-    por_vencer: polizas.filter(p => getEstadoPoliza(p) === 'por_vencer').length,
-    vencida: polizas.filter(p => getEstadoPoliza(p) === 'vencida').length,
+    borrador:     polizas.filter(p => p.estado === 'borrador').length,
+    enviada:      polizas.filter(p => p.estado === 'enviada').length,
+    en_reproceso: polizas.filter(p => p.estado === 'en_reproceso').length,
+    emitida:      polizas.filter(p => p.estado === 'emitida').length,
   }
 
   const inputStyle = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
@@ -237,16 +250,31 @@ export default function Polizas() {
       <button onClick={()=>{ if (fromClienteId) navigate('/clientes', { state: { openClienteId: fromClienteId } }); else if (fromReqId) navigate('/requerimientos', { state: { openReqId: fromReqId } }); else { setView('list'); setEditing(null); setForm(emptyPoliza) } }} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
         <ArrowLeft size={16}/> {fromClienteId ? 'Volver al cliente' : fromReqId ? 'Volver al requerimiento' : 'Volver a polizas'}
       </button>
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',maxWidth:'800px'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
           <h2 style={{fontSize:'18px',fontWeight:700,color:'white',margin:0}}>{editing ? 'Editar poliza' : 'Nueva poliza'}</h2>
           <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',marginTop:'4px',marginBottom:0}}>Completa la informacion de la poliza</p>
         </div>
         <div style={{padding:'24px'}}>
           <form onSubmit={handleSubmit}>
+            <div style={{marginBottom:'16px'}}>
+              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'8px'}}>Estado de la poliza</label>
+              <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                {Object.entries(polizaEstados).map(([key,{bg,color,label}])=>(
+                  <button key={key} type="button" onClick={()=>setForm({...form,estado:key})}
+                    style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',
+                      background:form.estado===key?color:'white',
+                      color:form.estado===key?'white':color,
+                      border:`2px solid ${color}`,
+                      opacity:form.estado===key?1:0.7}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
               <div>
-                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Numero de poliza <span style={{color:'#94a3b8',fontWeight:400}}>(brindado por aseguradora)</span></label>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Numero de poliza <span style={{color:'#94a3b8',fontWeight:400}}>(opcional, brindado por aseguradora)</span></label>
                 <input value={form.numero_poliza} onChange={e=>setForm({...form,numero_poliza:e.target.value})} placeholder="Ej: POL-2024-001" style={inputStyle}/>
               </div>
               <div>
@@ -365,7 +393,7 @@ export default function Polizas() {
           <div style={{textAlign:'left'}}>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Polizas</h1>
             <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
-              {counts.todas} total · {counts.activa} activas · {counts.por_vencer} por vencer · {counts.vencida} vencidas
+              {counts.todas} total · {counts.borrador} borradores · {counts.enviada} enviadas · {counts.en_reproceso} en reproceso · {counts.emitida} emitidas
             </p>
           </div>
           <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([])}}
@@ -384,19 +412,24 @@ export default function Polizas() {
         </div>
         <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
           {[
-            ['todas','Todas','#64748b'],
-            ['activa','Activas','#22c55e'],
-            ['por_vencer','Por vencer','#f59e0b'],
-            ['vencida','Vencidas','#ef4444'],
-          ].map(([key,label,color])=>(
-            <button key={key} onClick={()=>setFiltroEstado(key)}
-              style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
-                background: filtroEstado===key ? '#0C1E3D' : 'white',
-                color: filtroEstado===key ? 'white' : '#64748b',
-                border: `1px solid ${filtroEstado===key ? '#0C1E3D' : '#e2e8f0'}`}}>
-              {label} {filtroEstado===key ? '' : `(${counts[key]})`}
-            </button>
-          ))}
+            ['todas','Todas'],
+            ['borrador','Borradores'],
+            ['enviada','Enviadas'],
+            ['en_reproceso','En reproceso'],
+            ['emitida','Emitidas'],
+          ].map(([key,label])=>{
+            const est = polizaEstados[key]
+            const isActive = filtroEstado === key
+            return (
+              <button key={key} onClick={()=>setFiltroEstado(key)}
+                style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
+                  background: isActive ? (est?.color||'#0C1E3D') : 'white',
+                  color: isActive ? 'white' : (est?.color||'#64748b'),
+                  border: `1px solid ${est?.color||'#e2e8f0'}`}}>
+                {label} ({counts[key]??counts.todas})
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -412,12 +445,9 @@ export default function Polizas() {
         <div style={{overflowX:'auto'}}>
         <div style={{minWidth:'580px'}}>
         {filtered.map((p,i)=>{
-          const estado = getEstadoPoliza(p)
-          const estadoBadge = {
-            activa: { bg:'#dcfce7', color:'#15803d', label:'Activa' },
-            por_vencer: { bg:'#fef9c3', color:'#a16207', label:'Por vencer' },
-            vencida: { bg:'#fef2f2', color:'#ef4444', label:'Vencida' },
-          }[estado]
+          const pEst = polizaEstados[p.estado] || polizaEstados.borrador
+          const vencEst = p.estado === 'emitida' ? getVencimientoEstado(p) : null
+          const vencBadge = vencEst === 'vencida' ? { bg:'#fef2f2', color:'#ef4444', label:'Vencida' } : vencEst === 'por_vencer' ? { bg:'#fef9c3', color:'#a16207', label:'Por vencer' } : null
           return (
             <div key={p.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
               onClick={()=>{setSelected(p);setView('detalle')}}
@@ -427,19 +457,27 @@ export default function Polizas() {
                 {p.aseguradoras?.logo_url?<img src={p.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={16} color="#1A6BBA"/>}
               </div>
               <div style={{flex:1,minWidth:0}}>
-                <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{p.numero_poliza||'Sin numero'}</p>
+                <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{p.numero_poliza||'(Sin numero)'}</p>
+                  {p.poliza_origen && <span style={{fontSize:'11px',color:'#64748b',background:'#f1f5f9',padding:'1px 6px',borderRadius:'10px'}}>Renovación</span>}
+                </div>
                 <p style={{fontSize:'12px',color:'#64748b',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre}</p>
               </div>
               <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
                 <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0}}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
                 <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{p.tipo_pago==='financiado'?`${p.fraccionamiento} cuotas`:'Contado'}</p>
               </div>
-              <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
-                <p style={{fontSize:'12px',color:'#64748b',margin:0,whiteSpace:'nowrap'}}>Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}</p>
+              {p.fecha_vencimiento && (
+                <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0,whiteSpace:'nowrap'}}>Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}</p>
+                </div>
+              )}
+              <div style={{display:'flex',gap:'4px',marginRight:'8px',flexShrink:0,flexWrap:'wrap',justifyContent:'flex-end'}}>
+                <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:pEst.bg,color:pEst.color,fontWeight:600,whiteSpace:'nowrap'}}>
+                  {pEst.label}
+                </span>
+                {vencBadge && <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:vencBadge.bg,color:vencBadge.color,fontWeight:500,whiteSpace:'nowrap'}}>{vencBadge.label}</span>}
               </div>
-              <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'12px',background:estadoBadge.bg,color:estadoBadge.color,fontWeight:500,flexShrink:0,whiteSpace:'nowrap'}}>
-                {estadoBadge.label}
-              </span>
               <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
                 <button onClick={()=>handleEdit(p)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
                 <button onClick={()=>handleDelete(p.id)} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
@@ -455,14 +493,17 @@ export default function Polizas() {
   )
 }
 
-function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
+function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromReq }) {
+  const navigate = useNavigate()
+  const [poliza, setPoliza] = useState(polizaInit)
   const [emisiones, setEmisiones] = useState([])
   const [reqs, setReqs] = useState([])
   const [vehiculosDisponibles, setVehiculosDisponibles] = useState([])
   const [tareas, setTareas] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('emisiones')
+  const [activeTab, setActiveTab] = useState(polizaInit.estado === 'emitida' ? 'emisiones' : 'tareas')
   const [showEmisionForm, setShowEmisionForm] = useState(false)
+  const [preselectedTipo, setPreselectedTipo] = useState(null)
   const [showReqForm, setShowReqForm] = useState(false)
   const [showAsignarVehiculo, setShowAsignarVehiculo] = useState(null)
   const [emisionForm, setEmisionForm] = useState(emptyEmision)
@@ -471,6 +512,14 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
   const [vehiculoSearch, setVehiculoSearch] = useState('')
 
   useEffect(() => { fetchData() }, [poliza.id])
+
+  // Reload poliza data to get latest estado
+  const reloadPoliza = async () => {
+    const { data } = await supabase.from('polizas')
+      .select('*, clientes(nombre, apellido), aseguradoras(nombre, logo_url), productos(nombre), poliza_origen:poliza_origen_id(id, numero_poliza)')
+      .eq('id', poliza.id).single()
+    if (data) setPoliza(data)
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -487,6 +536,55 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
     setLoading(false)
   }
 
+  const avanzarEstado = async () => {
+    const siguiente = estadoFlujo[poliza.estado]
+    if (!siguiente) return
+    if (siguiente === 'emitida' && !poliza.numero_poliza) {
+      const num = window.prompt('Ingresa el numero de poliza para emitirla:')
+      if (!num) return
+      await supabase.from('polizas').update({ estado: 'emitida', numero_poliza: num }).eq('id', poliza.id)
+    } else {
+      await supabase.from('polizas').update({ estado: siguiente }).eq('id', poliza.id)
+    }
+    toast.success(`Poliza actualizada a: ${polizaEstados[siguiente]?.label}`)
+    await reloadPoliza()
+  }
+
+  const renovarPoliza = async () => {
+    if (!confirm('Se creara una nueva poliza en borrador como renovacion de esta. Continuar?')) return
+    const { data: { user } } = await supabase.auth.getUser()
+    // Shift dates +1 year
+    const newInicio = poliza.fecha_inicio ? new Date(poliza.fecha_inicio) : new Date()
+    const newVenc   = poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento) : new Date()
+    newInicio.setFullYear(newInicio.getFullYear() + 1)
+    newVenc.setFullYear(newVenc.getFullYear() + 1)
+    const { data, error } = await supabase.from('polizas').insert({
+      cliente_id: poliza.cliente_id,
+      aseguradora_id: poliza.aseguradora_id,
+      producto_id: poliza.producto_id,
+      persona_facturable_id: poliza.persona_facturable_id,
+      prima_total: poliza.prima_total,
+      tipo_pago: poliza.tipo_pago,
+      fraccionamiento: poliza.fraccionamiento,
+      fecha_inicio: newInicio.toISOString().split('T')[0],
+      fecha_vencimiento: newVenc.toISOString().split('T')[0],
+      estado: 'borrador',
+      poliza_origen_id: poliza.id,
+      agente_id: user?.id
+    }).select().single()
+    if (error) { toast.error('Error al renovar: ' + error.message); return }
+    toast.success('Poliza de renovacion creada como borrador')
+    navigate('/polizas', { state: { openPolizaId: data.id } })
+  }
+
+  const abrirFormEmision = (tipo) => {
+    setEmisionForm({ ...emptyEmision, tipo })
+    setPreselectedTipo(tipo)
+    setShowEmisionForm(true)
+    setActiveTab('emisiones')
+    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100)
+  }
+
   const handleEmisionSubmit = async (e) => {
     e.preventDefault()
     const { data: { user } } = await supabase.auth.getUser()
@@ -500,6 +598,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
     if (error) { toast.error('Error: ' + error.message); return }
     toast.success('Emision creada')
     setEmisionForm(emptyEmision)
+    setPreselectedTipo(null)
     setShowEmisionForm(false)
     fetchData()
   }
@@ -570,14 +669,12 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
   const inputStyle = { width:'100%', padding:'8px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   const hoy = new Date()
-  const vencDate = new Date(poliza.fecha_vencimiento)
-  const diasRestantes = Math.ceil((vencDate - hoy) / (1000*60*60*24))
-  const estadoPoliza = vencDate < hoy ? 'vencida' : diasRestantes <= 30 ? 'por_vencer' : 'activa'
-  const estadoBadge = {
-    activa: { bg:'#dcfce7', color:'#15803d', label:'Activa' },
-    por_vencer: { bg:'#fef9c3', color:'#a16207', label:`Por vencer (${diasRestantes}d)` },
-    vencida: { bg:'#fef2f2', color:'#ef4444', label:'Vencida' },
-  }[estadoPoliza]
+  const pEst = polizaEstados[poliza.estado] || polizaEstados.borrador
+  const siguienteEstado = estadoFlujo[poliza.estado]
+  const vencDate = poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento) : null
+  const diasRestantes = vencDate ? Math.ceil((vencDate - hoy) / (1000*60*60*24)) : null
+  const vencEst = vencDate ? (vencDate < hoy ? 'vencida' : diasRestantes <= 30 ? 'por_vencer' : 'activa') : 'activa'
+  const isEmitida = poliza.estado === 'emitida'
 
   return (
     <div>
@@ -586,31 +683,68 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'52px',height:'52px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'rgba(255,255,255,0.15)',flexShrink:0}}>
-              {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={22} color="white"/>}
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
+          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
+              <div style={{width:'52px',height:'52px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'rgba(255,255,255,0.15)',flexShrink:0}}>
+                {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={22} color="white"/>}
+              </div>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                  <h1 style={{fontSize:'20px',fontWeight:700,color:'white',margin:0}}>{poliza.numero_poliza||'(Sin numero)'}</h1>
+                  <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:pEst.bg,color:pEst.color,fontWeight:700}}>{pEst.label}</span>
+                  {isEmitida && vencEst === 'vencida' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef2f2',color:'#ef4444',fontWeight:600}}>Vencida</span>}
+                  {isEmitida && vencEst === 'por_vencer' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef9c3',color:'#a16207',fontWeight:600}}>Por vencer ({diasRestantes}d)</span>}
+                </div>
+                <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'4px 0 0'}}>{poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}</p>
+                {poliza.poliza_origen && (
+                  <div style={{marginTop:'6px',display:'flex',alignItems:'center',gap:'5px'}}>
+                    <GitMerge size={12} color="rgba(255,255,255,0.6)"/>
+                    <span style={{fontSize:'12px',color:'rgba(255,255,255,0.7)'}}>
+                      Renovacion de <button onClick={()=>navigate('/polizas',{state:{openPolizaId:poliza.poliza_origen.id}})}
+                        style={{background:'none',border:'none',color:'rgba(255,255,255,0.9)',cursor:'pointer',fontSize:'12px',fontWeight:600,padding:0,textDecoration:'underline'}}>
+                        {poliza.poliza_origen.numero_poliza||'póliza anterior'}
+                      </button>
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <h1 style={{fontSize:'20px',fontWeight:700,color:'white',margin:0}}>{poliza.numero_poliza||'Sin numero'}</h1>
-              <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'4px 0 0'}}>{poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}</p>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center'}}>
+              {siguienteEstado && (
+                <button onClick={avanzarEstado}
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:polizaEstados[siguienteEstado].bg,color:polizaEstados[siguienteEstado].color,border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                  <SendHorizonal size={13}/> {estadoFlujoLabel[poliza.estado]}
+                </button>
+              )}
+              {isEmitida && (
+                <>
+                  <button onClick={()=>abrirFormEmision('inclusion')}
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    <Plus size={13}/> Inclusion
+                  </button>
+                  <button onClick={()=>abrirFormEmision('exclusion')}
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    <Plus size={13}/> Exclusion
+                  </button>
+                  <button onClick={renovarPoliza}
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    <RefreshCw size={13}/> Renovar
+                  </button>
+                </>
+              )}
+              <button onClick={()=>onEdit(poliza)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                <Edit2 size={13}/> Editar
+              </button>
             </div>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:'8px',flexShrink:0}}>
-            <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:estadoBadge.bg,color:estadoBadge.color,fontWeight:600}}>
-              {estadoBadge.label}
-            </span>
-            <button onClick={()=>onEdit(poliza)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-              <Edit2 size={13}/> Editar
-            </button>
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',padding:'16px 24px'}}>
           {[
             ['Prima total','Q '+parseFloat(poliza.prima_total||0).toLocaleString(),'#1A6BBA'],
             ['Tipo de pago',(poliza.tipo_pago||'contado').charAt(0).toUpperCase()+(poliza.tipo_pago||'contado').slice(1),'#0C1E3D'],
-            ['Inicio',new Date(poliza.fecha_inicio).toLocaleDateString('es-GT'),'#64748b'],
-            ['Vencimiento',new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT'),estadoPoliza==='vencida'?'#ef4444':estadoPoliza==='por_vencer'?'#a16207':'#64748b']
+            ['Inicio', poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—','#64748b'],
+            ['Vencimiento', vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#64748b']
           ].map(([label,val,color])=>(
             <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'12px'}}>
               <p style={{fontSize:'11px',color:'#64748b',marginBottom:'4px',margin:0}}>{label}</p>
@@ -621,7 +755,14 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
       </div>
 
       <div style={{display:'flex',gap:'8px',marginBottom:'16px',flexWrap:'wrap'}}>
-        {[['emisiones',`Emisiones (${emisiones.length})`],['vehiculos',`Vehiculos (${totalVehiculos})`],['pagos',`Pagos (${reqs.length})`],['tareas',`Tareas (${tareas.length})`]].map(([tab,label])=>(
+        {[
+          ...(isEmitida ? [
+            ['emisiones',`Emisiones (${emisiones.length})`],
+            ['vehiculos',`Vehiculos (${totalVehiculos})`],
+            ['pagos',`Pagos (${reqs.length})`],
+          ] : []),
+          ['tareas',`Tareas (${tareas.length})`],
+        ].map(([tab,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab)}
             style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
               background:activeTab===tab?'#0C1E3D':'white',color:activeTab===tab?'white':'#64748b',
@@ -629,13 +770,18 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
             {label}
           </button>
         ))}
+        {!isEmitida && (
+          <p style={{fontSize:'13px',color:'#94a3b8',margin:'auto 0',padding:'0 4px'}}>
+            Las pestanas de Emisiones, Vehiculos y Pagos se habilitan cuando la poliza es emitida.
+          </p>
+        )}
       </div>
 
-      {activeTab==='emisiones' && (
+      {activeTab==='emisiones' && isEmitida && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
             <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Emisiones</h3>
-            <button onClick={()=>setShowEmisionForm(!showEmisionForm)}
+            <button onClick={()=>{ setEmisionForm(emptyEmision); setPreselectedTipo(null); setShowEmisionForm(!showEmisionForm) }}
               style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>
               <Plus size={13}/> Nueva emision
             </button>
@@ -646,9 +792,16 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'12px'}}>
                   <div>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo</label>
-                    <select value={emisionForm.tipo} onChange={e=>setEmisionForm({...emisionForm,tipo:e.target.value})} style={{...inputStyle,padding:'8px 10px'}}>
-                      {Object.entries(emisionTipos).map(([k,v])=><option key={k} value={k}>{v}</option>)}
-                    </select>
+                    {preselectedTipo ? (
+                      <div style={{padding:'8px 12px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#374151',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                        <span>{emisionTipos[preselectedTipo]}</span>
+                        <span style={{fontSize:'11px',background:'#0C1E3D',color:'white',padding:'2px 7px',borderRadius:'8px'}}>Pre-seleccionado</span>
+                      </div>
+                    ) : (
+                      <select value={emisionForm.tipo} onChange={e=>setEmisionForm({...emisionForm,tipo:e.target.value})} style={{...inputStyle,padding:'8px 10px'}}>
+                        {Object.entries(emisionTipos).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima emision (Q) *</label>
@@ -677,12 +830,12 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
           {loading?<p style={{padding:'20px',color:'#64748b'}}>Cargando...</p>:
            emisiones.length===0?<p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin emisiones</p>:
            emisiones.map(em=>{
-            const Icon=estadoIcons[em.estado]||Clock
+            const Icon=emisionEstadoIcons[em.estado]||Clock
             return (
               <div key={em.id} style={{borderBottom:'1px solid #f1f5f9'}}>
                 <div style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer'}} onClick={()=>setExpandedEmision(expandedEmision===em.id?null:em.id)}>
-                  <div style={{width:'34px',height:'34px',borderRadius:'8px',background:estadoColors[em.estado]+'20',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'10px',flexShrink:0}}>
-                    <Icon size={15} color={estadoColors[em.estado]}/>
+                  <div style={{width:'34px',height:'34px',borderRadius:'8px',background:emisionEstadoColors[em.estado]+'20',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'10px',flexShrink:0}}>
+                    <Icon size={15} color={emisionEstadoColors[em.estado]}/>
                   </div>
                   <div style={{flex:1,minWidth:0}}>
                     <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px',margin:0}}>{em.numero_emision} — {emisionTipos[em.tipo]}</p>
@@ -748,7 +901,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
         </div>
       )}
 
-      {activeTab==='vehiculos' && (
+      {activeTab==='vehiculos' && isEmitida && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
           <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px',margin:0}}>Vehiculos en esta poliza</h3>
           {emisiones.every(em=>!em.emision_vehiculos?.length) ? <p style={{color:'#94a3b8',fontSize:'14px',textAlign:'center',padding:'16px 0'}}>Sin vehiculos asignados. Asignalos desde la pestana de Emisiones.</p> :
@@ -772,7 +925,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
         </div>
       )}
 
-      {activeTab==='pagos' && (
+      {activeTab==='pagos' && isEmitida && (
         <div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'16px'}}>
             {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total reqs',reqs.length,'#1A6BBA']].map(([label,val,color])=>(
