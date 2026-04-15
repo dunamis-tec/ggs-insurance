@@ -909,6 +909,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const totalPagado   = reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
   const totalPendiente = reqs.filter(r=>r.estado!=='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
   const totalVehiculos = emisiones.reduce((s,em)=>s+(em.emision_vehiculos?.length||0),0)
+  const isEmitida = poliza.estado === 'emitida'
   const primaTotal = isEmitida
     ? emisiones.filter(em=>em.estado==='emitida').reduce((s,em)=>s+parseFloat(em.prima_emision||0),0)
     : parseFloat(poliza.prima_total||0)
@@ -919,7 +920,6 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const vencDate = poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento) : null
   const diasRestantes = vencDate ? Math.ceil((vencDate - hoy) / (1000*60*60*24)) : null
   const vencEst = vencDate ? (vencDate < hoy ? 'vencida' : diasRestantes <= 30 ? 'por_vencer' : 'activa') : 'activa'
-  const isEmitida = poliza.estado === 'emitida'
 
   const estadoBitacora = {
     solicitud:'#1d4ed8', enviada:'#a16207', en_reproceso:'#ef4444', emitida:'#15803d'
