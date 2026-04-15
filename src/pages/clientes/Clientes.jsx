@@ -11,6 +11,8 @@ const emptyPF = { nombre:'', apellido:'', nit:'', email:'', telefono:'', direcci
 const tipoColors = { prospecto:{ bg:'#fef9c3', color:'#a16207' }, individual:{ bg:'#dbeafe', color:'#1d4ed8' }, empresa:{ bg:'#fef3c7', color:'#d97706' } }
 const tipoIcons = { prospecto: User, individual: User, empresa: Building2 }
 
+const emptyCong = { nombre: '' }
+
 export default function Clientes() {
   const [clientes, setClientes] = useState([])
   const [conglomerados, setConglomerados] = useState([])
@@ -23,6 +25,11 @@ export default function Clientes() {
   const [editing, setEditing] = useState(null)
   const [conglomeradoSearch, setConglomeradoSearch] = useState('')
   const [showConglomeradoDropdown, setShowConglomeradoDropdown] = useState(false)
+  const [activeMainTab, setActiveMainTab] = useState('clientes')
+  const [congTabSearch, setCongTabSearch] = useState('')
+  const [congForm, setCongForm] = useState(emptyCong)
+  const [editingCong, setEditingCong] = useState(null)
+  const [showCongForm, setShowCongForm] = useState(false)
   const location = useLocation()
   const fromReqId = location.state?.fromReqId || null
 
@@ -110,6 +117,39 @@ export default function Clientes() {
     fetchAll()
   }
 
+  const handleCongSubmit = async (e) => {
+    e.preventDefault()
+    if (!congForm.nombre.trim()) return
+    if (editingCong) {
+      const { error } = await supabase.from('conglomerados').update({ nombre: congForm.nombre.trim() }).eq('id', editingCong)
+      if (error) { toast.error('Error: ' + error.message); return }
+      toast.success('Conglomerado actualizado')
+    } else {
+      const { error } = await supabase.from('conglomerados').insert({ nombre: congForm.nombre.trim(), activo: true })
+      if (error) { toast.error('Error: ' + error.message); return }
+      toast.success('Conglomerado creado')
+    }
+    setCongForm(emptyCong)
+    setEditingCong(null)
+    setShowCongForm(false)
+    fetchAll()
+  }
+
+  const handleCongEdit = (cg) => {
+    setCongForm({ nombre: cg.nombre })
+    setEditingCong(cg.id)
+    setShowCongForm(true)
+  }
+
+  const handleCongDelete = async (id) => {
+    const inUse = clientes.some(c => c.conglomerado_id === id)
+    if (inUse) { toast.error('No se puede eliminar: tiene clientes asignados'); return }
+    if (!confirm('Eliminar conglomerado?')) return
+    await supabase.from('conglomerados').update({ activo: false }).eq('id', id)
+    toast.success('Conglomerado eliminado')
+    fetchAll()
+  }
+
   const filtered = clientes.filter(c => {
     const pfTexto = (c.personas_facturables || []).map(p => `${p.nombre} ${p.apellido||''} ${p.nit||''}`).join(' ')
     const matchSearch = ((c.nombre||'') + ' ' + (c.apellido||'') + ' ' + (c.email||'') + ' ' + (c.nit||'') + ' ' + (c.telefono||'') + ' ' + (c.razon_social||'') + ' ' + (c.nombre_empresa||'') + ' ' + (c.conglomerados?.nombre||'') + ' ' + pfTexto).toLowerCase().includes(search.toLowerCase())
@@ -118,6 +158,7 @@ export default function Clientes() {
   })
 
   const congFiltered = conglomerados.filter(c => c.nombre.toLowerCase().includes(conglomeradoSearch.toLowerCase()))
+  const congTabFiltered = conglomerados.filter(c => c.nombre.toLowerCase().includes(congTabSearch.toLowerCase()))
   const selectedCong = conglomerados.find(c => c.id === form.conglomerado_id)
 
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
@@ -283,72 +324,173 @@ export default function Clientes() {
 
   return (
     <div>
+      {/* Header */}
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ textAlign:'left' }}>
-            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
-            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>
+              {activeMainTab === 'clientes' ? 'Clientes' : 'Conglomerados'}
+            </h1>
+            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
+              {activeMainTab === 'clientes'
+                ? `${clientes.length} clientes · ${clientes.filter(c=>c.tipo==='empresa').length} empresas · ${clientes.filter(c=>c.tipo==='prospecto').length} prospectos`
+                : `${conglomerados.length} conglomerados`}
+            </p>
           </div>
-          <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
-            style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
-            <Plus size={16} /> Nuevo cliente
+          {activeMainTab === 'clientes'
+            ? <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                <Plus size={16} /> Nuevo cliente
+              </button>
+            : <button onClick={() => { setShowCongForm(true); setCongForm(emptyCong); setEditingCong(null) }}
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                <Plus size={16} /> Nuevo conglomerado
+              </button>
+          }
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:'8px', marginBottom:'20px' }}>
+        {[['clientes','Clientes'],['conglomerados','Conglomerados']].map(([tab, label]) => (
+          <button key={tab} onClick={() => setActiveMainTab(tab)}
+            style={{ padding:'8px 20px', borderRadius:'8px', fontSize:'14px', fontWeight:500, cursor:'pointer',
+              background: activeMainTab === tab ? '#0C1E3D' : 'white',
+              color: activeMainTab === tab ? 'white' : '#64748b',
+              border: `1px solid ${activeMainTab === tab ? '#0C1E3D' : '#e2e8f0'}` }}>
+            {label}{tab === 'clientes' ? ` (${clientes.length})` : ` (${conglomerados.length})`}
           </button>
-        </div>
+        ))}
       </div>
-      <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px', display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center' }}>
-        <div style={{ flex:1, minWidth:'200px', position:'relative' }}>
-          <Search size={16} color='#94a3b8' style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder='Buscar por nombre, NIT, telefono, conglomerado...'
-            style={{ width:'100%', padding:'9px 12px 9px 36px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
-        </div>
-        <div style={{ display:'flex', gap:'6px' }}>
-          {['todos', ...tiposCliente].map(t => (
-            <button key={t} onClick={() => setFiltroTipo(t)}
-              style={{ padding:'7px 14px', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:500,
-                background: filtroTipo === t ? '#0C1E3D' : 'white',
-                color: filtroTipo === t ? 'white' : '#64748b',
-                border: `1px solid ${filtroTipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
-        {loading ? <p style={{ padding:'24px', color:'#64748b' }}>Cargando...</p> :
-          filtered.length === 0 ? (
-            <div style={{ padding:'48px', textAlign:'center' }}>
-              <Users size={32} color='#cbd5e1' style={{ marginBottom:'12px' }} />
-              <p style={{ color:'#94a3b8' }}>No hay clientes registrados</p>
+
+      {/* ─── TAB CLIENTES ─── */}
+      {activeMainTab === 'clientes' && (
+        <>
+          <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px', display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center' }}>
+            <div style={{ flex:1, minWidth:'200px', position:'relative' }}>
+              <Search size={16} color='#94a3b8' style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder='Buscar por nombre, NIT, telefono, conglomerado...'
+                style={{ width:'100%', padding:'9px 12px 9px 36px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
             </div>
-          ) : filtered.map((c, i) => {
-            const Icon = tipoIcons[c.tipo] || User
-            const colors = tipoColors[c.tipo] || tipoColors.individual
-            return (
-              <div key={c.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i < filtered.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
-                onClick={() => { setSelected(c); setView('detalle') }}
-                onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
-                onMouseLeave={e => e.currentTarget.style.background='white'}>
-                <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:colors.bg, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                  <Icon size={18} color={colors.color} />
+            <div style={{ display:'flex', gap:'6px' }}>
+              {['todos', ...tiposCliente].map(t => (
+                <button key={t} onClick={() => setFiltroTipo(t)}
+                  style={{ padding:'7px 14px', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:500,
+                    background: filtroTipo === t ? '#0C1E3D' : 'white',
+                    color: filtroTipo === t ? 'white' : '#64748b',
+                    border: `1px solid ${filtroTipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+            {loading ? <p style={{ padding:'24px', color:'#64748b' }}>Cargando...</p> :
+              filtered.length === 0 ? (
+                <div style={{ padding:'48px', textAlign:'center' }}>
+                  <Users size={32} color='#cbd5e1' style={{ marginBottom:'12px' }} />
+                  <p style={{ color:'#94a3b8' }}>No hay clientes registrados</p>
                 </div>
-                <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
-                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
-                  <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>
-                    {c.tipo === 'empresa' && c.contacto_nombre ? `Contacto: ${c.contacto_nombre} ${c.contacto_apellido||''} · ` : ''}
-                    {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}{c.conglomerados ? ` · ${c.conglomerados.nombre}` : ''}
-                  </p>
+              ) : filtered.map((c, i) => {
+                const Icon = tipoIcons[c.tipo] || User
+                const colors = tipoColors[c.tipo] || tipoColors.individual
+                return (
+                  <div key={c.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i < filtered.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
+                    onClick={() => { setSelected(c); setView('detalle') }}
+                    onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background='white'}>
+                    <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:colors.bg, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                      <Icon size={18} color={colors.color} />
+                    </div>
+                    <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                      <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
+                      <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>
+                        {c.tipo === 'empresa' && c.contacto_nombre ? `Contacto: ${c.contacto_nombre} ${c.contacto_apellido||''} · ` : ''}
+                        {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}{c.conglomerados ? ` · ${c.conglomerados.nombre}` : ''}
+                      </p>
+                    </div>
+                    <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'12px', background:colors.bg, color:colors.color, fontWeight:500, flexShrink:0 }}>
+                      {c.tipo.charAt(0).toUpperCase() + c.tipo.slice(1)}
+                    </span>
+                    <div style={{ display:'flex', gap:'6px', flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => handleEdit(c)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
+                      <button onClick={() => handleDelete(c.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </>
+      )}
+
+      {/* ─── TAB CONGLOMERADOS ─── */}
+      {activeMainTab === 'conglomerados' && (
+        <>
+          <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px' }}>
+            <div style={{ position:'relative' }}>
+              <Search size={16} color='#94a3b8' style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)' }} />
+              <input value={congTabSearch} onChange={e => setCongTabSearch(e.target.value)} placeholder='Buscar conglomerado...'
+                style={{ width:'100%', padding:'9px 12px 9px 36px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
+            </div>
+          </div>
+
+          {/* Inline form */}
+          {showCongForm && (
+            <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', padding:'20px 24px', marginBottom:'16px' }}>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#0C1E3D', margin:'0 0 14px', textAlign:'left' }}>
+                {editingCong ? 'Editar conglomerado' : 'Nuevo conglomerado'}
+              </p>
+              <form onSubmit={handleCongSubmit} style={{ display:'flex', gap:'10px', alignItems:'flex-end' }}>
+                <div style={{ flex:1 }}>
+                  <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Nombre *</label>
+                  <input value={congForm.nombre} onChange={e => setCongForm({ nombre: e.target.value })} required
+                    placeholder='Nombre del conglomerado'
+                    style={{ width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
                 </div>
-                <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'12px', background:colors.bg, color:colors.color, fontWeight:500, flexShrink:0 }}>
-                  {c.tipo.charAt(0).toUpperCase() + c.tipo.slice(1)}
-                </span>
-                <div style={{ display:'flex', gap:'6px', flexShrink:0 }} onClick={e => e.stopPropagation()}>
-                  <button onClick={() => handleEdit(c)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
-                  <button onClick={() => handleDelete(c.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
+                <button type='submit' style={{ padding:'10px 20px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  {editingCong ? 'Actualizar' : 'Crear'}
+                </button>
+                <button type='button' onClick={() => { setShowCongForm(false); setCongForm(emptyCong); setEditingCong(null) }}
+                  style={{ padding:'10px 16px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>
+                  Cancelar
+                </button>
+              </form>
+            </div>
+          )}
+
+          <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+            {loading ? <p style={{ padding:'24px', color:'#64748b' }}>Cargando...</p> :
+              congTabFiltered.length === 0 ? (
+                <div style={{ padding:'48px', textAlign:'center' }}>
+                  <Building2 size={32} color='#cbd5e1' style={{ marginBottom:'12px' }} />
+                  <p style={{ color:'#94a3b8' }}>No hay conglomerados registrados</p>
                 </div>
-              </div>
-            )
-          })}
-      </div>
+              ) : congTabFiltered.map((cg, i) => {
+                const clientCount = clientes.filter(c => c.conglomerado_id === cg.id).length
+                return (
+                  <div key={cg.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i < congTabFiltered.length-1 ? '1px solid #f1f5f9' : 'none' }}>
+                    <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                      <Building2 size={18} color='#1d4ed8' />
+                    </div>
+                    <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                      <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
+                      <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>
+                        {clientCount === 0 ? 'Sin clientes asignados' : `${clientCount} cliente${clientCount !== 1 ? 's' : ''}`}
+                      </p>
+                    </div>
+                    <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'12px', background:'#eff6ff', color:'#1d4ed8', fontWeight:500, flexShrink:0 }}>
+                      Conglomerado
+                    </span>
+                    <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
+                      <button onClick={() => handleCongEdit(cg)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
+                      <button onClick={() => handleCongDelete(cg.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </>
+      )}
     </div>
   )
 }
