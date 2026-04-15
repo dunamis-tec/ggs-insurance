@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -30,6 +30,7 @@ export default function Clientes() {
   const [congForm, setCongForm] = useState(emptyCong)
   const [editingCong, setEditingCong] = useState(null)
   const [showCongForm, setShowCongForm] = useState(false)
+  const [expandedCong, setExpandedCong] = useState(null)
   const location = useLocation()
   const fromReqId = location.state?.fromReqId || null
 
@@ -466,25 +467,64 @@ export default function Clientes() {
                   <p style={{ color:'#94a3b8' }}>No hay conglomerados registrados</p>
                 </div>
               ) : congTabFiltered.map((cg, i) => {
-                const clientCount = clientes.filter(c => c.conglomerado_id === cg.id).length
+                const cgClientes = clientes.filter(c => c.conglomerado_id === cg.id)
+                const isExpanded = expandedCong === cg.id
                 return (
-                  <div key={cg.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i < congTabFiltered.length-1 ? '1px solid #f1f5f9' : 'none' }}>
-                    <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                      <Building2 size={18} color='#1d4ed8' />
+                  <div key={cg.id} style={{ borderBottom: i < congTabFiltered.length-1 ? '1px solid #f1f5f9' : 'none' }}>
+                    {/* Fila conglomerado */}
+                    <div style={{ display:'flex', alignItems:'center', padding:'14px 20px', cursor:'pointer', background:'white' }}
+                      onClick={() => setExpandedCong(prev => prev === cg.id ? null : cg.id)}
+                      onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background='white'}>
+                      <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                        <Building2 size={18} color='#1d4ed8' />
+                      </div>
+                      <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                        <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
+                        <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>
+                          {cgClientes.length === 0 ? 'Sin clientes asignados' : `${cgClientes.length} cliente${cgClientes.length !== 1 ? 's' : ''}`}
+                        </p>
+                      </div>
+                      <div style={{ display:'flex', gap:'6px', flexShrink:0, marginRight:'10px' }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => handleCongEdit(cg)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
+                        <button onClick={() => handleCongDelete(cg.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
+                      </div>
+                      {isExpanded ? <ChevronUp size={16} color='#64748b' /> : <ChevronDown size={16} color='#64748b' />}
                     </div>
-                    <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
-                      <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
-                      <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>
-                        {clientCount === 0 ? 'Sin clientes asignados' : `${clientCount} cliente${clientCount !== 1 ? 's' : ''}`}
-                      </p>
-                    </div>
-                    <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'12px', background:'#eff6ff', color:'#1d4ed8', fontWeight:500, flexShrink:0 }}>
-                      Conglomerado
-                    </span>
-                    <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
-                      <button onClick={() => handleCongEdit(cg)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
-                      <button onClick={() => handleCongDelete(cg.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
-                    </div>
+
+                    {/* Clientes del conglomerado */}
+                    {isExpanded && (
+                      <div style={{ background:'#f8fafc', borderTop:'1px solid #f1f5f9' }}>
+                        {cgClientes.length === 0 ? (
+                          <p style={{ padding:'14px 20px 14px 72px', fontSize:'13px', color:'#94a3b8', margin:0 }}>Sin clientes asignados a este conglomerado</p>
+                        ) : cgClientes.map((c, ci) => {
+                          const Icon = tipoIcons[c.tipo] || User
+                          const colors = tipoColors[c.tipo] || tipoColors.individual
+                          const nombreDisplay = c.tipo === 'empresa' ? (c.razon_social || c.nombre_empresa || c.nombre) : `${c.nombre} ${c.apellido||''}`.trim()
+                          return (
+                            <div key={c.id}
+                              style={{ display:'flex', alignItems:'center', padding:'11px 20px 11px 72px', borderBottom: ci < cgClientes.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
+                              onClick={() => { setSelected(c); setView('detalle') }}
+                              onMouseEnter={e => e.currentTarget.style.background='#eff6ff'}
+                              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                              <div style={{ width:'32px', height:'32px', borderRadius:'8px', background:colors.bg, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'10px', flexShrink:0 }}>
+                                <Icon size={15} color={colors.color} />
+                              </div>
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0, textAlign:'left' }}>{nombreDisplay}</p>
+                                <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                  {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}
+                                </p>
+                              </div>
+                              <span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'20px', background:colors.bg, color:colors.color, fontWeight:500, flexShrink:0, marginRight:'8px' }}>
+                                {c.tipo.charAt(0).toUpperCase() + c.tipo.slice(1)}
+                              </span>
+                              <ChevronRight size={14} color='#94a3b8' />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
