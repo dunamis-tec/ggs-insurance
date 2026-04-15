@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, Car } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
 const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
@@ -23,16 +23,8 @@ export default function Clientes() {
   const [editing, setEditing] = useState(null)
   const [conglomeradoSearch, setConglomeradoSearch] = useState('')
   const [showConglomeradoDropdown, setShowConglomeradoDropdown] = useState(false)
-  const location = useLocation()
 
   useEffect(() => { fetchAll() }, [])
-
-  useEffect(() => {
-    if (location.state?.openClienteId && clientes.length > 0) {
-      const c = clientes.find(c => c.id === location.state.openClienteId)
-      if (c) { setSelected(c); setView('detalle') }
-    }
-  }, [location.state, clientes])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -284,14 +276,9 @@ export default function Clientes() {
     <div>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-            <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <Users size={22} color='white'/>
-            </div>
-            <div style={{ textAlign:'left' }}>
-              <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
-              <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
-            </div>
+          <div style={{ textAlign:'left' }}>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
+            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
           </div>
           <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
             style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
@@ -335,9 +322,9 @@ export default function Clientes() {
                 <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:colors.bg, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
                   <Icon size={18} color={colors.color} />
                 </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{getNombreDisplay(c)}</p>
-                  <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
+                  <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>
                     {c.tipo === 'empresa' && c.contacto_nombre ? `Contacto: ${c.contacto_nombre} ${c.contacto_apellido||''} · ` : ''}
                     {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}{c.conglomerados ? ` · ${c.conglomerados.nombre}` : ''}
                   </p>
@@ -362,7 +349,6 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
   const [polizas, setPolizas] = useState([])
   const [personas, setPersonas] = useState([])
   const [reqs, setReqs] = useState([])
-  const [vehiculos, setVehiculos] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('polizas')
   const [showPFForm, setShowPFForm] = useState(false)
@@ -374,14 +360,12 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: pData }, { data: pfData }, { data: vData }] = await Promise.all([
+    const [{ data: pData }, { data: pfData }] = await Promise.all([
       supabase.from('polizas').select('*, aseguradoras(nombre, logo_url), productos(nombre)').eq('cliente_id', cliente.id).eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('personas_facturables').select('*').eq('cliente_id', cliente.id).eq('activa', true).order('nombre'),
-      supabase.from('vehiculos').select('*, polizas(numero_poliza, activa)').eq('cliente_id', cliente.id).eq('activo', true).order('created_at', { ascending: false }),
     ])
     setPolizas(pData || [])
     setPersonas(pfData || [])
-    setVehiculos(vData || [])
     const polizaIds = (pData || []).map(p => p.id)
     if (polizaIds.length > 0) {
       const { data: reqData } = await supabase.from('requerimientos_pago')
@@ -487,7 +471,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['vehiculos',`Vehículos (${vehiculos.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#0C1E3D' : 'white',
@@ -500,18 +484,14 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
       {activeTab === 'polizas' && (
         <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
-          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0, textAlign:'left' }}>Polizas activas</p>
-            <button onClick={() => navigate('/polizas', { state: { newPoliza: true, fromClienteId: cliente.id, prefilledClienteId: cliente.id } })}
-              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'7px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-              <Plus size={14}/> Nueva Póliza
-            </button>
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
+            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Polizas activas</p>
           </div>
           {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
             polizas.length === 0 ? <div style={{ padding:'32px', textAlign:'center' }}><FileText size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} /><p style={{ color:'#94a3b8', margin:0 }}>Sin polizas activas</p></div> :
               polizas.map((p, i) => (
                 <div key={p.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<polizas.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
-                  onClick={() => navigate('/polizas', { state: { openPolizaId: p.id, fromClienteId: cliente.id } })}
+                  onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
                   onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                   onMouseLeave={e => e.currentTarget.style.background='white'}>
                   <div style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', overflow:'hidden', background:'#f8fafc', flexShrink:0 }}>
@@ -562,7 +542,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                 <thead>
                   <tr style={{ background:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
-                    {['# Req.','Doc. Emision','Vencimiento','Fecha pago','Monto','Estado'].map(h => (
+                    {['# Req.','Doc. Emision','Vencimiento','Fecha pago','Monto','Estado',''].map(h => (
                       <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -589,6 +569,13 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
                           color: r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207', fontWeight:500 }}>
                           {r.estado}
                         </span>
+                      </td>
+                      <td style={{ padding:'12px 16px' }}>
+                        {r.estado !== 'pagado' && (
+                          <button onClick={() => marcarPagado(r.id)} style={{ padding:'5px 10px', background:'#dcfce7', color:'#15803d', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                            Pagar
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -650,42 +637,6 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
                 </div>
               </div>
             ))}
-        </div>
-      )}
-
-      {activeTab === 'vehiculos' && (
-        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
-          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
-            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0, textAlign:'left' }}>Vehículos del cliente</p>
-          </div>
-          {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
-            vehiculos.length === 0 ? (
-              <div style={{ padding:'32px', textAlign:'center' }}>
-                <Car size={28} color='#cbd5e1' style={{ marginBottom:'10px' }}/>
-                <p style={{ color:'#94a3b8', margin:0 }}>Sin vehículos registrados</p>
-              </div>
-            ) : vehiculos.map((v, i) => {
-              const enPoliza = v.polizas?.activa
-              return (
-                <div key={v.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<vehiculos.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
-                  onClick={() => navigate('/vehiculos', { state: { openVehiculoId: v.id, fromClienteId: cliente.id } })}
-                  onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
-                  onMouseLeave={e => e.currentTarget.style.background='white'}>
-                  <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                    <Car size={18} color='#1A6BBA'/>
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{v.marca} {v.modelo} {v.anio}</p>
-                    <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>Placa: {v.placa||'N/A'} · {v.tipo}</p>
-                  </div>
-                  {v.valor_asegurado > 0 && <p style={{ fontSize:'13px', fontWeight:600, color:'#1A6BBA', marginRight:'12px', flexShrink:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
-                  <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', background: enPoliza?'#dcfce7':'#f1f5f9', color: enPoliza?'#15803d':'#64748b', fontWeight:500, flexShrink:0 }}>
-                    {enPoliza ? 'En póliza activa' : 'Disponible'}
-                  </span>
-                  <ChevronRight size={16} color='#94a3b8' style={{ marginLeft:'8px', flexShrink:0 }}/>
-                </div>
-              )
-            })}
         </div>
       )}
     </div>
