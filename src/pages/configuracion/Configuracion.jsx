@@ -24,14 +24,12 @@ export default function Configuracion() {
     <div>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-            <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <Settings size={22} color='white' />
-            </div>
-            <div style={{ textAlign:'left' }}>
-              <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Configuración</h1>
-              <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>Administración del sistema</p>
-            </div>
+          <div>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Configuración</h1>
+            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>Administración del sistema</p>
+          </div>
+          <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Settings size={20} color='white' />
           </div>
         </div>
       </div>
@@ -101,7 +99,7 @@ function TabEmpresa({ isAdmin }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '16px' }}>
         {[
           ['nombre', 'Nombre de la empresa *', 'text'],
           ['nombre_corto', 'Nombre corto', 'text'],
@@ -218,7 +216,7 @@ function TabUsuarios({ isAdmin, currentUser }) {
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
           <p style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Invitar nuevo usuario</p>
           <form onSubmit={handleInvite}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '12px', marginBottom: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Nombre</label>
                 <input value={inviteNombre} onChange={e => setInviteNombre(e.target.value)} placeholder='Nombre completo' style={inp} />

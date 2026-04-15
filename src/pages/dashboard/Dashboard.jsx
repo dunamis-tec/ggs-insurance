@@ -4,7 +4,7 @@ import { FileText, Users, CreditCard, AlertCircle, TrendingUp, Clock } from 'luc
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
-    <div style={{background:'white',borderRadius:'12px',padding:'20px 24px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:'16px'}}>
+    <div style={{background:'white',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:'12px'}}>
       <div style={{width:'48px',height:'48px',borderRadius:'10px',background:color+'20',display:'flex',alignItems:'center',justifyContent:'center'}}>
         <Icon size={22} color={color} />
       </div>
@@ -82,28 +82,26 @@ export default function Dashboard() {
     <div>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <TrendingUp size={22} color='white'/>
-            </div>
-            <div style={{textAlign:'left'}}>
-              <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Dashboard</h1>
-              <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
-                {stats.polizas} pólizas · {stats.clientes} clientes · {stats.reqs_pendientes} reqs pendientes
-              </p>
-            </div>
+          <div>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Dashboard</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {stats.polizas} pólizas · {stats.clientes} clientes · {stats.reqs_pendientes} reqs pendientes
+            </p>
+          </div>
+          <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <TrendingUp size={20} color='white'/>
           </div>
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'16px',marginBottom:'24px'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'12px',marginBottom:'20px'}}>
         <StatCard icon={FileText} label="Pólizas activas" value={stats.polizas} color="#1A6BBA" />
         <StatCard icon={Users} label="Clientes activos" value={stats.clientes} color="#0C1E3D" />
         <StatCard icon={CreditCard} label="Reqs. pendientes" value={stats.reqs_pendientes} color="#C8A84B" />
         <StatCard icon={AlertCircle} label="Reqs. vencidos" value={stats.reqs_vencidos} color="#ef4444" />
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'24px'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))',gap:'24px'}}>
         <div style={{background:'white',borderRadius:'12px',padding:'24px',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'20px'}}>
             <Clock size={18} color="#1A6BBA" />

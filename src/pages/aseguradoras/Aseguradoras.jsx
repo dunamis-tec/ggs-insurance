@@ -110,7 +110,7 @@ export default function Aseguradoras() {
                 </div>
               </div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
               {[['nombre','Nombre *','text',true],['nit','NIT','text',false],['telefono','Teléfono','text',false],['email','Email','email',false],['contacto_nombre','Contacto principal','text',false],['direccion','Dirección','text',false]].map(([key,label,type,req])=>(
                 <div key={key}>
                   <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>

@@ -174,7 +174,7 @@ export default function Vehiculos() {
               <label style={labelStyle}>Cliente propietario *</label>
               <ClienteSearchSelect value={clienteId} onChange={setClienteId} clientes={clientes} />
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
               <div>
                 <label style={labelStyle}>Marca *</label>
                 <input value={form.marca} onChange={e=>setForm({...form,marca:e.target.value})} required style={inp} placeholder="Ej: Toyota"/>
@@ -345,7 +345,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
             <Edit2 size={13}/> Editar
           </button>
         </div>
-        <div style={{padding:'16px 24px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px'}}>
+        <div style={{padding:'16px 24px',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px'}}>
           {[['Placa',fp(vehiculo)],['Chasis / VIN',vehiculo.chasis||'N/A'],['Motor',vehiculo.motor||'N/A'],['Color',vehiculo.color||'N/A']].map(([label,val])=>(
             <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'10px 14px'}}>
               <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{label}</p>

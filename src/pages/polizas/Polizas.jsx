@@ -244,7 +244,7 @@ export default function Polizas() {
         </div>
         <div style={{padding:'24px'}}>
           <form onSubmit={handleSubmit}>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
               <div>
                 <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Numero de poliza <span style={{color:'#94a3b8',fontWeight:400}}>(brindado por aseguradora)</span></label>
                 <input value={form.numero_poliza} onChange={e=>setForm({...form,numero_poliza:e.target.value})} placeholder="Ej: POL-2024-001" style={inputStyle}/>
@@ -599,7 +599,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
             </button>
           </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',padding:'16px 24px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',padding:'16px 24px'}}>
           {[
             ['Prima total','Q '+parseFloat(poliza.prima_total||0).toLocaleString(),'#1A6BBA'],
             ['Tipo de pago',(poliza.tipo_pago||'contado').charAt(0).toUpperCase()+(poliza.tipo_pago||'contado').slice(1),'#0C1E3D'],
@@ -637,7 +637,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
           {showEmisionForm && (
             <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
               <form onSubmit={handleEmisionSubmit}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'12px'}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'12px'}}>
                   <div>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo</label>
                     <select value={emisionForm.tipo} onChange={e=>setEmisionForm({...emisionForm,tipo:e.target.value})} style={{...inputStyle,padding:'8px 10px'}}>
@@ -768,7 +768,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
 
       {activeTab==='pagos' && (
         <div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px',marginBottom:'16px'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'16px'}}>
             {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total reqs',reqs.length,'#1A6BBA']].map(([label,val,color])=>(
               <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px',border:'1px solid #e2e8f0',borderLeft:`4px solid ${color}`}}>
                 <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{label}</p>
@@ -787,7 +787,7 @@ function PolizaDetalle({ poliza, onBack, onEdit, fromCliente, fromReq }) {
             {showReqForm && (
               <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
                 <form onSubmit={handleReqSubmit}>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px',marginBottom:'12px'}}>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'12px',marginBottom:'12px'}}>
                     <div>
                       <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Monto por cuota (Q) *</label>
                       <input type="number" step="0.01" value={reqForm.monto} onChange={e=>setReqForm({...reqForm,monto:e.target.value})} required style={inputStyle}/>

@@ -148,7 +148,7 @@ export default function Requerimientos() {
         </div>
 
         {/* ── Body 2-col ── */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:'16px',alignItems:'start'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'16px',alignItems:'start'}}>
 
           {/* Columna izquierda */}
           <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
@@ -315,7 +315,7 @@ export default function Requerimientos() {
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'20px'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'12px',marginBottom:'20px'}}>
         {[
           ['Por cobrar',           'por_cobrar', countBy('por_cobrar'), montoBy('por_cobrar'), estadoColors.por_cobrar],
           ['Vencidos',             'vencido',    countBy('vencido'),    montoBy('vencido'),    estadoColors.vencido],
@@ -357,7 +357,8 @@ export default function Requerimientos() {
             <p style={{color:'#94a3b8'}}>No hay requerimientos</p>
           </div>
         ) : (
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <div style={{overflowX:'auto'}}>
+          <table style={{width:'100%',borderCollapse:'collapse',minWidth:'600px'}}>
             <thead>
               <tr style={{background:'#f8fafc',borderBottom:'2px solid #e2e8f0'}}>
                 {['Nº Req.','Cuota','Póliza','Vencimiento','Monto','Estado','Liquidación'].map(h=>(
@@ -401,6 +402,7 @@ export default function Requerimientos() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

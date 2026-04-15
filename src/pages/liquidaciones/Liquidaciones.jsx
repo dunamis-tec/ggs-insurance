@@ -361,7 +361,8 @@ export default function Liquidaciones() {
                       ) : reqsAMostrar.length === 0 ? (
                         <p style={{padding:'16px 20px',fontSize:'13px',color:'#94a3b8'}}>Ningún req. coincide con la búsqueda</p>
                       ) : (
-                        <table style={{width:'100%',borderCollapse:'collapse'}}>
+                        <div style={{overflowX:'auto'}}>
+                        <table style={{width:'100%',borderCollapse:'collapse',minWidth:'500px'}}>
                           <thead>
                             <tr style={{borderBottom:'1px solid #e2e8f0'}}>
                               {['Nº Req.','Cuota','Póliza','Cliente','Fecha pago','Monto'].map(h=>(

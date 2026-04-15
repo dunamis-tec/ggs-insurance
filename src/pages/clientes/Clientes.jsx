@@ -202,7 +202,7 @@ export default function Clientes() {
           {form.tipo === 'empresa' ? (
             <>
               <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Datos de la empresa</p>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={labelStyle}>Razon social *</label>
                   <input value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value })} required style={inp} placeholder='Ej: Empresa S.A.' />
@@ -229,7 +229,7 @@ export default function Clientes() {
                 </div>
               </div>
               <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
                   <input value={form.contacto_nombre} onChange={e => setForm({ ...form, contacto_nombre: e.target.value })} required style={inp} />
@@ -254,7 +254,7 @@ export default function Clientes() {
             </>
           ) : (
             <>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
                   <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} required style={inp} />
@@ -706,7 +706,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId }) {
 
       {activeTab === 'estado_cuenta' && (
         <div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'16px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'12px', marginBottom:'16px' }}>
             {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#1A6BBA']].map(([l,v,c])=>(
               <div key={l} style={{ background:'white', borderRadius:'10px', padding:'14px', border:'1px solid #e2e8f0', borderLeft:`4px solid ${c}` }}>
                 <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{l}</p>
@@ -792,7 +792,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId }) {
           {showPFForm && (
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
               <form onSubmit={handlePFSubmit}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'12px', marginBottom:'12px' }}>
                   {[['nombre','Nombre *',true],['apellido','Apellido',false],['nit','NIT *',true],['email','Email',false],['telefono','Telefono',false],['direccion','Direccion',false]].map(([key,label,req])=>(
                     <div key={key}>
                       <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>{label}</label>
