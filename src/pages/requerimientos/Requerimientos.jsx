@@ -245,10 +245,11 @@ export default function Requerimientos() {
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'12px',marginBottom:'20px'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'20px'}}>
         {[
-          ['Por cobrar',  'por_cobrar',countBy('por_cobrar'), montoBy('por_cobrar'), estadoColors.por_cobrar],
-          ['Vencidos',    'vencido',   countBy('vencido'),    montoBy('vencido'),    estadoColors.vencido],
+          ['Por cobrar',           'por_cobrar', countBy('por_cobrar'), montoBy('por_cobrar'), estadoColors.por_cobrar],
+          ['Vencidos',             'vencido',    countBy('vencido'),    montoBy('vencido'),    estadoColors.vencido],
+          ['Pendiente de liquidar','pagado',     reqs.filter(r=>r.estado==='pagado'&&!r.informe_liquidacion_enviado).length, reqs.filter(r=>r.estado==='pagado'&&!r.informe_liquidacion_enviado).reduce((s,r)=>s+parseFloat(r.monto||0),0), '#a16207'],
         ].map(([label,estado,count,monto,color])=>(
           <div key={label} style={{background:'white',borderRadius:'12px',padding:'16px 20px',border:'1px solid #e2e8f0',cursor:'pointer',borderLeft:`4px solid ${color}`}}
             onClick={()=>setFiltroEstado(estado)}>
