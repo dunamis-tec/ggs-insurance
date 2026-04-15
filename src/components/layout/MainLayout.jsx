@@ -46,9 +46,23 @@ const SIDEBAR_COLLAPSED = 64
 export default function MainLayout({ session }) {
   const [collapsed, setCollapsed]   = useState(false)
   const [menuOpen, setMenuOpen]     = useState(false)
+  const [companyLogo, setCompanyLogo] = useState(null)
   const navigate    = useNavigate()
   const location    = useLocation()
   const { isMobile } = useBreakpoint()
+
+  // Fetch company logo on mount
+  useEffect(() => {
+    supabase.from('configuracion_empresa').select('logo_url').single()
+      .then(({ data }) => { if (data?.logo_url) setCompanyLogo(data.logo_url) })
+  }, [])
+
+  // Listen for logo updates from Configuracion page
+  useEffect(() => {
+    const handler = (e) => setCompanyLogo(e.detail || null)
+    window.addEventListener('companyLogoUpdated', handler)
+    return () => window.removeEventListener('companyLogoUpdated', handler)
+  }, [])
 
   // Close menu sheet on route change
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
@@ -82,7 +96,10 @@ export default function MainLayout({ session }) {
           zIndex: 150,
           flexShrink: 0,
         }}>
-          <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 800, fontSize: '12px', padding: '3px 7px', borderRadius: '5px' }}>GGS</span>
+          {companyLogo
+            ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
+            : <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 800, fontSize: '12px', padding: '3px 7px', borderRadius: '5px' }}>GGS</span>
+          }
           <span style={{ color: 'white', fontSize: '15px', fontWeight: 600, flex: 1 }}>{currentLabel}</span>
           <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {session?.user?.email}
@@ -215,12 +232,17 @@ export default function MainLayout({ session }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: collapsed ? '20px 0' : '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
           {!collapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-              <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 700, fontSize: '13px', padding: '4px 8px', borderRadius: '6px', flexShrink: 0 }}>GGS</span>
+              {companyLogo
+                ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '6px', background: 'white', padding: '2px', flexShrink: 0 }} />
+                : <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 700, fontSize: '13px', padding: '4px 8px', borderRadius: '6px', flexShrink: 0 }}>GGS</span>
+              }
               <span style={{ color: 'white', fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap' }}>Grupo Global</span>
             </div>
           )}
           {collapsed && (
-            <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 700, fontSize: '13px', padding: '4px 8px', borderRadius: '6px' }}>GGS</span>
+            companyLogo
+              ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '6px', background: 'white', padding: '2px' }} />
+              : <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 700, fontSize: '13px', padding: '4px 8px', borderRadius: '6px' }}>GGS</span>
           )}
           {!collapsed && (
             <button onClick={() => setCollapsed(true)} title="Contraer menú"
