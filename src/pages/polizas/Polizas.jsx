@@ -823,7 +823,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       numero_emision: numEmision,
       prima_emision: parseFloat(emisionForm.prima_emision) || 0,
       fecha_inicio: emisionForm.fecha_inicio,
-      fecha_fin: isExclusion ? null : poliza.fecha_vencimiento,
+      fecha_fin: isExclusion ? emisionForm.fecha_inicio : poliza.fecha_vencimiento,
       notas: emisionForm.notas || null,
       created_by: user?.id
     }).select().single()
