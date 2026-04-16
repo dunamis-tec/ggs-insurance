@@ -19,6 +19,7 @@ const polizaEstados = {
   enviada:      { bg:'#fef9c3', color:'#a16207', label:'Enviada' },
   en_reproceso: { bg:'#fef2f2', color:'#ef4444', label:'En reproceso' },
   emitida:      { bg:'#dcfce7', color:'#15803d', label:'Emitida' },
+  completado:   { bg:'#f0fdfa', color:'#0891b2', label:'Completado' },
 }
 // Flujo lineal simple (un solo siguiente): solicitud→enviada, en_reproceso→enviada (regresa)
 const estadoFlujo  = { solicitud:'enviada', en_reproceso:'enviada' }
@@ -762,8 +763,11 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       ))
     }
 
-    // 4. Bitácora
+    // 4. Bitácora — poliza event + gestión event for E01
     await addBitacora(poliza.estado, 'emitida', `Póliza emitida · Núm: ${emitirForm.numero_poliza}`)
+    if (emisionData) {
+      await addBitacora(null, 'emitida', `[Gestión] Emisión principal ${emisionData.numero_emision} — Solicitud → Emitida`)
+    }
 
     setShowEmitirModal(false)
     setEmitirPdfFile(null)
@@ -819,7 +823,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       numero_emision: numEmision,
       prima_emision: parseFloat(emisionForm.prima_emision) || 0,
       fecha_inicio: emisionForm.fecha_inicio,
-      fecha_fin: poliza.fecha_vencimiento,
+      fecha_fin: isExclusion ? null : poliza.fecha_vencimiento,
       notas: emisionForm.notas || null,
       created_by: user?.id
     }).select().single()
@@ -894,8 +898,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     const estadoLabel = { solicitud:'Solicitud', enviada:'Enviada a aseguradora', en_reproceso:'En reproceso', emitida:'Emitida' }
     const desc = `[Gestión] ${tipoLabel} ${em.numero_emision} — ${estadoLabel[em.estado]||em.estado} → ${estadoLabel[nuevoEstado]||nuevoEstado}`
     await addBitacora(em.estado, nuevoEstado, desc)
-    // When an exclusion is emitida → remove excluded vehicles from the poliza
-    if (nuevoEstado === 'emitida' && em.tipo === 'exclusion') {
+    // When an exclusion is completado → remove excluded vehicles from the poliza
+    if ((nuevoEstado === 'completado' || nuevoEstado === 'emitida') && em.tipo === 'exclusion') {
       const excVehiculos = em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || []
       if (excVehiculos.length > 0) {
         await Promise.all(excVehiculos.map(vid =>
@@ -911,7 +915,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const totalVehiculos = emisiones.reduce((s,em)=>s+(em.emision_vehiculos?.length||0),0)
   const isEmitida = poliza.estado === 'emitida'
   const primaTotal = isEmitida
-    ? emisiones.filter(em=>em.estado==='emitida').reduce((s,em)=>s+parseFloat(em.prima_emision||0),0)
+    ? emisiones
+        .filter(em=>em.estado==='emitida'||em.estado==='completado')
+        .reduce((s,em)=>{ const v=parseFloat(em.prima_emision||0); return em.tipo==='exclusion'?s-v:s+v }, 0)
     : parseFloat(poliza.prima_total||0)
   const inputStyle = { width:'100%', padding:'8px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
@@ -1291,7 +1297,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                       <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
                       <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(ev.vehiculos)} · {em.numero_emision}</p>
                     </div>
-                    {(() => { const emEst = polizaEstados[em.estado]||{bg:'#f1f5f9',color:'#64748b',label:em.estado}; return <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:emEst.bg,color:emEst.color,fontWeight:600,flexShrink:0,marginRight:'4px'}}>{emEst.label}</span> })()}
+                    {(() => {
+                      const isExc = em.tipo === 'exclusion' && (em.estado === 'completado' || em.estado === 'emitida')
+                      const badge = isExc
+                        ? { bg:'#fff7ed', color:'#ea580c', label:'Excluido' }
+                        : (polizaEstados[em.estado]||{bg:'#f1f5f9',color:'#64748b',label:em.estado})
+                      return <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:badge.bg,color:badge.color,fontWeight:600,flexShrink:0,marginRight:'4px'}}>{badge.label}</span>
+                    })()}
                     {ev.vehiculos?.valor_asegurado > 0 && (
                       <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:'0 8px 0 0',flexShrink:0}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>
                     )}
@@ -1347,16 +1359,25 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima {isExclusion?'de exclusión':'de inclusión'} (Q) *</label>
                     <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required style={inputStyle} placeholder="0.00"/>
                   </div>
-                  <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de inicio *</label>
-                    <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required style={inputStyle}/>
-                  </div>
-                  <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha fin</label>
-                    <div style={{padding:'8px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#374151'}}>
-                      {poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—'} <span style={{fontSize:'11px',color:'#94a3b8'}}>(fecha venc. póliza)</span>
+                  {isExclusion ? (
+                    <div>
+                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de exclusión *</label>
+                      <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required style={inputStyle}/>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de inicio *</label>
+                        <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required style={inputStyle}/>
+                      </div>
+                      <div>
+                        <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha fin</label>
+                        <div style={{padding:'8px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#374151'}}>
+                          {poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—'} <span style={{fontSize:'11px',color:'#94a3b8'}}>(fecha venc. póliza)</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   <div style={{gridColumn:'1/-1'}}>
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas</label>
                     <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle} placeholder={`Descripción de la ${isExclusion?'exclusión':'inclusión'}`}/>
@@ -1436,7 +1457,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             const eEst = polizaEstados[em.estado] || { bg:'#f1f5f9', color:'#64748b', label: em.estado }
             const tipoLabel = { emision:'Emisión principal', inclusion:'Inclusión', exclusion:'Exclusión', renovacion:'Renovación' }[em.tipo] || em.tipo
             const isPrincipal = em.tipo === 'emision'
-            const isLocked = em.estado === 'enviada' || em.estado === 'emitida'
+            const isLocked = em.estado === 'enviada' || em.estado === 'emitida' || em.estado === 'completado'
             return (
               <div key={em.id} style={{borderBottom:'1px solid #f1f5f9'}}>
                 {/* Row */}
@@ -1451,7 +1472,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                       </span>
                       <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'20px',fontWeight:600,background:eEst.bg,color:eEst.color}}>{eEst.label}</span>
                     </div>
-                    <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>{em.fecha_inicio ? new Date(em.fecha_inicio).toLocaleDateString('es-GT') : '—'} → {em.fecha_fin ? new Date(em.fecha_fin).toLocaleDateString('es-GT') : '—'} · {em.emision_vehiculos?.length||0} vehículos</p>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>
+                      {em.tipo === 'exclusion'
+                        ? `Fecha exclusión: ${em.fecha_inicio ? new Date(em.fecha_inicio).toLocaleDateString('es-GT') : '—'}`
+                        : `${em.fecha_inicio ? new Date(em.fecha_inicio).toLocaleDateString('es-GT') : '—'} → ${em.fecha_fin ? new Date(em.fecha_fin).toLocaleDateString('es-GT') : '—'}`
+                      } · {em.emision_vehiculos?.length||0} vehículos
+                    </p>
                   </div>
                   <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0,flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
 
@@ -1469,10 +1495,17 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                           style={{padding:'4px 10px',background:'rgba(239,68,68,0.1)',color:'#ef4444',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                           Reproceso
                         </button>
-                        <button onClick={()=>actualizarEstadoEmision(em,'emitida')}
-                          style={{padding:'4px 10px',background:'#16a34a',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                          Emitir
-                        </button>
+                        {em.tipo === 'exclusion' ? (
+                          <button onClick={()=>actualizarEstadoEmision(em,'completado')}
+                            style={{padding:'4px 10px',background:'#0891b2',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            Completar
+                          </button>
+                        ) : (
+                          <button onClick={()=>actualizarEstadoEmision(em,'emitida')}
+                            style={{padding:'4px 10px',background:'#16a34a',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            Emitir
+                          </button>
+                        )}
                       </>
                     )}
                     {!isPrincipal && em.estado==='en_reproceso' && (
