@@ -1152,9 +1152,6 @@
     document.querySelectorAll('.selector-btn').forEach(function(btn, i) {
       btn.classList.toggle('active', i === idx);
     });
-    // Scroll to top of options after switching
-    var grid = document.querySelector('.options-grid');
-    if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function initLayout() {
