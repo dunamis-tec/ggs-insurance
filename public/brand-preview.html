@@ -684,6 +684,122 @@
   .type-showcase .sans { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
   .type-showcase .serif { font-family: 'Libre Baskerville', serif; font-style: italic; font-size: 14px; }
   .type-showcase .meta { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* ── Welcome banner (mobile only) ── */
+  .welcome-banner {
+    display: none;
+    background: #0D0D0A;
+    border-bottom: 1px solid #222;
+    padding: 22px 24px 20px;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .welcome-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .welcome-hello {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  .welcome-hello span { color: var(--gold); }
+  .welcome-sub {
+    font-size: 13px;
+    color: #888;
+    font-weight: 300;
+    line-height: 1.55;
+    margin-top: 5px;
+  }
+  .welcome-badge {
+    flex-shrink: 0;
+    background: rgba(196,169,107,0.1);
+    border: 1px solid rgba(196,169,107,0.25);
+    border-radius: 30px;
+    padding: 5px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+  .welcome-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #555;
+    font-weight: 400;
+  }
+  .welcome-hint::before {
+    content: '';
+    display: block;
+    width: 28px;
+    height: 1px;
+    background: var(--gold);
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+
+  /* ── Option selector tabs (mobile only) ── */
+  .selector-bar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    background: #111;
+    border-bottom: 1px solid #222;
+  }
+  .selector-inner {
+    display: flex;
+  }
+  .selector-btn {
+    flex: 1;
+    padding: 13px 6px 11px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #555;
+    font-family: 'Outfit', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .selector-btn .s-num {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: inherit;
+    opacity: 0.6;
+  }
+  .selector-btn .s-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: inherit;
+  }
+  .selector-btn.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+  .selector-btn.active .s-num { opacity: 1; }
+
+  /* ── Mobile: show only selected option ── */
+  @media (max-width: 999px) {
+    .welcome-banner { display: flex; }
+    .selector-bar   { display: block; }
+    .options-grid   { grid-template-columns: 1fr; }
+    .option         { border-right: none; border-bottom: 1px solid #D0CFCC; }
+    .option.hidden  { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -705,11 +821,41 @@
   <p>Basadas en la paleta de marca y tipografía corporativa de GGS. Elige la que mejor represente tu visión.</p>
 </div>
 
+<!-- ── Mobile welcome banner ── -->
+<div class="welcome-banner">
+  <div class="welcome-top">
+    <div>
+      <div class="welcome-hello">Hola, <span>Jonathan</span> 👋</div>
+      <div class="welcome-sub">Preparamos 3 propuestas de diseño<br/>exclusivamente para ti. Elige la que más<br/>represente la visión de GGS.</div>
+    </div>
+    <div class="welcome-badge">Preview</div>
+  </div>
+  <div class="welcome-hint">Selecciona una opción para explorarla</div>
+</div>
+
+<!-- ── Mobile option selector ── -->
+<div class="selector-bar">
+  <div class="selector-inner">
+    <button class="selector-btn active" onclick="showOption(0)">
+      <span class="s-num">01</span>
+      <span class="s-name">Clásica</span>
+    </button>
+    <button class="selector-btn" onclick="showOption(1)">
+      <span class="s-num">02</span>
+      <span class="s-name">Moderna</span>
+    </button>
+    <button class="selector-btn" onclick="showOption(2)">
+      <span class="s-num">03</span>
+      <span class="s-name">Institucional</span>
+    </button>
+  </div>
+</div>
+
 <!-- ── Options ── -->
 <div class="options-grid">
 
   <!-- ══════════ OPCIÓN 1 ══════════ -->
-  <div class="option">
+  <div class="option" id="opt-0">
     <div class="option-label" style="background:#FBF9F5">
       <span class="num">Opción 01</span>
       <h2>Clásica &amp; Elegante</h2>
@@ -797,7 +943,7 @@
   </div>
 
   <!-- ══════════ OPCIÓN 2 ══════════ -->
-  <div class="option">
+  <div class="option" id="opt-1">
     <div class="option-label" style="background:#1A1A16;border-bottom:1px solid #2A2A26">
       <span class="num">Opción 02</span>
       <h2 style="color:#EEE">Moderna &amp; Dark</h2>
@@ -887,7 +1033,7 @@
   </div>
 
   <!-- ══════════ OPCIÓN 3 ══════════ -->
-  <div class="option">
+  <div class="option" id="opt-2">
     <div class="option-label" style="background:#F0EEE8">
       <span class="num">Opción 03</span>
       <h2 style="color:#1A2535">Institucional &amp; Premium</h2>
@@ -993,5 +1139,37 @@
   <p>Cada opción puede ajustarse en tipografía, espaciado y tono de color antes de implementar.</p>
 </div>
 
+<script>
+  var current = 0;
+
+  function showOption(idx) {
+    if (window.innerWidth >= 1000) return;
+    current = idx;
+    [0,1,2].forEach(function(i) {
+      var el = document.getElementById('opt-'+i);
+      if (el) el.classList.toggle('hidden', i !== idx);
+    });
+    document.querySelectorAll('.selector-btn').forEach(function(btn, i) {
+      btn.classList.toggle('active', i === idx);
+    });
+    // Scroll to top of options after switching
+    var grid = document.querySelector('.options-grid');
+    if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function initLayout() {
+    if (window.innerWidth < 1000) {
+      showOption(current);
+    } else {
+      [0,1,2].forEach(function(i) {
+        var el = document.getElementById('opt-'+i);
+        if (el) el.classList.remove('hidden');
+      });
+    }
+  }
+
+  initLayout();
+  window.addEventListener('resize', initLayout);
+</script>
 </body>
 </html>
