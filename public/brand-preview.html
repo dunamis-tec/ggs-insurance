@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GGS — Preview de Marca · 3 Opciones</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  /* ── Brand tokens ── */
+  :root {
+    --gold:      #C4A96B;
+    --gold-dark: #A8883F;
+    --gold-light:#E2D4B0;
+    --silver:    #C5C5BE;
+    --black:     #111111;
+    --white:     #FFFFFF;
+    --off-white: #F7F5F2;
+    --gray-mid:  #6B6B62;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', sans-serif; background: #ECECEA; }
+
+  /* ── Page header ── */
+  .page-header {
+    background: var(--black);
+    color: var(--white);
+    padding: 48px 40px 40px;
+    text-align: center;
+  }
+  .page-header .eyebrow {
+    font-family: 'Libre Baskerville', serif;
+    font-style: italic;
+    color: var(--gold);
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .page-header h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+  }
+  .page-header p {
+    color: var(--silver);
+    font-size: 15px;
+    font-weight: 300;
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── Palette strip ── */
+  .palette-strip {
+    display: flex;
+    height: 6px;
+    width: 100%;
+  }
+  .palette-strip div { flex: 1; }
+
+  /* ── Options grid ── */
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+  @media (max-width: 1000px) {
+    .options-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Option wrapper ── */
+  .option {
+    border-right: 1px solid #D0CFCC;
+    display: flex;
+    flex-direction: column;
+  }
+  .option:last-child { border-right: none; }
+
+  .option-label {
+    padding: 22px 28px 0;
+    background: var(--off-white);
+  }
+  .option-label .num {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: var(--gold);
+    color: var(--white);
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+  .option-label h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--black);
+    margin-bottom: 4px;
+  }
+  .option-label p {
+    font-size: 13px;
+    color: var(--gray-mid);
+    font-weight: 400;
+    padding-bottom: 18px;
+  }
+
+  /* ═══════════════════════════════════
+     OPCIÓN 1 — CLÁSICA DORADA
+     Fondo blanco, gold como protagonista,
+     Baskerville en accentos clave
+  ═══════════════════════════════════ */
+  .op1 { background: var(--white); }
+
+  .op1 .nav {
+    background: var(--white);
+    border-bottom: 1px solid #E8E6E0;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .op1 .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .op1 .nav-logo .shield {
+    width: 32px; height: 32px;
+    background: var(--gold);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 15px; font-weight: 700;
+  }
+  .op1 .nav-logo span {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--black);
+    letter-spacing: -0.01em;
+  }
+  .op1 .nav-links {
+    display: flex; gap: 20px;
+    font-size: 13px; color: var(--gray-mid); font-weight: 500;
+  }
+  .op1 .nav-links a { text-decoration: none; color: inherit; }
+  .op1 .nav-links a.active { color: var(--black); font-weight: 600; }
+  .op1 .nav-cta {
+    padding: 7px 16px;
+    background: var(--gold);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .op1 .hero {
+    background: linear-gradient(135deg, var(--black) 0%, #2A2420 100%);
+    padding: 36px 24px;
+    color: var(--white);
+  }
+  .op1 .hero .tag {
+    font-family: 'Libre Baskerville', serif;
+    font-style: italic;
+    color: var(--gold);
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .op1 .hero h1 {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 10px;
+  }
+  .op1 .hero h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .op1 .hero p {
+    font-size: 13px;
+    color: var(--silver);
+    line-height: 1.6;
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+  .op1 .hero-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .op1 .btn-primary {
+    padding: 10px 20px;
+    background: var(--gold);
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+  }
+  .op1 .btn-outline {
+    padding: 10px 20px;
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .op1 .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--gold);
+  }
+  .op1 .stat {
+    padding: 14px 16px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    text-align: center;
+  }
+  .op1 .stat:last-child { border-right: none; }
+  .op1 .stat-val {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 22px;
+    font-weight: 700;
+    display: block;
+  }
+  .op1 .stat-lbl { font-size: 10px; font-weight: 500; opacity: 0.85; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .op1 .cards { padding: 20px; display: flex; flex-direction: column; gap: 12px; background: var(--off-white); }
+  .op1 .card {
+    background: white;
+    border: 1px solid #E8E6E0;
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .op1 .card-icon {
+    width: 44px; height: 44px;
+    border-radius: 8px;
+    background: var(--gold-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .op1 .card h3 { font-size: 14px; font-weight: 600; color: var(--black); margin-bottom: 3px; }
+  .op1 .card p { font-size: 12px; color: var(--gray-mid); line-height: 1.4; }
+  .op1 .card-badge {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    background: #FBF7ED;
+    color: var(--gold-dark);
+    border: 1px solid var(--gold-light);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .op1 .footer-bar {
+    margin-top: auto;
+    padding: 14px 20px;
+    background: var(--black);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .op1 .footer-bar span {
+    font-family: 'Libre Baskerville', serif;
+    font-style: italic;
+    color: var(--gold);
+    font-size: 12px;
+  }
+  .op1 .footer-bar small {
+    color: var(--silver);
+    font-size: 11px;
+  }
+
+  /* ═══════════════════════════════════
+     OPCIÓN 2 — MODERNA MINIMALISTA
+     Fondo negro/oscuro, toques dorados,
+     Aeonik como protagonista total
+  ═══════════════════════════════════ */
+  .op2 { background: #0E0E0C; }
+
+  .op2 .nav {
+    background: #0E0E0C;
+    border-bottom: 1px solid #2A2A26;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .op2 .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .op2 .nav-logo .mark {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: -0.04em;
+    font-family: 'Outfit', sans-serif;
+  }
+  .op2 .nav-logo .sep { width: 1px; height: 20px; background: #333; }
+  .op2 .nav-logo .name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #888;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .op2 .nav-links { display: flex; gap: 20px; font-size: 12px; color: #666; font-weight: 500; }
+  .op2 .nav-links a { text-decoration: none; color: inherit; }
+  .op2 .nav-links a.active { color: var(--gold); }
+  .op2 .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+  }
+
+  .op2 .hero {
+    padding: 36px 24px;
+    color: var(--white);
+    border-bottom: 1px solid #1E1E1A;
+    position: relative;
+    overflow: hidden;
+  }
+  .op2 .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(196,169,107,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .op2 .hero .tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .op2 .hero .tag::before { content: ''; width: 20px; height: 1px; background: var(--gold); }
+  .op2 .hero h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+    color: white;
+  }
+  .op2 .hero h1 span { color: var(--gold); }
+  .op2 .hero p {
+    font-size: 13px;
+    color: #888;
+    line-height: 1.7;
+    margin-bottom: 22px;
+    font-weight: 300;
+    max-width: 280px;
+  }
+  .op2 .btn-gold {
+    padding: 10px 22px;
+    background: var(--gold);
+    color: var(--black);
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.01em;
+  }
+  .op2 .btn-ghost {
+    padding: 10px 22px;
+    background: transparent;
+    color: #888;
+    border: 1px solid #333;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    margin-left: 8px;
+  }
+
+  .op2 .metrics {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    border-bottom: 1px solid #1E1E1A;
+  }
+  .op2 .metric {
+    padding: 18px 16px;
+    border-right: 1px solid #1E1E1A;
+    text-align: center;
+  }
+  .op2 .metric:last-child { border-right: none; }
+  .op2 .metric-val {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--gold);
+    display: block;
+    letter-spacing: -0.03em;
+  }
+  .op2 .metric-lbl { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+
+  .op2 .list { padding: 16px; display: flex; flex-direction: column; gap: 1px; }
+  .op2 .list-item {
+    padding: 13px 14px;
+    background: #161612;
+    border-radius: 8px;
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid #222;
+    margin-bottom: 6px;
+  }
+  .op2 .list-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .op2 .list-item h3 { font-size: 13px; color: #DDD; font-weight: 500; margin-bottom: 2px; }
+  .op2 .list-item p  { font-size: 11px; color: #555; }
+  .op2 .list-val { margin-left: auto; font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; }
+  .op2 .pill {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .op2 .footer-bar {
+    margin-top: auto;
+    padding: 14px 20px;
+    background: #0A0A08;
+    display: flex; align-items: center; gap: 8px;
+    border-top: 1px solid #1E1E1A;
+  }
+  .op2 .footer-bar .gold-line { width: 16px; height: 1px; background: var(--gold); }
+  .op2 .footer-bar span { font-size: 11px; color: #444; }
+  .op2 .footer-bar span b { color: var(--gold); font-weight: 600; }
+
+  /* ═══════════════════════════════════
+     OPCIÓN 3 — INSTITUCIONAL PREMIUM
+     Off-white cálido + navy oscuro + gold
+     Balance entre clásico y moderno
+  ═══════════════════════════════════ */
+  .op3 { background: var(--off-white); }
+
+  .op3 .nav {
+    background: #1A2535;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .op3 .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .op3 .nav-logo .wordmark {
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.02em;
+  }
+  .op3 .nav-logo .wordmark span { color: var(--gold); }
+  .op3 .nav-links { display: flex; gap: 18px; font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500; }
+  .op3 .nav-links a { text-decoration: none; color: inherit; }
+  .op3 .nav-links a.active { color: rgba(255,255,255,0.9); }
+  .op3 .nav-badge {
+    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .op3 .hero {
+    background: var(--off-white);
+    padding: 32px 24px 24px;
+    border-bottom: 2px solid var(--gold);
+    position: relative;
+  }
+  .op3 .hero .overline {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 12px;
+  }
+  .op3 .hero .overline span {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+  }
+  .op3 .hero .overline::after { content: ''; flex: 1; height: 1px; background: var(--gold-light); }
+  .op3 .hero h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 27px;
+    font-weight: 700;
+    color: #1A2535;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .op3 .hero h2 {
+    font-family: 'Libre Baskerville', serif;
+    font-style: italic;
+    font-size: 16px;
+    color: var(--gold-dark);
+    font-weight: 400;
+    margin-bottom: 12px;
+  }
+  .op3 .hero p {
+    font-size: 13px;
+    color: var(--gray-mid);
+    line-height: 1.65;
+    margin-bottom: 20px;
+    font-weight: 400;
+  }
+  .op3 .hero-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .op3 .btn-navy {
+    padding: 10px 20px;
+    background: #1A2535;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    position: relative;
+    overflow: hidden;
+  }
+  .op3 .btn-navy::after {
+    content: '';
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%; height: 3px;
+    background: var(--gold);
+  }
+  .op3 .btn-gold-outline {
+    padding: 10px 20px;
+    background: transparent;
+    color: var(--gold-dark);
+    border: 1.5px solid var(--gold);
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .op3 .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    background: #1A2535;
+    gap: 1px;
+  }
+  .op3 .kpi {
+    padding: 16px;
+    background: #1A2535;
+    text-align: center;
+  }
+  .op3 .kpi-val {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gold);
+    display: block;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.02em;
+  }
+  .op3 .kpi-lbl { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .op3 .polizas { padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .op3 .poliza-item {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #E5E3DC;
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    border-left: 4px solid var(--gold);
+  }
+  .op3 .poliza-item.inactive { border-left-color: var(--silver); }
+  .op3 .poliza-icon {
+    width: 36px; height: 36px;
+    background: #F2EFE6;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .op3 .poliza-item h3 { font-size: 13px; font-weight: 700; color: #1A2535; margin-bottom: 2px; }
+  .op3 .poliza-item p { font-size: 11px; color: var(--gray-mid); }
+  .op3 .poliza-amt { margin-left: auto; text-align: right; flex-shrink: 0; }
+  .op3 .poliza-amt strong { font-size: 15px; font-weight: 700; color: #1A2535; display: block; }
+  .op3 .poliza-amt small { font-size: 10px; color: var(--gray-mid); }
+
+  .op3 .tag-emitida {
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px;
+    background: #EBF5F0; color: #1A7A4A;
+    flex-shrink: 0;
+  }
+  .op3 .tag-enviada {
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px;
+    background: #FBF8EE; color: var(--gold-dark);
+    flex-shrink: 0;
+  }
+
+  .op3 .footer-bar {
+    margin-top: auto;
+    padding: 12px 20px;
+    background: white;
+    border-top: 1px solid #E5E3DC;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .op3 .footer-bar .logo-small {
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1A2535;
+  }
+  .op3 .footer-bar .logo-small span { color: var(--gold); }
+  .op3 .footer-bar small { font-size: 11px; color: var(--silver); }
+
+  /* ── Palette row shared ── */
+  .palette-row {
+    display: flex;
+    padding: 14px 20px;
+    gap: 8px;
+    align-items: center;
+  }
+  .swatch {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .swatch-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; margin-right: 6px; }
+
+  /* ── Bottom CTA ── */
+  .page-footer {
+    background: var(--black);
+    padding: 40px;
+    text-align: center;
+    border-top: 3px solid var(--gold);
+  }
+  .page-footer h2 {
+    font-family: 'Libre Baskerville', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .page-footer p { color: var(--silver); font-size: 13px; font-weight: 300; }
+
+  .type-showcase {
+    padding: 16px 20px 14px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .type-showcase .sans { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+  .type-showcase .serif { font-family: 'Libre Baskerville', serif; font-style: italic; font-size: 14px; }
+  .type-showcase .meta { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+
+<!-- ── Page header ── -->
+<div class="palette-strip">
+  <div style="background:#C4A96B"></div>
+  <div style="background:#C5C5BE"></div>
+  <div style="background:#111111"></div>
+  <div style="background:#F7F5F2"></div>
+</div>
+
+<div class="page-header">
+  <div class="eyebrow">El guardián de tus logros.</div>
+  <h1>GGS · Opciones de Identidad Visual</h1>
+  <p>Tres direcciones de diseño basadas en la paleta de marca y tipografía corporativa. Elige la que mejor represente la visión de GGS.</p>
+</div>
+
+<!-- ── Options ── -->
+<div class="options-grid">
+
+  <!-- ══════════ OPCIÓN 1 ══════════ -->
+  <div class="option">
+    <div class="option-label" style="background:#FBF9F5">
+      <span class="num">Opción 01</span>
+      <h2>Clásica &amp; Elegante</h2>
+      <p>Baskerville en titulares · Gold como autoridad · Calidez sobre fondo blanco</p>
+    </div>
+
+    <!-- Tipo -->
+    <div class="type-showcase" style="background:#FBF9F5;border-bottom:1px solid #EAE8E2">
+      <div class="sans" style="color:#111">Vive más tranquilo.</div>
+      <div class="serif" style="color:#C4A96B">El guardián de tus logros.</div>
+      <div class="meta" style="color:#999">Outfit 700 + Baskerville Italic</div>
+    </div>
+
+    <!-- Paleta -->
+    <div class="palette-row" style="background:#FBF9F5;border-bottom:1px solid #EAE8E2">
+      <div class="swatch" style="background:#C4A96B"></div>
+      <div class="swatch" style="background:#111111"></div>
+      <div class="swatch" style="background:#C5C5BE"></div>
+      <div class="swatch" style="background:#F7F5F2;border:1px solid #E0DDD5"></div>
+      <div class="swatch-label" style="color:#999;margin-left:4px">Gold · Negro · Plata · Crema</div>
+    </div>
+
+    <div class="op1">
+      <nav class="nav">
+        <div class="nav-logo">
+          <div class="shield">G</div>
+          <span>GGS Insurance</span>
+        </div>
+        <div class="nav-links">
+          <a href="#" class="active">Pólizas</a>
+          <a href="#">Clientes</a>
+          <a href="#">Reportes</a>
+        </div>
+        <button class="nav-cta">Nueva solicitud</button>
+      </nav>
+
+      <div class="hero">
+        <div class="tag">El guardián de tus logros.</div>
+        <h1>Bienvenido,<br/><em>Christian Chang</em></h1>
+        <p>Tienes 3 pólizas activas y 1 solicitud pendiente de revisión por la aseguradora.</p>
+        <div class="hero-btns">
+          <button class="btn-primary">Nueva solicitud</button>
+          <button class="btn-outline">Ver reportes</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-val">24</span>
+          <span class="stat-lbl">Pólizas</span>
+        </div>
+        <div class="stat">
+          <span class="stat-val">Q142k</span>
+          <span class="stat-lbl">Prima total</span>
+        </div>
+        <div class="stat">
+          <span class="stat-val">3</span>
+          <span class="stat-lbl">Pendientes</span>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <div>
+            <h3>POL-2025-0042</h3>
+            <p>Zurich · Automóviles · Juan Pérez</p>
+          </div>
+          <div class="card-badge">Emitida</div>
+        </div>
+        <div class="card">
+          <div class="card-icon">📋</div>
+          <div>
+            <h3>SOL-2025-0018</h3>
+            <p>Mapfre · Vida · María López</p>
+          </div>
+          <div class="card-badge" style="background:#FEF9EE;color:#B45309;border-color:#F0D99A">Enviada</div>
+        </div>
+      </div>
+
+      <div class="footer-bar">
+        <span>GGS Insurance</span>
+        <small>© 2025 · v2.0</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ OPCIÓN 2 ══════════ -->
+  <div class="option">
+    <div class="option-label" style="background:#1A1A16;border-bottom:1px solid #2A2A26">
+      <span class="num">Opción 02</span>
+      <h2 style="color:#EEE">Moderna &amp; Dark</h2>
+      <p style="color:#666">Outfit protagonista · Gold como luz · Alto contraste nocturno</p>
+    </div>
+
+    <!-- Tipo -->
+    <div class="type-showcase" style="background:#111;border-bottom:1px solid #2A2A26">
+      <div class="sans" style="color:white;letter-spacing:-0.03em;">Vive más tranquilo.</div>
+      <div class="serif" style="color:#C4A96B">El guardián de tus logros.</div>
+      <div class="meta" style="color:#444">Outfit 800 + Baskerville Italic</div>
+    </div>
+
+    <!-- Paleta -->
+    <div class="palette-row" style="background:#111;border-bottom:1px solid #2A2A26">
+      <div class="swatch" style="background:#C4A96B;box-shadow:0 0 8px rgba(196,169,107,0.4)"></div>
+      <div class="swatch" style="background:#1E1E1A;border:1px solid #333"></div>
+      <div class="swatch" style="background:#444"></div>
+      <div class="swatch" style="background:#F7F5F2"></div>
+      <div class="swatch-label" style="color:#555;margin-left:4px">Gold · Noche · Grafito · Crema</div>
+    </div>
+
+    <div class="op2">
+      <nav class="nav">
+        <div class="nav-logo">
+          <span class="mark">GGS</span>
+          <div class="sep"></div>
+          <span class="name">Insurance</span>
+        </div>
+        <div class="nav-links">
+          <a href="#" class="active">Pólizas</a>
+          <a href="#">Clientes</a>
+          <a href="#">Tareas</a>
+        </div>
+        <div class="dot"></div>
+      </nav>
+
+      <div class="hero">
+        <div class="tag">Plataforma de gestión</div>
+        <h1>Bienvenido,<br/><span>Christian</span></h1>
+        <p>3 pólizas activas · 1 solicitud en revisión · Todo bajo control.</p>
+        <div>
+          <button class="btn-gold">Nueva solicitud</button>
+          <button class="btn-ghost">Ver reportes</button>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-val">24</span>
+          <span class="metric-lbl">Pólizas</span>
+        </div>
+        <div class="metric">
+          <span class="metric-val">Q142k</span>
+          <span class="metric-lbl">Prima</span>
+        </div>
+        <div class="metric">
+          <span class="metric-val">3</span>
+          <span class="metric-lbl">Alertas</span>
+        </div>
+      </div>
+
+      <div class="list">
+        <div class="list-item">
+          <div class="list-dot" style="background:#C4A96B;box-shadow:0 0 6px rgba(196,169,107,0.5)"></div>
+          <div>
+            <h3>POL-2025-0042</h3>
+            <p>Zurich · Juan Pérez</p>
+          </div>
+          <div class="pill" style="background:rgba(196,169,107,0.15);color:#C4A96B">Emitida</div>
+          <div class="list-val">Q 8,500</div>
+        </div>
+        <div class="list-item">
+          <div class="list-dot" style="background:#888;box-shadow:none"></div>
+          <div>
+            <h3>SOL-2025-0018</h3>
+            <p>Mapfre · María López</p>
+          </div>
+          <div class="pill" style="background:rgba(255,200,80,0.1);color:#E0A830">Enviada</div>
+          <div class="list-val">Q 4,200</div>
+        </div>
+      </div>
+
+      <div class="footer-bar">
+        <div class="gold-line"></div>
+        <span><b>GGS</b> Insurance · 2025</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ OPCIÓN 3 ══════════ -->
+  <div class="option">
+    <div class="option-label" style="background:#F0EEE8">
+      <span class="num">Opción 03</span>
+      <h2 style="color:#1A2535">Institucional &amp; Premium</h2>
+      <p>Navy + Gold + Crema · Autoridad y cercanía en equilibrio</p>
+    </div>
+
+    <!-- Tipo -->
+    <div class="type-showcase" style="background:#F0EEE8;border-bottom:1px solid #DDD9CE">
+      <div class="sans" style="color:#1A2535">Vive más tranquilo.</div>
+      <div class="serif" style="color:#A8883F">El guardián de tus logros.</div>
+      <div class="meta" style="color:#999">Outfit 700 + Baskerville Italic</div>
+    </div>
+
+    <!-- Paleta -->
+    <div class="palette-row" style="background:#F0EEE8;border-bottom:1px solid #DDD9CE">
+      <div class="swatch" style="background:#1A2535"></div>
+      <div class="swatch" style="background:#C4A96B"></div>
+      <div class="swatch" style="background:#F7F5F2;border:1px solid #DDD9CE"></div>
+      <div class="swatch" style="background:#C5C5BE"></div>
+      <div class="swatch-label" style="color:#999;margin-left:4px">Navy · Gold · Crema · Plata</div>
+    </div>
+
+    <div class="op3">
+      <nav class="nav">
+        <div class="nav-logo">
+          <span class="wordmark">GG<span>S</span></span>
+        </div>
+        <div class="nav-links">
+          <a href="#" class="active">Pólizas</a>
+          <a href="#">Clientes</a>
+          <a href="#">Gestión</a>
+        </div>
+        <button class="nav-badge">+ Nueva</button>
+      </nav>
+
+      <div class="hero">
+        <div class="overline">
+          <span>Resumen del día</span>
+        </div>
+        <h1>Bienvenido,<br/>Christian Chang</h1>
+        <h2>El guardián de tus logros.</h2>
+        <p>Tienes 3 pólizas activas y 1 solicitud pendiente de confirmación. Todo en orden.</p>
+        <div class="hero-btns">
+          <button class="btn-navy">Nueva solicitud</button>
+          <button class="btn-gold-outline">Ver clientes</button>
+        </div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi">
+          <span class="kpi-val">24</span>
+          <span class="kpi-lbl">Pólizas</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-val">Q142k</span>
+          <span class="kpi-lbl">Prima</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-val">98%</span>
+          <span class="kpi-lbl">Vigencia</span>
+        </div>
+      </div>
+
+      <div class="polizas">
+        <div class="poliza-item">
+          <div class="poliza-icon">🛡️</div>
+          <div>
+            <h3>POL-2025-0042</h3>
+            <p>Zurich · Automóviles · Juan Pérez</p>
+          </div>
+          <div class="tag-emitida">Emitida</div>
+          <div class="poliza-amt">
+            <strong>Q 8,500</strong>
+            <small>anual</small>
+          </div>
+        </div>
+        <div class="poliza-item inactive">
+          <div class="poliza-icon">📋</div>
+          <div>
+            <h3>SOL-2025-0018</h3>
+            <p>Mapfre · Vida · María López</p>
+          </div>
+          <div class="tag-enviada">Enviada</div>
+          <div class="poliza-amt">
+            <strong>Q 4,200</strong>
+            <small>semestral</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bar">
+        <div class="logo-small">GG<span>S</span></div>
+        <small>Plataforma de seguros · 2025</small>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /options-grid -->
+
+<!-- ── Footer CTA ── -->
+<div class="page-footer">
+  <h2>¿Cuál opción refleja mejor la identidad de GGS?</h2>
+  <p>Cada opción puede ajustarse en tipografía, espaciado y tono de color antes de implementar.</p>
+</div>
+
+</body>
+</html>
