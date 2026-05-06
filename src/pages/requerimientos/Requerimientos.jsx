@@ -106,7 +106,7 @@ export default function Requerimientos() {
 
         {/* ── Header full-width ── */}
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
-          <div style={{padding:'24px 28px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
+          <div style={{padding:'24px 28px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
               <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                 <CreditCard size={24} color='white'/>
@@ -136,8 +136,8 @@ export default function Requerimientos() {
             {[
               ['Vencimiento', selected.fecha_vencimiento ? new Date(selected.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT') : '—', displayEstado==='vencido'?'#ef4444':displayEstado==='por_cobrar'?'#f59e0b':'#1e293b'],
               ['Fecha de pago', selected.fecha_pago ? new Date(selected.fecha_pago+'T12:00:00').toLocaleDateString('es-GT') : '—', '#22c55e'],
-              ['Póliza', selected.polizas?.numero_poliza || '—', '#1A6BBA'],
-              ['Cliente', `${selected.polizas?.clientes?.nombre||''} ${selected.polizas?.clientes?.apellido||''}`.trim() || '—', '#0C1E3D'],
+              ['Póliza', selected.polizas?.numero_poliza || '—', '#C4A96B'],
+              ['Cliente', `${selected.polizas?.clientes?.nombre||''} ${selected.polizas?.clientes?.apellido||''}`.trim() || '—', '#111111'],
             ].map(([label, value, color], idx, arr) => (
               <div key={label} style={{flex:1,padding:'14px 20px',borderRight:idx<arr.length-1?'1px solid #f1f5f9':'none'}}>
                 <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.5px'}}>{label}</p>
@@ -165,11 +165,11 @@ export default function Requerimientos() {
                   onMouseLeave={e=>e.currentTarget.style.background='white'}>
                   <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                     <div style={{width:'38px',height:'38px',borderRadius:'8px',background:'#eff6ff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                      <FileText size={16} color='#1A6BBA'/>
+                      <FileText size={16} color='#C4A96B'/>
                     </div>
                     <div>
                       <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Póliza</p>
-                      <p style={{fontSize:'15px',fontWeight:700,color:'#0C1E3D',margin:'2px 0 0'}}>{selected.polizas?.numero_poliza||'Sin número'}</p>
+                      <p style={{fontSize:'15px',fontWeight:700,color:'#111111',margin:'2px 0 0'}}>{selected.polizas?.numero_poliza||'Sin número'}</p>
                     </div>
                   </div>
                   <ExternalLink size={14} color='#94a3b8'/>
@@ -184,7 +184,7 @@ export default function Requerimientos() {
                     </div>
                     <div>
                       <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Cliente</p>
-                      <p style={{fontSize:'15px',fontWeight:700,color:'#0C1E3D',margin:'2px 0 0'}}>{selected.polizas?.clientes?.nombre} {selected.polizas?.clientes?.apellido||''}</p>
+                      <p style={{fontSize:'15px',fontWeight:700,color:'#111111',margin:'2px 0 0'}}>{selected.polizas?.clientes?.nombre} {selected.polizas?.clientes?.apellido||''}</p>
                     </div>
                   </div>
                   <ExternalLink size={14} color='#94a3b8'/>
@@ -210,7 +210,7 @@ export default function Requerimientos() {
                       <FileText size={18} color='#1d4ed8'/>
                     </div>
                     <div style={{flex:1}}>
-                      <p style={{fontSize:'13px',fontWeight:600,color:'#0C1E3D',margin:0}}>Comprobante subido</p>
+                      <p style={{fontSize:'13px',fontWeight:600,color:'#111111',margin:0}}>Comprobante subido</p>
                       <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>Archivo adjunto disponible</p>
                     </div>
                     <label style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 12px',background:'#f1f5f9',color:'#374151',borderRadius:'7px',fontSize:'12px',fontWeight:500,cursor:'pointer',whiteSpace:'nowrap'}}>
@@ -305,7 +305,7 @@ export default function Requerimientos() {
   return (
     <div>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Requerimientos de pago</h1>
             <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
@@ -340,9 +340,9 @@ export default function Requerimientos() {
           {[['todos','Todos'],['pendiente','Pendiente'],['por_cobrar','Por cobrar'],['vencido','Vencido'],['pagado','Pagado']].map(([e,l])=>(
             <button key={e} onClick={()=>setFiltroEstado(e)}
               style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
-                background:filtroEstado===e?'#0C1E3D':'white',
+                background:filtroEstado===e?'#111111':'white',
                 color:filtroEstado===e?'white':'#64748b',
-                border:`1px solid ${filtroEstado===e?'#0C1E3D':'#e2e8f0'}`}}>
+                border:`1px solid ${filtroEstado===e?'#111111':'#e2e8f0'}`}}>
               {l}
             </button>
           ))}
@@ -375,7 +375,7 @@ export default function Requerimientos() {
                     onClick={()=>setSelected(r)}
                     onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
                     onMouseLeave={e=>e.currentTarget.style.background='white'}>
-                    <td style={{padding:'12px 16px',fontSize:'13px',fontWeight:700,color:'#0C1E3D'}}>{r.codigo}</td>
+                    <td style={{padding:'12px 16px',fontSize:'13px',fontWeight:700,color:'#111111'}}>{r.codigo}</td>
                     <td style={{padding:'12px 16px',fontSize:'13px',color:'#64748b',whiteSpace:'nowrap'}}>{r.numero_cuota} / {r.total_cuotas}</td>
                     <td style={{padding:'12px 16px',fontSize:'13px',color:'#374151',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                       {r.polizas?.numero_poliza||'—'}

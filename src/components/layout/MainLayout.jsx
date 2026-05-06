@@ -81,11 +81,11 @@ export default function MainLayout({ session }) {
     )?.label || 'GGS'
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#F4F6F9' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#F7F5F2' }}>
 
         {/* ── Top header ── */}
         <header style={{
-          background: '#0C1E3D',
+          background: '#111111',
           height: '52px',
           display: 'flex',
           alignItems: 'center',
@@ -98,7 +98,7 @@ export default function MainLayout({ session }) {
         }}>
           {companyLogo
             ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
-            : <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 800, fontSize: '12px', padding: '3px 7px', borderRadius: '5px' }}>GGS</span>
+            : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '28px', width: 'auto' }} />
           }
           <span style={{ color: 'white', fontSize: '15px', fontWeight: 600, flex: 1 }}>{currentLabel}</span>
           <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -112,7 +112,7 @@ export default function MainLayout({ session }) {
           marginBottom: '60px',
           flex: 1,
           padding: '12px',
-          background: '#F4F6F9',
+          background: '#F7F5F2',
           boxSizing: 'border-box',
           minHeight: 'calc(100vh - 112px)',
         }}>
@@ -141,7 +141,7 @@ export default function MainLayout({ session }) {
         }}>
           {/* Sheet header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#0C1E3D' }}>Menú</span>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111111' }}>Menú</span>
             <button onClick={() => setMenuOpen(false)}
               style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex' }}>
               <X size={16} color='#64748b' />
@@ -154,12 +154,12 @@ export default function MainLayout({ session }) {
               const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
               return (
                 <NavLink key={to} to={to} end={end}
-                  style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '12px 8px', borderRadius: '12px', background: isActive ? '#EFF6FF' : 'transparent' }}
+                  style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '12px 8px', borderRadius: '12px', background: isActive ? '#FDF8EE' : 'transparent' }}
                   onClick={() => setMenuOpen(false)}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: isActive ? '#1A6BBA' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: isActive ? '#C4A96B' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Icon size={20} color={isActive ? 'white' : '#64748b'} />
                   </div>
-                  <span style={{ fontSize: '10px', color: isActive ? '#1A6BBA' : '#64748b', fontWeight: isActive ? 700 : 500, textAlign: 'center', lineHeight: '1.2' }}>{label}</span>
+                  <span style={{ fontSize: '10px', color: isActive ? '#C4A96B' : '#64748b', fontWeight: isActive ? 700 : 500, textAlign: 'center', lineHeight: '1.2' }}>{label}</span>
                 </NavLink>
               )
             })}
@@ -193,8 +193,8 @@ export default function MainLayout({ session }) {
             const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
             return (
               <NavLink key={to} to={to} end={end}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', textDecoration: 'none', padding: '6px 0', color: isActive ? '#1A6BBA' : '#94a3b8' }}>
-                <Icon size={22} color={isActive ? '#1A6BBA' : '#94a3b8'} strokeWidth={isActive ? 2.5 : 1.8} />
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', textDecoration: 'none', padding: '6px 0', color: isActive ? '#C4A96B' : '#94a3b8' }}>
+                <Icon size={22} color={isActive ? '#C4A96B' : '#94a3b8'} strokeWidth={isActive ? 2.5 : 1.8} />
                 <span style={{ fontSize: '10px', fontWeight: isActive ? 700 : 500 }}>{label}</span>
               </NavLink>
             )
@@ -203,8 +203,8 @@ export default function MainLayout({ session }) {
           {/* Menú button */}
           <button
             onClick={() => setMenuOpen(o => !o)}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', color: menuOpen ? '#1A6BBA' : '#94a3b8' }}>
-            <Grid3x3 size={22} color={menuOpen ? '#1A6BBA' : '#94a3b8'} strokeWidth={menuOpen ? 2.5 : 1.8} />
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', color: menuOpen ? '#C4A96B' : '#94a3b8' }}>
+            <Grid3x3 size={22} color={menuOpen ? '#C4A96B' : '#94a3b8'} strokeWidth={menuOpen ? 2.5 : 1.8} />
             <span style={{ fontSize: '10px', fontWeight: menuOpen ? 700 : 500 }}>Menú</span>
           </button>
         </nav>
@@ -218,7 +218,7 @@ export default function MainLayout({ session }) {
       {/* Sidebar */}
       <aside style={{
         width: `${w}px`,
-        background: '#0C1E3D',
+        background: '#111111',
         display: 'flex',
         flexDirection: 'column',
         position: 'fixed',
@@ -227,6 +227,7 @@ export default function MainLayout({ session }) {
         zIndex: 100,
         transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
         overflow: 'hidden',
+        borderRight: '1px solid rgba(196,169,107,0.15)',
       }}>
         {/* Logo + toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: collapsed ? '20px 0' : '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
@@ -234,15 +235,18 @@ export default function MainLayout({ session }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
               {companyLogo
                 ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '6px', background: 'white', padding: '2px', flexShrink: 0 }} />
-                : <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 700, fontSize: '13px', padding: '4px 8px', borderRadius: '6px', flexShrink: 0 }}>GGS</span>
+                : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '30px', width: 'auto', flexShrink: 0 }} />
               }
-              <span style={{ color: 'white', fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap' }}>Grupo Global</span>
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ color: 'white', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', lineHeight: 1.2 }}>Grupo Global</div>
+                <div style={{ color: '#C4A96B', fontSize: '10px', fontWeight: 400, whiteSpace: 'nowrap', letterSpacing: '0.05em' }}>en Seguros</div>
+              </div>
             </div>
           )}
           {collapsed && (
             companyLogo
               ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '6px', background: 'white', padding: '2px' }} />
-              : <span style={{ background: '#C8A84B', color: '#0C1E3D', fontWeight: 700, fontSize: '13px', padding: '4px 8px', borderRadius: '6px' }}>GGS</span>
+              : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '30px', width: 'auto' }} />
           )}
           {!collapsed && (
             <button onClick={() => setCollapsed(true)} title="Contraer menú"
@@ -265,7 +269,7 @@ export default function MainLayout({ session }) {
                 padding: collapsed ? '10px 0' : '10px 12px',
                 borderRadius: '8px',
                 color: isActive ? 'white' : 'rgba(255,255,255,0.65)',
-                background: isActive ? '#1A6BBA' : 'transparent',
+                background: isActive ? '#C4A96B' : 'transparent',
                 fontSize: '14px',
                 textDecoration: 'none',
                 whiteSpace: 'nowrap',
@@ -305,7 +309,7 @@ export default function MainLayout({ session }) {
         flex: 1,
         padding: '24px',
         minHeight: '100vh',
-        background: '#F4F6F9',
+        background: '#F7F5F2',
         boxSizing: 'border-box',
         transition: 'margin-left 0.22s cubic-bezier(0.4,0,0.2,1)',
       }}>

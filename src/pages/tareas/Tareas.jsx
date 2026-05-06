@@ -63,7 +63,7 @@ export default function Tareas() {
   return (
     <div>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
-        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
             <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Tareas</h1>
             <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
@@ -79,7 +79,7 @@ export default function Tareas() {
 
       {showForm && (
         <div style={{ background: 'white', borderRadius: '12px', padding: '20px 24px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#0C1E3D', marginBottom: '14px' }}>Nueva tarea manual</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111111', marginBottom: '14px' }}>Nueva tarea manual</h3>
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '14px', marginBottom: '14px' }}>
               <div style={{ gridColumn: '1/-1' }}>
@@ -96,7 +96,7 @@ export default function Tareas() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button type='submit' style={{ padding: '9px 20px', background: '#0C1E3D', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>Crear tarea</button>
+              <button type='submit' style={{ padding: '9px 20px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>Crear tarea</button>
               <button type='button' onClick={() => setShowForm(false)} style={{ padding: '9px 20px', background: 'white', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>Cancelar</button>
             </div>
           </form>
@@ -106,7 +106,7 @@ export default function Tareas() {
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         {[['pendiente', 'Pendientes'], ['completada', 'Completadas'], ['todas', 'Todas']].map(([val, label]) => (
           <button key={val} onClick={() => setFiltro(val)}
-            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', background: filtro === val ? '#0C1E3D' : 'white', color: filtro === val ? 'white' : '#64748b', border: '1px solid ' + (filtro === val ? '#0C1E3D' : '#e2e8f0') }}>
+            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', background: filtro === val ? '#111111' : 'white', color: filtro === val ? 'white' : '#64748b', border: '1px solid ' + (filtro === val ? '#111111' : '#e2e8f0') }}>
             {label}{val === 'pendiente' ? ' (' + pendientes.length + ')' : ''}
           </button>
         ))}
@@ -137,7 +137,7 @@ export default function Tareas() {
                   {t.estado === 'completada' && <Check size={13} color='white' />}
                 </button>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: 600, color: '#0C1E3D', fontSize: '14px', textDecoration: t.estado === 'completada' ? 'line-through' : 'none' }}>{t.titulo}</p>
+                  <p style={{ fontWeight: 600, color: '#111111', fontSize: '14px', textDecoration: t.estado === 'completada' ? 'line-through' : 'none' }}>{t.titulo}</p>
                   {t.descripcion && <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{t.descripcion}</p>}
                   <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: t.tipo === 'automatica' ? '#dbeafe' : '#f0fdf4', color: t.tipo === 'automatica' ? '#1d4ed8' : '#15803d' }}>

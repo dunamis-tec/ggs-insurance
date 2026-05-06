@@ -181,7 +181,7 @@ export default function Clientes() {
         <ArrowLeft size={16} /> Volver a clientes
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', maxWidth:'800px' }}>
-        <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)' }}>
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)' }}>
           <h2 style={{ fontSize:'18px', fontWeight:700, color:'white', margin:0 }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
           <p style={{ fontSize:'13px', color:'rgba(255,255,255,0.7)', marginTop:'4px', marginBottom:0 }}>Completa la informacion del cliente</p>
         </div>
@@ -193,9 +193,9 @@ export default function Clientes() {
                 {tiposCliente.map(t => (
                   <button key={t} type='button' onClick={() => setForm({ ...form, tipo: t })}
                     style={{ flex:1, padding:'10px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
-                      background: form.tipo === t ? '#0C1E3D' : 'white',
+                      background: form.tipo === t ? '#111111' : 'white',
                       color: form.tipo === t ? 'white' : '#64748b',
-                      border: `1px solid ${form.tipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
+                      border: `1px solid ${form.tipo === t ? '#111111' : '#e2e8f0'}` }}>
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </button>
                 ))}
@@ -204,7 +204,7 @@ export default function Clientes() {
           )}
           {form.tipo === 'empresa' ? (
             <>
-              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Datos de la empresa</p>
+              <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Datos de la empresa</p>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={labelStyle}>Razon social *</label>
@@ -235,7 +235,7 @@ export default function Clientes() {
                   <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
                 </div>
               </div>
-              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
+              <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
@@ -321,7 +321,7 @@ export default function Clientes() {
             </div>
           </div>
           <div style={{ display:'flex', gap:'8px', paddingTop:'16px', borderTop:'1px solid #f1f5f9' }}>
-            <button type='submit' style={{ padding:'11px 24px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+            <button type='submit' style={{ padding:'11px 24px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
               {editing ? 'Actualizar cliente' : 'Crear cliente'}
             </button>
             <button type='button' onClick={() => { setView('list'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
@@ -338,7 +338,7 @@ export default function Clientes() {
     <div>
       {/* Header */}
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
-        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ textAlign:'left' }}>
             <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>
               {activeMainTab === 'clientes' ? 'Clientes' : 'Conglomerados'}
@@ -367,9 +367,9 @@ export default function Clientes() {
         {[['clientes','Clientes'],['conglomerados','Conglomerados']].map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveMainTab(tab)}
             style={{ padding:'8px 20px', borderRadius:'8px', fontSize:'14px', fontWeight:500, cursor:'pointer',
-              background: activeMainTab === tab ? '#0C1E3D' : 'white',
+              background: activeMainTab === tab ? '#111111' : 'white',
               color: activeMainTab === tab ? 'white' : '#64748b',
-              border: `1px solid ${activeMainTab === tab ? '#0C1E3D' : '#e2e8f0'}` }}>
+              border: `1px solid ${activeMainTab === tab ? '#111111' : '#e2e8f0'}` }}>
             {label}{tab === 'clientes' ? ` (${clientes.length})` : ` (${conglomerados.length})`}
           </button>
         ))}
@@ -388,9 +388,9 @@ export default function Clientes() {
               {['todos', ...tiposCliente].map(t => (
                 <button key={t} onClick={() => setFiltroTipo(t)}
                   style={{ padding:'7px 14px', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:500,
-                    background: filtroTipo === t ? '#0C1E3D' : 'white',
+                    background: filtroTipo === t ? '#111111' : 'white',
                     color: filtroTipo === t ? 'white' : '#64748b',
-                    border: `1px solid ${filtroTipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
+                    border: `1px solid ${filtroTipo === t ? '#111111' : '#e2e8f0'}` }}>
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
@@ -415,7 +415,7 @@ export default function Clientes() {
                       <Icon size={18} color={colors.color} />
                     </div>
                     <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
-                      <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
+                      <p style={{ fontWeight:700, color:'#111111', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
                       <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>
                         {c.tipo === 'empresa' && c.contacto_nombre ? `Contacto: ${c.contacto_nombre} ${c.contacto_apellido||''} · ` : ''}
                         {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}{c.conglomerados ? ` · ${c.conglomerados.nombre}` : ''}
@@ -449,7 +449,7 @@ export default function Clientes() {
           {/* Inline form */}
           {showCongForm && (
             <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', padding:'20px 24px', marginBottom:'16px' }}>
-              <p style={{ fontSize:'14px', fontWeight:600, color:'#0C1E3D', margin:'0 0 14px', textAlign:'left' }}>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#111111', margin:'0 0 14px', textAlign:'left' }}>
                 {editingCong ? 'Editar conglomerado' : 'Nuevo conglomerado'}
               </p>
               <form onSubmit={handleCongSubmit} style={{ display:'flex', gap:'10px', alignItems:'flex-end' }}>
@@ -459,7 +459,7 @@ export default function Clientes() {
                     placeholder='Nombre del conglomerado'
                     style={{ width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
                 </div>
-                <button type='submit' style={{ padding:'10px 20px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                <button type='submit' style={{ padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
                   {editingCong ? 'Actualizar' : 'Crear'}
                 </button>
                 <button type='button' onClick={() => { setShowCongForm(false); setCongForm(emptyCong); setEditingCong(null) }}
@@ -491,7 +491,7 @@ export default function Clientes() {
                         <Building2 size={18} color='#1d4ed8' />
                       </div>
                       <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
-                        <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
+                        <p style={{ fontWeight:700, color:'#111111', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
                         <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>
                           {cgClientes.length === 0 ? 'Sin clientes asignados' : `${cgClientes.length} cliente${cgClientes.length !== 1 ? 's' : ''}`}
                         </p>
@@ -522,7 +522,7 @@ export default function Clientes() {
                                 <Icon size={15} color={colors.color} />
                               </div>
                               <div style={{ flex:1, minWidth:0 }}>
-                                <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0, textAlign:'left' }}>{nombreDisplay}</p>
+                                <p style={{ fontWeight:600, color:'#111111', fontSize:'13px', margin:0, textAlign:'left' }}>{nombreDisplay}</p>
                                 <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                   {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}
                                 </p>
@@ -640,7 +640,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         <ArrowLeft size={16} /> {fromReqId ? 'Volver al requerimiento' : 'Volver a clientes'}
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'16px' }}>
-        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
             <div style={{ width:'52px', height:'52px', borderRadius:'12px', background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <Icon size={24} color='white' />
@@ -662,18 +662,18 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         <div style={{ padding:'16px 24px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px' }}>
           {cliente.tipo === 'empresa' ? (
             <>
-              {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='NIT' value={cliente.nit} />}
-              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Telefono' value={cliente.telefono} />}
-              {cliente.email && <InfoCard icon={<Mail size={14} color='#1A6BBA'/>} label='Email' value={cliente.email} />}
-              {cliente.contacto_nombre && <InfoCard icon={<User size={14} color='#1A6BBA'/>} label='Contacto' value={`${cliente.contacto_nombre} ${cliente.contacto_apellido||''}`} sub={cliente.contacto_cargo} />}
-              {cliente.contacto_telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Tel. contacto' value={cliente.contacto_telefono} />}
+              {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#C4A96B'/>} label='NIT' value={cliente.nit} />}
+              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#C4A96B'/>} label='Telefono' value={cliente.telefono} />}
+              {cliente.email && <InfoCard icon={<Mail size={14} color='#C4A96B'/>} label='Email' value={cliente.email} />}
+              {cliente.contacto_nombre && <InfoCard icon={<User size={14} color='#C4A96B'/>} label='Contacto' value={`${cliente.contacto_nombre} ${cliente.contacto_apellido||''}`} sub={cliente.contacto_cargo} />}
+              {cliente.contacto_telefono && <InfoCard icon={<Phone size={14} color='#C4A96B'/>} label='Tel. contacto' value={cliente.contacto_telefono} />}
             </>
           ) : (
             <>
-              {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='NIT' value={cliente.nit} />}
-              {cliente.dpi && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='DPI' value={cliente.dpi} />}
-              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Telefono' value={cliente.telefono} />}
-              {cliente.email && <InfoCard icon={<Mail size={14} color='#1A6BBA'/>} label='Email' value={cliente.email} />}
+              {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#C4A96B'/>} label='NIT' value={cliente.nit} />}
+              {cliente.dpi && <InfoCard icon={<CreditCard size={14} color='#C4A96B'/>} label='DPI' value={cliente.dpi} />}
+              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#C4A96B'/>} label='Telefono' value={cliente.telefono} />}
+              {cliente.email && <InfoCard icon={<Mail size={14} color='#C4A96B'/>} label='Email' value={cliente.email} />}
             </>
           )}
         </div>
@@ -682,9 +682,9 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
-              background: activeTab===tab ? '#0C1E3D' : 'white',
+              background: activeTab===tab ? '#111111' : 'white',
               color: activeTab===tab ? 'white' : '#64748b',
-              border: `1px solid ${activeTab===tab ? '#0C1E3D' : '#e2e8f0'}` }}>
+              border: `1px solid ${activeTab===tab ? '#111111' : '#e2e8f0'}` }}>
             {label}
           </button>
         ))}
@@ -703,14 +703,14 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                   onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                   onMouseLeave={e => e.currentTarget.style.background='white'}>
                   <div style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', overflow:'hidden', background:'#f8fafc', flexShrink:0 }}>
-                    {p.aseguradoras?.logo_url ? <img src={p.aseguradoras.logo_url} style={{ width:'100%', height:'100%', objectFit:'contain' }} /> : <FileText size={14} color='#1A6BBA' />}
+                    {p.aseguradoras?.logo_url ? <img src={p.aseguradoras.logo_url} style={{ width:'100%', height:'100%', objectFit:'contain' }} /> : <FileText size={14} color='#C4A96B' />}
                   </div>
                   <div style={{ flex:1 }}>
-                    <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0 }}>{p.numero_poliza || 'Sin numero'}</p>
+                    <p style={{ fontWeight:600, color:'#111111', fontSize:'13px', margin:0 }}>{p.numero_poliza || 'Sin numero'}</p>
                     <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{p.aseguradoras?.nombre} · {p.productos?.nombre}</p>
                   </div>
                   <div style={{ textAlign:'right', marginRight:'12px' }}>
-                    <p style={{ fontSize:'14px', fontWeight:700, color:'#1A6BBA', margin:0 }}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
+                    <p style={{ fontSize:'14px', fontWeight:700, color:'#C4A96B', margin:0 }}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
                     <p style={{ fontSize:'11px', color: new Date(p.fecha_vencimiento)<new Date() ? '#ef4444' : '#64748b', margin:0 }}>
                       Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}
                     </p>
@@ -739,15 +739,15 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                 onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                 onMouseLeave={e => e.currentTarget.style.background='white'}>
                 <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                  <Car size={18} color='#1A6BBA' />
+                  <Car size={18} color='#C4A96B' />
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{ fontWeight:700, color:'#111111', fontSize:'14px', margin:0 }}>{v.marca} {v.modelo} {v.anio}</p>
                   <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>Placa: {fp(v)} · {v.tipo} {v.color ? `· ${v.color}` : ''}</p>
                 </div>
                 {v.valor_asegurado > 0 && (
                   <div style={{ textAlign:'right', marginRight:'12px' }}>
-                    <p style={{ fontSize:'12px', color:'#1A6BBA', fontWeight:600, margin:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>
+                    <p style={{ fontSize:'12px', color:'#C4A96B', fontWeight:600, margin:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>
                     <p style={{ fontSize:'11px', color:'#94a3b8', margin:0 }}>Valor asegurado</p>
                   </div>
                 )}
@@ -760,7 +760,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
       {activeTab === 'estado_cuenta' && (
         <div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'12px', marginBottom:'16px' }}>
-            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#1A6BBA']].map(([l,v,c])=>(
+            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#C4A96B']].map(([l,v,c])=>(
               <div key={l} style={{ background:'white', borderRadius:'10px', padding:'14px', border:'1px solid #e2e8f0', borderLeft:`4px solid ${c}` }}>
                 <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{l}</p>
                 <p style={{ fontSize:'16px', fontWeight:700, color:c, margin:'4px 0 0' }}>{v}</p>
@@ -774,9 +774,9 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                   {['todos','pendiente','pagado','vencido'].map(e => (
                     <button key={e} onClick={() => setFiltroReqEstado(e)}
                       style={{ padding:'5px 12px', borderRadius:'6px', fontSize:'12px', cursor:'pointer', fontWeight:500,
-                        background: filtroReqEstado===e ? '#0C1E3D' : 'white',
+                        background: filtroReqEstado===e ? '#111111' : 'white',
                         color: filtroReqEstado===e ? 'white' : '#64748b',
-                        border: `1px solid ${filtroReqEstado===e ? '#0C1E3D' : '#e2e8f0'}` }}>
+                        border: `1px solid ${filtroReqEstado===e ? '#111111' : '#e2e8f0'}` }}>
                       {e.charAt(0).toUpperCase()+e.slice(1)}
                     </button>
                   ))}
@@ -796,7 +796,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                     <tr><td colSpan={7} style={{ padding:'32px', textAlign:'center', color:'#94a3b8' }}>Sin requerimientos</td></tr>
                   ) : reqsFiltrados.map((r, i) => (
                     <tr key={r.id} style={{ borderBottom:'1px solid #f1f5f9', background: i%2===0 ? 'white' : '#fafafa' }}>
-                      <td style={{ padding:'12px 16px', fontWeight:600, color:'#0C1E3D', whiteSpace:'nowrap' }}>
+                      <td style={{ padding:'12px 16px', fontWeight:600, color:'#111111', whiteSpace:'nowrap' }}>
                         {r.codigo} <span style={{ fontWeight:400, color:'#94a3b8' }}>· {r.numero_cuota}/{r.total_cuotas}</span>
                       </td>
                       <td style={{ padding:'12px 16px', color:'#64748b' }}>{r.emisiones?.numero_emision || '-'}</td>
@@ -834,11 +834,11 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #f1f5f9' }}>
             <div>
-              <p style={{ fontSize:'14px', fontWeight:600, color:'#0C1E3D', margin:0 }}>Personas facturables</p>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#111111', margin:0 }}>Personas facturables</p>
               <p style={{ fontSize:'12px', color:'#64748b', marginTop:'2px', marginBottom:0 }}>Personas a quienes se puede facturar</p>
             </div>
             <button onClick={() => { setShowPFForm(!showPFForm); setPfForm(emptyPF); setEditingPF(null) }}
-              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 14px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 14px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
               <UserPlus size={14} /> Nueva persona
             </button>
           </div>
@@ -854,7 +854,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                   ))}
                 </div>
                 <div style={{ display:'flex', gap:'8px' }}>
-                  <button type='submit' style={{ padding:'8px 18px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>{editingPF ? 'Actualizar' : 'Crear'}</button>
+                  <button type='submit' style={{ padding:'8px 18px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>{editingPF ? 'Actualizar' : 'Crear'}</button>
                   <button type='button' onClick={() => { setShowPFForm(false); setPfForm(emptyPF); setEditingPF(null) }} style={{ padding:'8px 14px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>Cancelar</button>
                 </div>
               </form>
@@ -872,7 +872,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                   <CreditCard size={16} color='#15803d' />
                 </div>
                 <div style={{ flex:1 }}>
-                  <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{pf.nombre} {pf.apellido||''}</p>
+                  <p style={{ fontWeight:600, color:'#111111', fontSize:'14px', margin:0 }}>{pf.nombre} {pf.apellido||''}</p>
                   <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>NIT: {pf.nit||'N/A'}{pf.email ? ` · ${pf.email}` : ''}</p>
                 </div>
                 <div style={{ display:'flex', gap:'6px' }}>

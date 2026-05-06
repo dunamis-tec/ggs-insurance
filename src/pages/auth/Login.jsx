@@ -21,23 +21,22 @@ export default function Login() {
   }
 
   if (sent) return (
-    <div style={{minHeight:'100vh',background:'#0C1E3D',display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <div style={{minHeight:'100vh',background:'#111111',display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{background:'white',borderRadius:'16px',padding:'48px 40px',width:'100%',maxWidth:'420px',textAlign:'center'}}>
         <div style={{fontSize:'48px',marginBottom:'16px'}}>📧</div>
-        <h2 style={{fontSize:'18px',fontWeight:700,color:'#0C1E3D',marginBottom:'8px'}}>Revisá tu correo</h2>
+        <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',marginBottom:'8px'}}>Revisá tu correo</h2>
         <p style={{color:'#64748b',fontSize:'14px',lineHeight:'1.6'}}>Enviamos un enlace a <strong>{email}</strong>. Hacé clic para ingresar.</p>
-        <button onClick={()=>setSent(false)} style={{marginTop:'20px',color:'#1A6BBA',background:'none',border:'none',fontSize:'14px',cursor:'pointer',textDecoration:'underline'}}>Usar otro correo</button>
+        <button onClick={()=>setSent(false)} style={{marginTop:'20px',color:'#C4A96B',background:'none',border:'none',fontSize:'14px',cursor:'pointer',textDecoration:'underline'}}>Usar otro correo</button>
       </div>
     </div>
   )
 
   return (
-    <div style={{minHeight:'100vh',background:'#0C1E3D',display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <div style={{minHeight:'100vh',background:'#111111',display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{background:'white',borderRadius:'16px',padding:'48px 40px',width:'100%',maxWidth:'420px'}}>
         <div style={{textAlign:'center',marginBottom:'32px'}}>
-          <span style={{background:'#0C1E3D',color:'#C8A84B',fontWeight:800,fontSize:'18px',padding:'6px 12px',borderRadius:'8px'}}>GGS</span>
-          <h1 style={{fontSize:'22px',fontWeight:700,color:'#0C1E3D',margin:'12px 0 4px'}}>Grupo Global en Seguros</h1>
-          <p style={{color:'#64748b',fontSize:'14px'}}>Sistema de gestión de pólizas</p>
+          <img src="/ggs-logo.svg" alt="GGS" style={{height:'100px',width:'auto',marginBottom:'8px'}} />
+          <p style={{color:'#6B6B62',fontSize:'13px',marginTop:'6px'}}>Sistema de gestión de pólizas</p>
         </div>
         <form onSubmit={handleLogin}>
           <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'6px'}}>Correo electrónico</label>
@@ -45,7 +44,7 @@ export default function Login() {
             style={{width:'100%',padding:'12px 14px',border:'1.5px solid #e2e8f0',borderRadius:'8px',fontSize:'15px',boxSizing:'border-box',marginBottom:'16px'}} />
           {error && <p style={{color:'#ef4444',fontSize:'13px',marginBottom:'12px'}}>{error}</p>}
           <button type="submit" disabled={loading}
-            style={{width:'100%',padding:'13px',background:loading?'#94a3b8':'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'15px',fontWeight:600,cursor:'pointer'}}>
+            style={{width:'100%',padding:'13px',background:loading?'#C5C5BE':'#C4A96B',color:'white',border:'none',borderRadius:'8px',fontSize:'15px',fontWeight:600,cursor:'pointer'}}>
             {loading ? 'Enviando...' : 'Enviar código de acceso'}
           </button>
         </form>

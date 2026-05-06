@@ -23,7 +23,7 @@ export default function Configuracion() {
   return (
     <div>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
-        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
             <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Configuración</h1>
             <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>Administración del sistema</p>
@@ -37,7 +37,7 @@ export default function Configuracion() {
       <div style={{ display:'flex', gap:'8px', marginBottom:'20px', flexWrap:'wrap' }}>
         {[['empresa', Building2, 'Empresa'], ['usuarios', Users, 'Usuarios'], ['miPerfil', User, 'Mi perfil']].map(([tab, Icon, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            style={{ display:'flex', alignItems:'center', gap:'7px', padding:'8px 18px', borderRadius:'8px', fontSize:'14px', fontWeight:500, cursor:'pointer', background:activeTab===tab?'#0C1E3D':'white', color:activeTab===tab?'white':'#64748b', border:'1px solid '+(activeTab===tab?'#0C1E3D':'#e2e8f0') }}>
+            style={{ display:'flex', alignItems:'center', gap:'7px', padding:'8px 18px', borderRadius:'8px', fontSize:'14px', fontWeight:500, cursor:'pointer', background:activeTab===tab?'#111111':'white', color:activeTab===tab?'white':'#64748b', border:'1px solid '+(activeTab===tab?'#111111':'#e2e8f0') }}>
             <Icon size={15} /> {label}
           </button>
         ))}
@@ -106,16 +106,16 @@ function TabEmpresa({ isAdmin }) {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'24px', flexWrap:'wrap', gap:'12px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
           <div style={{ width:'44px', height:'44px', borderRadius:'10px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Building2 size={20} color='#1A6BBA' />
+            <Building2 size={20} color='#C4A96B' />
           </div>
           <div>
-            <h2 style={{ fontSize:'16px', fontWeight:700, color:'#0C1E3D' }}>Información de la empresa</h2>
+            <h2 style={{ fontSize:'16px', fontWeight:700, color:'#111111' }}>Información de la empresa</h2>
             <p style={{ fontSize:'12px', color:'#64748b' }}>Datos que aparecen en documentos y reportes</p>
           </div>
         </div>
         {isAdmin && !editing && (
           <button onClick={() => setEditing(true)}
-            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
             <Edit2 size={13} /> Editar
           </button>
         )}
@@ -129,7 +129,7 @@ function TabEmpresa({ isAdmin }) {
           <div style={{ width:'80px', height:'80px', borderRadius:'12px', border:'2px solid #e2e8f0', background:'#f8fafc', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
             {form.logo_url
               ? <img src={form.logo_url} alt='Logo' style={{ width:'100%', height:'100%', objectFit:'contain' }} />
-              : <span style={{ background:'#C8A84B', color:'#0C1E3D', fontWeight:800, fontSize:'18px', padding:'6px 10px', borderRadius:'8px' }}>GGS</span>
+              : <span style={{ background:'#C8A84B', color:'#111111', fontWeight:800, fontSize:'18px', padding:'6px 10px', borderRadius:'8px' }}>GGS</span>
             }
           </div>
           {/* Upload */}
@@ -137,7 +137,7 @@ function TabEmpresa({ isAdmin }) {
             <p style={{ fontSize:'12px', color:'#64748b', marginBottom:'8px' }}>Se muestra en el menú lateral y documentos. PNG o SVG recomendado.</p>
             {editing ? (
               <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-                <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#0C1E3D', color:'white', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
                   <Upload size={13} />
                   {uploading ? 'Subiendo...' : 'Subir logo'}
                   <input type='file' accept='image/*' onChange={handleLogoUpload} disabled={uploading} style={{ display:'none' }} />
@@ -182,7 +182,7 @@ function TabEmpresa({ isAdmin }) {
       {editing && (
         <div style={{ display:'flex', gap:'8px', marginTop:'20px', paddingTop:'16px', borderTop:'1px solid #f1f5f9' }}>
           <button onClick={handleSave}
-            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 20px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
             <Save size={14} /> Guardar cambios
           </button>
           <button onClick={() => { setEditing(false); setForm(empresa) }}
@@ -256,12 +256,12 @@ function TabUsuarios({ isAdmin, currentUser }) {
     <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #f1f5f9', flexWrap:'wrap', gap:'10px' }}>
         <div>
-          <h2 style={{ fontSize:'16px', fontWeight:700, color:'#0C1E3D' }}>Usuarios del sistema</h2>
+          <h2 style={{ fontSize:'16px', fontWeight:700, color:'#111111' }}>Usuarios del sistema</h2>
           <p style={{ fontSize:'12px', color:'#64748b', marginTop:'2px' }}>{usuarios.length} usuarios registrados</p>
         </div>
         {isAdmin && (
           <button onClick={() => setShowInvite(!showInvite)}
-            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
             <Plus size={14} /> Invitar usuario
           </button>
         )}
@@ -290,7 +290,7 @@ function TabUsuarios({ isAdmin, currentUser }) {
             </div>
             <div style={{ display:'flex', gap:'8px' }}>
               <button type='submit' disabled={inviting}
-                style={{ padding:'8px 18px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+                style={{ padding:'8px 18px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
                 {inviting ? 'Enviando...' : 'Enviar invitación'}
               </button>
               <button type='button' onClick={() => setShowInvite(false)}
@@ -304,10 +304,10 @@ function TabUsuarios({ isAdmin, currentUser }) {
         usuarios.map((u, i) => (
           <div key={u.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom:i<usuarios.length-1?'1px solid #f1f5f9':'none', opacity:u.activo===false?0.5:1, flexWrap:'wrap', gap:'10px' }}>
             <div style={{ width:'38px', height:'38px', borderRadius:'50%', background:u.rol==='admin'?'#fef3c7':'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'4px', flexShrink:0 }}>
-              <User size={16} color={u.rol==='admin'?'#d97706':'#1A6BBA'} />
+              <User size={16} color={u.rol==='admin'?'#d97706':'#C4A96B'} />
             </div>
             <div style={{ flex:1, minWidth:'120px' }}>
-              <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{u.nombre || 'Sin nombre'} {u.id===currentUser?.id?<span style={{ fontSize:'11px', color:'#64748b', fontWeight:400 }}>(vos)</span>:''}</p>
+              <p style={{ fontWeight:600, color:'#111111', fontSize:'14px', margin:0 }}>{u.nombre || 'Sin nombre'} {u.id===currentUser?.id?<span style={{ fontSize:'11px', color:'#64748b', fontWeight:400 }}>(vos)</span>:''}</p>
               <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{u.email}</p>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
@@ -366,10 +366,10 @@ function TabMiPerfil({ currentUser, onUpdate }) {
     <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', padding:'24px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #f1f5f9' }}>
         <div style={{ width:'56px', height:'56px', borderRadius:'50%', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <User size={26} color='#1A6BBA' />
+          <User size={26} color='#C4A96B' />
         </div>
         <div>
-          <h2 style={{ fontSize:'17px', fontWeight:700, color:'#0C1E3D' }}>{currentUser?.nombre || 'Mi perfil'}</h2>
+          <h2 style={{ fontSize:'17px', fontWeight:700, color:'#111111' }}>{currentUser?.nombre || 'Mi perfil'}</h2>
           <p style={{ fontSize:'13px', color:'#64748b', margin:'2px 0 6px' }}>{currentUser?.email}</p>
           <span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'20px', background:currentUser?.rol==='admin'?'#fef3c7':'#dbeafe', color:currentUser?.rol==='admin'?'#d97706':'#1d4ed8', fontWeight:500 }}>
             {currentUser?.rol==='admin'?'Administrador':'Agente'}
@@ -393,7 +393,7 @@ function TabMiPerfil({ currentUser, onUpdate }) {
       </div>
 
       <button onClick={handleSave} disabled={saving}
-        style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 20px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+        style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
         <Save size={14} /> {saving ? 'Guardando...' : 'Guardar cambios'}
       </button>
     </div>

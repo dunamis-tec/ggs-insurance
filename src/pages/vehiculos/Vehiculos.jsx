@@ -175,7 +175,7 @@ export default function Vehiculos() {
         <ArrowLeft size={16}/> Volver a vehiculos
       </button>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',maxWidth:'800px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)'}}>
           <h2 style={{fontSize:'18px',fontWeight:700,color:'white',margin:0}}>{editing ? 'Editar vehiculo' : 'Nuevo vehiculo'}</h2>
           <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',marginTop:'4px',marginBottom:0}}>Completa la informacion del vehiculo</p>
         </div>
@@ -243,7 +243,7 @@ export default function Vehiculos() {
               </div>
             </div>
             <div style={{display:'flex',gap:'8px',paddingTop:'16px',borderTop:'1px solid #f1f5f9'}}>
-              <button type='submit' style={{padding:'11px 24px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+              <button type='submit' style={{padding:'11px 24px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
                 {editing ? 'Actualizar' : 'Crear vehiculo'}
               </button>
               <button type='button' onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId(''); setPlacaError(''); setChasisError('') }}
@@ -260,7 +260,7 @@ export default function Vehiculos() {
   return (
     <div>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Vehiculos</h1>
             <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
@@ -297,10 +297,10 @@ export default function Vehiculos() {
                 onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
                 onMouseLeave={e=>e.currentTarget.style.background='white'}>
                 <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
-                  <Car size={18} color='#1A6BBA'/>
+                  <Car size={18} color='#C4A96B'/>
                 </div>
                 <div style={{flex:1,minWidth:0,textAlign:'left'}}>
-                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{fontWeight:700,color:'#111111',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
                   <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {fp(v)} · {v.tipo}</p>
                 </div>
                 <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
@@ -352,7 +352,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
             <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
               <Car size={24} color='white'/>
@@ -386,8 +386,8 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
         <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
-          <FileText size={16} color='#1A6BBA'/>
-          <h3 style={{fontSize:'15px',fontWeight:600,color:'#0C1E3D',margin:0}}>Historial de polizas y emisiones</h3>
+          <FileText size={16} color='#C4A96B'/>
+          <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Historial de polizas y emisiones</h3>
           <span style={{marginLeft:'auto',background:'#dbeafe',color:'#1d4ed8',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>{historial.length}</span>
         </div>
         {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
@@ -402,7 +402,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
               onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
               onMouseLeave={e=>e.currentTarget.style.background='white'}>
               <div style={{flex:1}}>
-                <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px',margin:0}}>{h.emisiones?.polizas?.numero_poliza||'Sin numero'}</p>
+                <p style={{fontWeight:600,color:'#111111',fontSize:'14px',margin:0}}>{h.emisiones?.polizas?.numero_poliza||'Sin numero'}</p>
                 <p style={{fontSize:'12px',color:'#64748b',margin:0}}>
                   {h.emisiones?.numero_emision} · {tipoLabels[h.emisiones?.tipo]||h.emisiones?.tipo} · {h.emisiones?.polizas?.clientes?.nombre}
                 </p>
