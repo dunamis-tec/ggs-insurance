@@ -248,16 +248,6 @@ body{font-family:'Outfit',sans-serif;background:#0D0D09;color:var(--black)}
 
     <!-- Right actions -->
     <div class="topnav-right">
-      <!-- Preview page switcher -->
-      <div class="preview-pills">
-        <span class="preview-label">Preview</span>
-        <button class="sw-btn active" onclick="showPage('dashboard',this)">Dashboard</button>
-        <button class="sw-btn" onclick="showPage('polizas',this)">Pólizas</button>
-        <button class="sw-btn" onclick="showPage('poliza-detalle',this)">Detalle</button>
-        <button class="sw-btn" onclick="showPage('clientes',this)">Clientes</button>
-        <button class="sw-btn" onclick="showPage('tareas',this)">Tareas</button>
-      </div>
-      <div class="topnav-divider"></div>
       <button class="icon-btn" title="Configuración">⚙️</button>
       <button class="icon-btn" title="Notificaciones">🔔</button>
       <div class="topnav-divider"></div>
@@ -391,8 +381,8 @@ body{font-family:'Outfit',sans-serif;background:#0D0D09;color:var(--black)}
           <div class="tbl-head" style="grid-template-columns:1.6fr 1fr 1fr 0.9fr 0.9fr 0.7fr">
             <span>Número / Cliente</span><span>Aseguradora</span><span>Tipo</span><span>Prima</span><span>Vencimiento</span><span>Estado</span>
           </div>
-          <div class="tbl-row" style="grid-template-columns:1.6fr 1fr 1fr 0.9fr 0.9fr 0.7fr">
-            <div><div class="tbl-row-label">POL-2025-0048</div><div class="tbl-row-sub">Juan Pérez</div></div>
+          <div class="tbl-row" style="grid-template-columns:1.6fr 1fr 1fr 0.9fr 0.9fr 0.7fr" onclick="showPage('poliza-detalle',null,null)" title="Ver detalle">
+            <div><div class="tbl-row-label" style="color:var(--gold-dk)">POL-2025-0048 →</div><div class="tbl-row-sub">Juan Pérez</div></div>
             <span style="font-size:13px">Zurich</span><span style="font-size:13px">Automóviles</span>
             <span style="font-size:13px;font-weight:600">Q 8,500</span><span style="font-size:13px">31/12/2025</span>
             <span class="badge b-green">Emitida</span>
@@ -663,31 +653,17 @@ body{font-family:'Outfit',sans-serif;background:#0D0D09;color:var(--black)}
 </div><!-- /app-shell -->
 
 <script>
+// nav item index for each page
+var pageToNav = {dashboard:0, clientes:1, polizas:2, vehiculos:3, tareas:8}
+
 function showPage(id, swBtn, navBtn) {
-  // page views
   document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'))
   document.getElementById('page-'+id).classList.add('active')
-  // switcher buttons
-  if (swBtn) {
-    document.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('active'))
-    swBtn.classList.add('active')
-  }
-  // top nav items
-  if (navBtn) {
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'))
-    navBtn.classList.add('active')
-  }
-  // sync both directions
-  var pageToNav = {dashboard:0, clientes:1, polizas:2, tareas:8}
-  var pageToSw  = {dashboard:0, polizas:1, 'poliza-detalle':2, clientes:3, tareas:4}
-  if (!navBtn && pageToNav[id]!==undefined) {
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'))
-    document.querySelectorAll('.nav-item')[pageToNav[id]].classList.add('active')
-  }
-  if (!swBtn && pageToSw[id]!==undefined) {
-    document.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('active'))
-    document.querySelectorAll('.sw-btn')[pageToSw[id]].classList.add('active')
-  }
+
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'))
+  var navIdx = pageToNav[id]
+  if (navIdx !== undefined) document.querySelectorAll('.nav-item')[navIdx].classList.add('active')
+  if (navBtn) { document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); navBtn.classList.add('active') }
 }
 </script>
 </body>
