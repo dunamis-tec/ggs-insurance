@@ -22,28 +22,29 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Outfit',sans-serif;background:#0D0D09;color:var(--black)}
 
-/* ════ SWITCHER (meta-bar) ════ */
-.switcher{
-  position:fixed;top:0;left:0;right:0;z-index:9999;
-  background:#050503;border-bottom:1px solid #1A1A0E;
-  height:38px;display:flex;align-items:center;padding:0 16px;gap:0;
+/* ════ Preview pills (inside topnav) ════ */
+.preview-pills{
+  display:flex;align-items:center;gap:2px;
+  padding:4px 6px;border-radius:8px;
+  background:rgba(255,255,255,0.05);
+  margin-right:10px;
 }
-.switcher-logo{display:flex;align-items:center;gap:8px;margin-right:20px;padding-right:20px;border-right:1px solid #222}
-.switcher-logo img{height:18px;width:auto}
-.switcher-logo span{font-size:10px;color:#555;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.preview-label{
+  font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,0.25);padding-right:8px;white-space:nowrap;
+}
 .sw-btn{
-  height:38px;padding:0 14px;background:none;border:none;border-bottom:2px solid transparent;
-  color:#555;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;
-  cursor:pointer;transition:all .18s;white-space:nowrap;
+  padding:4px 10px;border-radius:6px;border:none;background:none;
+  color:rgba(255,255,255,0.35);font-family:'Outfit',sans-serif;
+  font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;
 }
-.sw-btn:hover{color:#888}
-.sw-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
-.sw-note{margin-left:auto;font-size:10px;color:#333;font-style:italic;white-space:nowrap}
+.sw-btn:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06)}
+.sw-btn.active{color:var(--gold);background:rgba(196,169,107,0.12)}
 
 /* ════ APP SHELL ════ */
 .app-shell{
   display:flex;flex-direction:column;
-  height:calc(100vh - 38px);margin-top:38px;overflow:hidden;
+  height:100vh;overflow:hidden;
 }
 
 /* ════ TOP NAV ════ */
@@ -218,20 +219,6 @@ body{font-family:'Outfit',sans-serif;background:#0D0D09;color:var(--black)}
 </head>
 <body>
 
-<!-- ══ SWITCHER ══ -->
-<div class="switcher">
-  <div class="switcher-logo">
-    <img src="/ggs-icon.svg" alt="GGS"/>
-    <span>Preview</span>
-  </div>
-  <button class="sw-btn active" onclick="showPage('dashboard',this)">Dashboard</button>
-  <button class="sw-btn" onclick="showPage('polizas',this)">Pólizas</button>
-  <button class="sw-btn" onclick="showPage('poliza-detalle',this)">Detalle Póliza</button>
-  <button class="sw-btn" onclick="showPage('clientes',this)">Clientes</button>
-  <button class="sw-btn" onclick="showPage('tareas',this)">Tareas</button>
-  <span class="sw-note">Sin cambios aplicados aún · solo estructura</span>
-</div>
-
 <!-- ══ APP SHELL ══ -->
 <div class="app-shell">
 
@@ -261,6 +248,15 @@ body{font-family:'Outfit',sans-serif;background:#0D0D09;color:var(--black)}
 
     <!-- Right actions -->
     <div class="topnav-right">
+      <!-- Preview page switcher -->
+      <div class="preview-pills">
+        <span class="preview-label">Preview</span>
+        <button class="sw-btn active" onclick="showPage('dashboard',this)">Dashboard</button>
+        <button class="sw-btn" onclick="showPage('polizas',this)">Pólizas</button>
+        <button class="sw-btn" onclick="showPage('poliza-detalle',this)">Detalle</button>
+        <button class="sw-btn" onclick="showPage('clientes',this)">Clientes</button>
+        <button class="sw-btn" onclick="showPage('tareas',this)">Tareas</button>
+      </div>
       <div class="topnav-divider"></div>
       <button class="icon-btn" title="Configuración">⚙️</button>
       <button class="icon-btn" title="Notificaciones">🔔</button>
