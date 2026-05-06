@@ -174,10 +174,10 @@ export default function Vehiculos() {
         style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
         <ArrowLeft size={16}/> Volver a vehiculos
       </button>
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',maxWidth:'800px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)'}}>
-          <h2 style={{fontSize:'18px',fontWeight:700,color:'white',margin:0}}>{editing ? 'Editar vehiculo' : 'Nuevo vehiculo'}</h2>
-          <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',marginTop:'4px',marginBottom:0}}>Completa la informacion del vehiculo</p>
+      <div style={{maxWidth:'800px'}}>
+        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0'}}>
+          <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:0}}>{editing ? 'Editar vehiculo' : 'Nuevo vehiculo'}</h2>
+          <p style={{fontSize:'13px',color:'#6B6B62',marginTop:'4px',marginBottom:0}}>Completa la informacion del vehiculo</p>
         </div>
         <div style={{padding:'24px'}}>
           <form onSubmit={handleSubmit}>
@@ -259,16 +259,16 @@ export default function Vehiculos() {
 
   return (
     <div>
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Vehiculos</h1>
-            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Vehiculos</h1>
+            <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {vehiculos.length} vehiculos · {vehiculos.filter(v=>v.polizas?.activa).length} en poliza activa
             </p>
           </div>
           <button onClick={()=>{ setView('form'); setEditing(null); setForm(emptyForm); setClienteId('') }}
-            style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+            style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
             <Plus size={16}/> Nuevo vehiculo
           </button>
         </div>
@@ -351,18 +351,18 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
         <ArrowLeft size={16}/> {fromPolizaId ? 'Volver a la póliza' : fromClienteId ? 'Volver al cliente' : 'Volver a vehiculos'}
       </button>
 
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{marginBottom:'16px'}}>
+        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <Car size={24} color='white'/>
+            <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <Car size={24} color='#C4A96B'/>
             </div>
             <div>
-              <h1 style={{fontSize:'20px',fontWeight:700,color:'white',margin:0}}>{vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}</h1>
-              <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'4px 0 0'}}>{vehiculo.clientes?.nombre} {vehiculo.clientes?.apellido||''} · {vehiculo.tipo}</p>
+              <h1 style={{fontSize:'20px',fontWeight:700,color:'#111111',margin:0}}>{vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}</h1>
+              <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>{vehiculo.clientes?.nombre} {vehiculo.clientes?.apellido||''} · {vehiculo.tipo}</p>
             </div>
           </div>
-          <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
+          <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
             <Edit2 size={13}/> Editar
           </button>
         </div>

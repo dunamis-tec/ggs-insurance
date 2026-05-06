@@ -181,9 +181,9 @@ export default function Clientes() {
         <ArrowLeft size={16} /> Volver a clientes
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', maxWidth:'800px' }}>
-        <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)' }}>
-          <h2 style={{ fontSize:'18px', fontWeight:700, color:'white', margin:0 }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
-          <p style={{ fontSize:'13px', color:'rgba(255,255,255,0.7)', marginTop:'4px', marginBottom:0 }}>Completa la informacion del cliente</p>
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9', background:'white', borderBottom:'1px solid #e2e8f0' }}>
+          <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111111', margin:0 }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+          <p style={{ fontSize:'13px', color:'#6B6B62', marginTop:'4px', marginBottom:0 }}>Completa la informacion del cliente</p>
         </div>
         <form onSubmit={handleSubmit} style={{ padding:'24px' }}>
           {(!editing || clientes.find(c => c.id === editing)?.tipo === 'prospecto') && (
@@ -337,13 +337,13 @@ export default function Clientes() {
   return (
     <div>
       {/* Header */}
-      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
-        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+      <div style={{ marginBottom:'20px' }}>
+        <div style={{ padding:'20px 24px', background:'white', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ textAlign:'left' }}>
-            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'#111111', margin:0 }}>
               {activeMainTab === 'clientes' ? 'Clientes' : 'Conglomerados'}
             </h1>
-            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
+            <p style={{ color:'#6B6B62', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
               {activeMainTab === 'clientes'
                 ? `${clientes.length} clientes · ${clientes.filter(c=>c.tipo==='empresa').length} empresas · ${clientes.filter(c=>c.tipo==='prospecto').length} prospectos`
                 : `${conglomerados.length} conglomerados`}
@@ -351,11 +351,11 @@ export default function Clientes() {
           </div>
           {activeMainTab === 'clientes'
             ? <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
-                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#FDF8EE', color:'#111111', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
                 <Plus size={16} /> Nuevo cliente
               </button>
             : <button onClick={() => { setShowCongForm(true); setCongForm(emptyCong); setEditingCong(null) }}
-                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#FDF8EE', color:'#111111', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
                 <Plus size={16} /> Nuevo conglomerado
               </button>
           }
@@ -640,22 +640,22 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         <ArrowLeft size={16} /> {fromReqId ? 'Volver al requerimiento' : 'Volver a clientes'}
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'16px' }}>
-        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'20px 24px', background:'white', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-            <div style={{ width:'52px', height:'52px', borderRadius:'12px', background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <Icon size={24} color='white' />
+            <div style={{ width:'52px', height:'52px', borderRadius:'12px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Icon size={24} color='#C4A96B' />
             </div>
             <div>
-              <h1 style={{ fontSize:'20px', fontWeight:700, color:'white', margin:0 }}>{getNombreDisplay()}</h1>
+              <h1 style={{ fontSize:'20px', fontWeight:700, color:'#111111', margin:0 }}>{getNombreDisplay()}</h1>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', marginTop:'4px' }}>
-                <span style={{ fontSize:'12px', padding:'2px 8px', borderRadius:'20px', background:'rgba(255,255,255,0.2)', color:'white', fontWeight:500 }}>
+                <span style={{ fontSize:'12px', padding:'2px 8px', borderRadius:'20px', background:'#FDF8EE', color:'#111111', fontWeight:500 }}>
                   {cliente.tipo.charAt(0).toUpperCase() + cliente.tipo.slice(1)}
                 </span>
-                {cliente.conglomerados && <span style={{ fontSize:'12px', color:'rgba(255,255,255,0.7)' }}>· {cliente.conglomerados.nombre}</span>}
+                {cliente.conglomerados && <span style={{ fontSize:'12px', color:'#6B6B62' }}>· {cliente.conglomerados.nombre}</span>}
               </div>
             </div>
           </div>
-          <button onClick={() => onEdit(cliente)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', flexShrink:0 }}>
+          <button onClick={() => onEdit(cliente)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#FDF8EE', color:'#111111', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', flexShrink:0 }}>
             <Edit2 size={13} /> Editar
           </button>
         </div>

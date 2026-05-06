@@ -332,9 +332,9 @@ export default function Polizas() {
         <ArrowLeft size={16}/> Volver a pólizas
       </button>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)'}}>
-          <h2 style={{fontSize:'18px',fontWeight:700,color:'white',margin:0}}>{editing ? 'Editar solicitud' : 'Nueva solicitud de póliza'}</h2>
-          <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',marginTop:'4px',marginBottom:0}}>
+        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0'}}>
+          <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:0}}>{editing ? 'Editar solicitud' : 'Nueva solicitud de póliza'}</h2>
+          <p style={{fontSize:'13px',color:'#6B6B62',marginTop:'4px',marginBottom:0}}>
             {editing ? 'Actualiza los datos de la solicitud' : 'Completa el formulario para crear la solicitud'}
           </p>
         </div>
@@ -538,16 +538,16 @@ export default function Polizas() {
   /* ── VIEW: LIST ── */
   return (
     <div>
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'12px'}}>
+      <div style={{marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'12px'}}>
           <div>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Pólizas</h1>
-            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Pólizas</h1>
+            <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {counts.todas} total · {counts.solicitud} solicitudes · {counts.enviada} enviadas · {counts.en_reproceso} en reproceso · {counts.emitida} emitidas
             </p>
           </div>
           <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([]);setClienteVehiculos([]);setVehiculosSeleccionados([]);setClienteValidation([])}}
-            style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+            style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
             <Plus size={16}/> Nueva solicitud
           </button>
         </div>
@@ -939,18 +939,18 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       </button>
 
       {/* Header */}
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)'}}>
+      <div style={{marginBottom:'16px'}}>
+        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0'}}>
           {/* Row 1: identity + actions */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}}>
             {/* Left: logo + title + badge */}
             <div style={{display:'flex',alignItems:'center',gap:'14px',minWidth:0}}>
-              <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'rgba(255,255,255,0.15)',flexShrink:0}}>
+              <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#FDF8EE',flexShrink:0}}>
                 {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="white"/>}
               </div>
               <div style={{minWidth:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
-                  <h1 style={{fontSize:'20px',fontWeight:700,color:'white',margin:0,whiteSpace:'nowrap'}}>
+                  <h1 style={{fontSize:'20px',fontWeight:700,color:'#111111',margin:0,whiteSpace:'nowrap'}}>
                     {poliza.numero_poliza || `SOL-${poliza.numero_solicitud||'?'}`}
                   </h1>
                   <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',fontWeight:700,background:pEst.bg,color:pEst.color}}>{pEst.label}</span>
@@ -980,14 +980,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               {/* PDF solicitud: solo visible cuando NO emitida */}
               {!isEmitida && (
                 <button onClick={()=>toast('Generación de PDF próximamente', {icon:'📄'})}
-                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#F7F5F2',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
                   <Download size={13}/> PDF solicitud
                 </button>
               )}
               {/* PDF póliza: visible cuando emitida y tiene PDF */}
               {isEmitida && poliza.poliza_pdf_url && (
                 <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
-                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#F7F5F2',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
                   <Download size={13}/> Póliza PDF
                 </a>
               )}
@@ -995,7 +995,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               {/* solicitud → Enviar a aseguradora */}
               {poliza.estado === 'solicitud' && (
                 <button onClick={avanzarEstado}
-                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
                   <SendHorizonal size={14}/> Enviar a aseguradora
                 </button>
               )}
@@ -1008,7 +1008,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     <RefreshCw size={13}/> En reproceso
                   </button>
                   <button onClick={()=>setShowEmitirModal(true)}
-                    style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#16a34a',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                    style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#16a34a',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
                     <CheckCircle size={14}/> Emitir póliza
                   </button>
                 </>
@@ -1017,7 +1017,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               {/* en_reproceso → Re-enviar */}
               {poliza.estado === 'en_reproceso' && (
                 <button onClick={avanzarEstado}
-                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
                   <SendHorizonal size={14}/> Re-enviar a aseguradora
                 </button>
               )}
@@ -1026,15 +1026,15 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               {isEmitida && (
                 <>
                   <button onClick={()=>abrirFormEmision('inclusion')}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#FDF8EE',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                     <Plus size={13}/> Inclusión
                   </button>
                   <button onClick={()=>abrirFormEmision('exclusion')}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#FDF8EE',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                     <Minus size={13}/> Exclusión
                   </button>
                   <button onClick={renovarPoliza}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#FDF8EE',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                     <RefreshCw size={13}/> Renovar
                   </button>
                 </>
@@ -1042,7 +1042,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
               {/* Editar siempre visible */}
               <button onClick={()=>onEdit(poliza)}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 12px',background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.85)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 12px',background:'#F7F5F2',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
                 <Edit2 size={13}/> Editar
               </button>
             </div>

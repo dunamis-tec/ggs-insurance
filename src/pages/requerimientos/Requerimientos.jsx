@@ -105,14 +105,14 @@ export default function Requerimientos() {
         </button>
 
         {/* ── Header full-width ── */}
-        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
-          <div style={{padding:'24px 28px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
+        <div style={{marginBottom:'16px'}}>
+          <div style={{padding:'24px 28px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-              <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <CreditCard size={24} color='white'/>
+              <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <CreditCard size={24} color='#C4A96B'/>
               </div>
               <div>
-                <h2 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0,letterSpacing:'-0.3px'}}>{selected.codigo}</h2>
+                <h2 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0,letterSpacing:'-0.3px'}}>{selected.codigo}</h2>
                 <p style={{fontSize:'13px',color:'rgba(255,255,255,0.65)',margin:'4px 0 0'}}>
                   Cuota {selected.numero_cuota} de {selected.total_cuotas}
                   {selected.polizas?.aseguradoras?.nombre && <span style={{marginLeft:'10px',opacity:0.8}}>· {selected.polizas.aseguradoras.nombre}</span>}
@@ -122,12 +122,12 @@ export default function Requerimientos() {
             <div style={{display:'flex',alignItems:'center',gap:'12px',flexShrink:0}}>
               <div style={{textAlign:'right'}}>
                 <p style={{fontSize:'11px',color:'rgba(255,255,255,0.55)',margin:0}}>Monto</p>
-                <p style={{fontSize:'26px',fontWeight:800,color:'white',margin:'2px 0 0',letterSpacing:'-0.5px'}}>Q {parseFloat(selected.monto||0).toLocaleString()}</p>
+                <p style={{fontSize:'26px',fontWeight:800,color:'#111111',margin:'2px 0 0',letterSpacing:'-0.5px'}}>Q {parseFloat(selected.monto||0).toLocaleString()}</p>
               </div>
-              <div style={{width:'1px',height:'40px',background:'rgba(255,255,255,0.2)'}}/>
-              <div style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',background:selected.estado==='pagado'?'rgba(34,197,94,0.25)':displayEstado==='vencido'?'rgba(239,68,68,0.25)':displayEstado==='por_cobrar'?'rgba(245,158,11,0.25)':'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.2)'}}>
-                <Icon size={13} color='white'/>
-                <span style={{fontSize:'13px',fontWeight:600,color:'white'}}>{estadoLabel[displayEstado]}</span>
+              <div style={{width:'1px',height:'40px',background:'#FDF8EE'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',background:selected.estado==='pagado'?'rgba(34,197,94,0.25)':displayEstado==='vencido'?'rgba(239,68,68,0.25)':displayEstado==='por_cobrar'?'rgba(245,158,11,0.25)':'rgba(255,255,255,0.15)',border:'1px solid #e2e8f0'}}>
+                <Icon size={13} color='#C4A96B'/>
+                <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>{estadoLabel[displayEstado]}</span>
               </div>
             </div>
           </div>
@@ -304,11 +304,11 @@ export default function Requerimientos() {
   // --- LISTA ---
   return (
     <div>
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #111111 0%, #C4A96B 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Requerimientos de pago</h1>
-            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Requerimientos de pago</h1>
+            <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {reqs.length} total · {countBy('pendiente')+countBy('por_cobrar')} pendientes · {countBy('vencido')} vencidos
             </p>
           </div>
