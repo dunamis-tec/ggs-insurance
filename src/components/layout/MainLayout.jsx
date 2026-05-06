@@ -4,21 +4,15 @@ import { supabase } from '../../lib/supabase'
 import {
   LayoutDashboard, Users, FileText, Building2, CreditCard,
   BookOpen, DollarSign, CheckSquare, Car, LogOut, Settings,
-  ChevronLeft, ChevronRight, X, Grid3x3
+  X, Grid3x3
 } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 
-// Bottom-tab items (mobile primary nav)
-const tabItems = [
-  { to: '/',          icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/polizas',   icon: FileText,        label: 'Pólizas' },
-  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
-  { to: '/clientes',  icon: Users,           label: 'Clientes' },
-]
+const NAV_HEIGHT = 54
 
-// All nav items (sidebar + menu sheet)
+// All nav items
 const navItems = [
-  { to: '/',              icon: LayoutDashboard, label: 'Dashboard',       end: true },
+  { to: '/',              icon: LayoutDashboard, label: 'Dashboard',      end: true },
   { to: '/clientes',      icon: Users,           label: 'Clientes' },
   { to: '/polizas',       icon: FileText,        label: 'Pólizas' },
   { to: '/vehiculos',     icon: Car,             label: 'Vehículos' },
@@ -30,49 +24,48 @@ const navItems = [
   { to: '/configuracion', icon: Settings,        label: 'Configuración' },
 ]
 
-// Items shown in "Menú" sheet (all except the 4 tab items)
-const menuSheetItems = [
-  { to: '/aseguradoras',  icon: Building2,       label: 'Aseguradoras' },
-  { to: '/requerimientos',icon: CreditCard,      label: 'Requerimientos' },
-  { to: '/liquidaciones', icon: BookOpen,        label: 'Liquidaciones' },
-  { to: '/comisiones',    icon: DollarSign,      label: 'Comisiones' },
-  { to: '/tareas',        icon: CheckSquare,     label: 'Tareas' },
-  { to: '/configuracion', icon: Settings,        label: 'Configuración' },
+// Bottom-tab items (mobile)
+const tabItems = [
+  { to: '/',          icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/polizas',   icon: FileText,        label: 'Pólizas' },
+  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
+  { to: '/clientes',  icon: Users,           label: 'Clientes' },
 ]
 
-const SIDEBAR_EXPANDED = 240
-const SIDEBAR_COLLAPSED = 64
+// Menu sheet items (mobile — everything not in tab bar)
+const menuSheetItems = [
+  { to: '/aseguradoras',  icon: Building2,  label: 'Aseguradoras' },
+  { to: '/requerimientos',icon: CreditCard, label: 'Requerimientos' },
+  { to: '/liquidaciones', icon: BookOpen,   label: 'Liquidaciones' },
+  { to: '/comisiones',    icon: DollarSign, label: 'Comisiones' },
+  { to: '/tareas',        icon: CheckSquare,label: 'Tareas' },
+  { to: '/configuracion', icon: Settings,   label: 'Configuración' },
+]
 
 export default function MainLayout({ session }) {
-  const [collapsed, setCollapsed]   = useState(false)
-  const [menuOpen, setMenuOpen]     = useState(false)
+  const [menuOpen, setMenuOpen]       = useState(false)
   const [companyLogo, setCompanyLogo] = useState(null)
-  const navigate    = useNavigate()
-  const location    = useLocation()
+  const navigate  = useNavigate()
+  const location  = useLocation()
   const { isMobile } = useBreakpoint()
 
-  // Fetch company logo on mount
   useEffect(() => {
     supabase.from('configuracion_empresa').select('logo_url').single()
       .then(({ data }) => { if (data?.logo_url) setCompanyLogo(data.logo_url) })
   }, [])
 
-  // Listen for logo updates from Configuracion page
   useEffect(() => {
     const handler = (e) => setCompanyLogo(e.detail || null)
     window.addEventListener('companyLogoUpdated', handler)
     return () => window.removeEventListener('companyLogoUpdated', handler)
   }, [])
 
-  // Close menu sheet on route change
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     navigate('/login')
   }
-
-  const w = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED
 
   /* ─── MOBILE LAYOUT ─────────────────────────────────────────── */
   if (isMobile) {
@@ -83,18 +76,14 @@ export default function MainLayout({ session }) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#F7F5F2' }}>
 
-        {/* ── Top header ── */}
+        {/* Top header */}
         <header style={{
           background: '#111111',
           height: '52px',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
-          gap: '12px',
-          position: 'fixed',
-          top: 0, left: 0, right: 0,
-          zIndex: 150,
-          flexShrink: 0,
+          display: 'flex', alignItems: 'center',
+          padding: '0 16px', gap: '12px',
+          position: 'fixed', top: 0, left: 0, right: 0,
+          zIndex: 150, flexShrink: 0,
         }}>
           {companyLogo
             ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
@@ -106,40 +95,27 @@ export default function MainLayout({ session }) {
           </span>
         </header>
 
-        {/* ── Main content ── */}
-        <main style={{
-          marginTop: '52px',
-          marginBottom: '60px',
-          flex: 1,
-          padding: '12px',
-          background: '#F7F5F2',
-          boxSizing: 'border-box',
-          minHeight: 'calc(100vh - 112px)',
-        }}>
+        {/* Main content */}
+        <main style={{ marginTop: '52px', marginBottom: '60px', flex: 1, padding: '12px', background: '#F7F5F2', boxSizing: 'border-box', minHeight: 'calc(100vh - 112px)' }}>
           <Outlet />
         </main>
 
-        {/* ── Menu sheet overlay ── */}
+        {/* Menu sheet overlay */}
         {menuOpen && (
-          <div
-            onClick={() => setMenuOpen(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200 }}
-          />
+          <div onClick={() => setMenuOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200 }} />
         )}
 
-        {/* ── Menu sheet ── */}
+        {/* Menu sheet */}
         <div style={{
           position: 'fixed',
           bottom: menuOpen ? '60px' : '-100%',
           left: 0, right: 0,
-          background: 'white',
-          borderRadius: '20px 20px 0 0',
-          zIndex: 210,
-          transition: 'bottom 0.28s cubic-bezier(0.4,0,0.2,1)',
+          background: 'white', borderRadius: '20px 20px 0 0',
+          zIndex: 210, transition: 'bottom 0.28s cubic-bezier(0.4,0,0.2,1)',
           boxShadow: '0 -4px 32px rgba(0,0,0,0.15)',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
-          {/* Sheet header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#111111' }}>Menú</span>
             <button onClick={() => setMenuOpen(false)}
@@ -147,8 +123,6 @@ export default function MainLayout({ session }) {
               <X size={16} color='#64748b' />
             </button>
           </div>
-
-          {/* Sheet items grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', padding: '12px 16px' }}>
             {menuSheetItems.map(({ to, icon: Icon, label, end }) => {
               const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
@@ -164,8 +138,6 @@ export default function MainLayout({ session }) {
               )
             })}
           </div>
-
-          {/* Logout row */}
           <div style={{ padding: '0 16px 16px' }}>
             <button onClick={handleLogout}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: '#fff5f5', border: '1px solid #fee2e2', borderRadius: '12px', cursor: 'pointer', color: '#ef4444', fontSize: '14px', fontWeight: 600 }}>
@@ -175,18 +147,13 @@ export default function MainLayout({ session }) {
           </div>
         </div>
 
-        {/* ── Bottom tab bar ── */}
+        {/* Bottom tab bar */}
         <nav style={{
-          position: 'fixed',
-          bottom: 0, left: 0, right: 0,
-          height: '60px',
-          background: 'white',
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          height: '60px', background: 'white',
           borderTop: '1px solid #e2e8f0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-around',
-          zIndex: 190,
-          paddingBottom: 'env(safe-area-inset-bottom)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+          zIndex: 190, paddingBottom: 'env(safe-area-inset-bottom)',
           boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
         }}>
           {tabItems.map(({ to, icon: Icon, label, end }) => {
@@ -199,10 +166,7 @@ export default function MainLayout({ session }) {
               </NavLink>
             )
           })}
-
-          {/* Menú button */}
-          <button
-            onClick={() => setMenuOpen(o => !o)}
+          <button onClick={() => setMenuOpen(o => !o)}
             style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', color: menuOpen ? '#C4A96B' : '#94a3b8' }}>
             <Grid3x3 size={22} color={menuOpen ? '#C4A96B' : '#94a3b8'} strokeWidth={menuOpen ? 2.5 : 1.8} />
             <span style={{ fontSize: '10px', fontWeight: menuOpen ? 700 : 500 }}>Menú</span>
@@ -212,106 +176,77 @@ export default function MainLayout({ session }) {
     )
   }
 
-  /* ─── DESKTOP LAYOUT ─────────────────────────────────────────── */
+  /* ─── DESKTOP LAYOUT — TOP NAV ───────────────────────────────── */
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <aside style={{
-        width: `${w}px`,
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+
+      {/* ── Top navigation bar ── */}
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0,
+        height: `${NAV_HEIGHT}px`,
         background: '#111111',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'fixed',
-        top: 0, left: 0,
-        height: '100vh',
-        zIndex: 100,
-        transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
-        overflow: 'hidden',
-        borderRight: '1px solid rgba(196,169,107,0.15)',
+        borderBottom: '1px solid rgba(196,169,107,0.15)',
+        display: 'flex', alignItems: 'center',
+        padding: '0 24px', gap: 0,
+        zIndex: 100, flexShrink: 0,
       }}>
-        {/* Logo + toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: collapsed ? '20px 0' : '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
-          {!collapsed && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-              {companyLogo
-                ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '6px', background: 'white', padding: '2px', flexShrink: 0 }} />
-                : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '30px', width: 'auto', flexShrink: 0 }} />
-              }
-              <div style={{ overflow: 'hidden' }}>
-                <div style={{ color: 'white', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', lineHeight: 1.2 }}>Grupo Global</div>
-                <div style={{ color: '#C4A96B', fontSize: '10px', fontWeight: 400, whiteSpace: 'nowrap', letterSpacing: '0.05em' }}>en Seguros</div>
-              </div>
-            </div>
-          )}
-          {collapsed && (
-            companyLogo
-              ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '6px', background: 'white', padding: '2px' }} />
-              : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '30px', width: 'auto' }} />
-          )}
-          {!collapsed && (
-            <button onClick={() => setCollapsed(true)} title="Contraer menú"
-              style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '6px', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <ChevronLeft size={15} color='rgba(255,255,255,0.7)' />
-            </button>
-          )}
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginRight: '28px', paddingRight: '24px', borderRight: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          {companyLogo
+            ? <img src={companyLogo} alt="Logo" style={{ height: '30px', width: '30px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
+            : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '28px', width: 'auto' }} />
+          }
+          <div style={{ lineHeight: 1.2 }}>
+            <div style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>Grupo Global</div>
+            <div style={{ color: '#C4A96B', fontSize: '9px', fontWeight: 400, letterSpacing: '0.06em', textTransform: 'uppercase' }}>en Seguros</div>
+          </div>
         </div>
 
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Nav items */}
+        <nav style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
           {navItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink key={to} to={to} end={end}
-              title={collapsed ? label : undefined}
+              title={label}
               style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                gap: '10px',
-                padding: collapsed ? '10px 0' : '10px 12px',
-                borderRadius: '8px',
-                color: isActive ? 'white' : 'rgba(255,255,255,0.65)',
-                background: isActive ? '#C4A96B' : 'transparent',
-                fontSize: '14px',
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                height: `${NAV_HEIGHT}px`, padding: '0 13px',
+                color: isActive ? '#C4A96B' : 'rgba(255,255,255,0.5)',
+                borderBottom: isActive ? '2px solid #C4A96B' : '2px solid transparent',
+                fontSize: '13px', fontWeight: isActive ? 600 : 400,
+                textDecoration: 'none', whiteSpace: 'nowrap',
+                transition: 'color 0.15s',
+                flexShrink: 0,
               })}>
-              <Icon size={18} style={{ flexShrink: 0 }} />
-              {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>}
+              <Icon size={15} style={{ flexShrink: 0 }} />
+              {label}
             </NavLink>
           ))}
         </nav>
 
-        {/* Footer */}
-        <div style={{ padding: collapsed ? '12px 8px' : '16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', flexShrink: 0, gap: '8px' }}>
-          {!collapsed && (
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-              {session?.user?.email}
-            </span>
-          )}
+        {/* Right: user + logout */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, marginLeft: '16px', paddingLeft: '16px', borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(196,169,107,0.2)', border: '1px solid rgba(196,169,107,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#C4A96B', flexShrink: 0 }}>
+            {session?.user?.email?.[0]?.toUpperCase() || 'U'}
+          </div>
+          <div style={{ lineHeight: 1.2 }}>
+            <div style={{ color: 'white', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{session?.user?.email?.split('@')[0] || 'Usuario'}</div>
+            <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px' }}>Administrador</div>
+          </div>
           <button onClick={handleLogout} title="Cerrar sesión"
-            style={{ background: 'transparent', color: 'rgba(255,255,255,0.5)', padding: '4px', borderRadius: '4px', cursor: 'pointer', border: 'none', flexShrink: 0 }}>
-            <LogOut size={16} />
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '6px' }}>
+            <LogOut size={15} />
           </button>
         </div>
-
-        {/* Expand button when collapsed */}
-        {collapsed && (
-          <button onClick={() => setCollapsed(false)} title="Expandir menú"
-            style={{ margin: '0 8px 12px', background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '6px', padding: '7px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <ChevronRight size={15} color='rgba(255,255,255,0.7)' />
-          </button>
-        )}
-      </aside>
+      </header>
 
       {/* Main content */}
       <main style={{
-        marginLeft: `${w}px`,
+        marginTop: `${NAV_HEIGHT}px`,
         flex: 1,
         padding: '24px',
-        minHeight: '100vh',
+        minHeight: `calc(100vh - ${NAV_HEIGHT}px)`,
         background: '#F7F5F2',
         boxSizing: 'border-box',
-        transition: 'margin-left 0.22s cubic-bezier(0.4,0,0.2,1)',
       }}>
         <Outlet />
       </main>
