@@ -106,7 +106,7 @@ export default function Requerimientos() {
 
         {/* ── Header full-width ── */}
         <div style={{marginBottom:'16px'}}>
-          <div style={{padding:'24px 28px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
+          <div style={{padding:'24px 28px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
               <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                 <CreditCard size={24} color='#C4A96B'/>
@@ -305,7 +305,7 @@ export default function Requerimientos() {
   return (
     <div>
       <div style={{marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Requerimientos de pago</h1>
             <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>

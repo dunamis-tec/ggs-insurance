@@ -181,7 +181,7 @@ export default function Clientes() {
         <ArrowLeft size={16} /> Volver a clientes
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', maxWidth:'800px' }}>
-        <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9', background:'white', borderBottom:'1px solid #e2e8f0' }}>
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9',  }}>
           <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111111', margin:0 }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
           <p style={{ fontSize:'13px', color:'#6B6B62', marginTop:'4px', marginBottom:0 }}>Completa la informacion del cliente</p>
         </div>
@@ -338,7 +338,7 @@ export default function Clientes() {
     <div>
       {/* Header */}
       <div style={{ marginBottom:'20px' }}>
-        <div style={{ padding:'20px 24px', background:'white', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ textAlign:'left' }}>
             <h1 style={{ fontSize:'22px', fontWeight:700, color:'#111111', margin:0 }}>
               {activeMainTab === 'clientes' ? 'Clientes' : 'Conglomerados'}
@@ -640,7 +640,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         <ArrowLeft size={16} /> {fromReqId ? 'Volver al requerimiento' : 'Volver a clientes'}
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'16px' }}>
-        <div style={{ padding:'20px 24px', background:'white', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
             <div style={{ width:'52px', height:'52px', borderRadius:'12px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <Icon size={24} color='#C4A96B' />

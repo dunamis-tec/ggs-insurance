@@ -332,7 +332,7 @@ export default function Polizas() {
         <ArrowLeft size={16}/> Volver a pólizas
       </button>
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0'}}>
+        <div style={{padding:'20px 24px',}}>
           <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:0}}>{editing ? 'Editar solicitud' : 'Nueva solicitud de póliza'}</h2>
           <p style={{fontSize:'13px',color:'#6B6B62',marginTop:'4px',marginBottom:0}}>
             {editing ? 'Actualiza los datos de la solicitud' : 'Completa el formulario para crear la solicitud'}
@@ -539,7 +539,7 @@ export default function Polizas() {
   return (
     <div>
       <div style={{marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'12px'}}>
+        <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'12px'}}>
           <div>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Pólizas</h1>
             <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
@@ -940,7 +940,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
       {/* Header */}
       <div style={{marginBottom:'16px'}}>
-        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0'}}>
+        <div style={{padding:'20px 24px',}}>
           {/* Row 1: identity + actions */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}}>
             {/* Left: logo + title + badge */}

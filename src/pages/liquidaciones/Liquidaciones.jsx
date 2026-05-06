@@ -150,7 +150,7 @@ export default function Liquidaciones() {
     <div>
       {/* Header */}
       <div style={{marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',background:'white', borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Liquidaciones</h1>
             <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
