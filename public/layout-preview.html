@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GGS — Preview de Nueva Estructura</title>
+<link rel="icon" href="/ggs-icon.svg" type="image/svg+xml"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Libre+Baskerville:ital,wght@1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --gold:      #C4A96B;
+  --gold-dk:   #A8883F;
+  --gold-bg:   #FDF8EE;
+  --gold-lt:   #EDE3C6;
+  --black:     #111111;
+  --cream:     #F7F5F2;
+  --silver:    #C5C5BE;
+  --gray:      #6B6B62;
+  --border:    #E8E6E0;
+  --white:     #FFFFFF;
+  --sidebar-w: 60px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:#1A1A14;color:var(--black)}
+
+/* ── Switcher ── */
+.switcher{
+  position:fixed;top:0;left:0;right:0;
+  background:#0D0D09;border-bottom:1px solid #2A2A1E;
+  display:flex;align-items:center;gap:0;z-index:9999;
+  height:48px;padding:0 16px;
+}
+.switcher-logo{display:flex;align-items:center;gap:10px;margin-right:24px}
+.switcher-logo img{height:22px;width:auto}
+.switcher-label{font-size:11px;color:#555;font-weight:500;letter-spacing:.05em;text-transform:uppercase;margin-right:16px;white-space:nowrap}
+.sw-btn{
+  padding:8px 16px;background:none;border:none;border-bottom:2px solid transparent;
+  color:#666;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .2s;white-space:nowrap;height:48px;
+}
+.sw-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.sw-note{margin-left:auto;font-size:11px;color:#444;font-style:italic;white-space:nowrap}
+
+/* ── App shell ── */
+.app-shell{
+  display:flex;height:calc(100vh - 48px);margin-top:48px;
+  overflow:hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--black);
+  display:flex;flex-direction:column;align-items:center;
+  padding:12px 0;gap:4px;
+  border-right:1px solid rgba(196,169,107,0.12);
+}
+.sb-expand{
+  width:34px;height:34px;border-radius:8px;
+  background:rgba(255,255,255,0.06);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:rgba(255,255,255,0.4);font-size:13px;font-weight:700;
+  margin-bottom:8px;
+}
+.sb-icon{
+  width:40px;height:40px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .15s;color:rgba(255,255,255,0.45);
+  font-size:17px;
+}
+.sb-icon:hover{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75)}
+.sb-icon.active{background:rgba(196,169,107,0.18);color:var(--gold)}
+.sb-divider{width:28px;height:1px;background:rgba(255,255,255,0.08);margin:6px 0}
+
+/* ── Main content ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--cream)}
+
+/* ── Page header ── */
+.page-header{
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  padding:0 28px;
+  flex-shrink:0;
+}
+.page-header-top{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 0 6px;font-size:12px;color:var(--gray);
+}
+.page-header-top .back-btn{
+  display:flex;align-items:center;gap:4px;color:var(--gold);
+  font-size:12px;font-weight:500;cursor:pointer;background:none;border:none;
+  font-family:'Outfit',sans-serif;
+}
+.page-header-top .breadcrumb-sep{color:#ccc}
+.page-header-main{
+  display:flex;align-items:center;gap:0;padding:0 0 14px;
+}
+.page-header-title{
+  flex:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.page-header-title h1{font-size:22px;font-weight:700;color:var(--black);letter-spacing:-.02em}
+.badge{
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
+  letter-spacing:.03em;
+}
+.badge-gold{background:rgba(196,169,107,0.15);color:var(--gold-dk);border:1px solid rgba(196,169,107,0.3)}
+.badge-green{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
+.badge-orange{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}
+.badge-gray{background:#F1F5F9;color:#64748B;border:1px solid #E2E8F0}
+.badge-blue{background:#EDE3C6;color:#A8883F;border:1px solid #C4A96B}
+.page-header-actions{display:flex;align-items:center;gap:8px}
+.btn-primary{
+  padding:8px 16px;background:var(--gold);color:white;
+  border:none;border-radius:8px;font-family:'Outfit',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;
+}
+.btn-secondary{
+  padding:8px 16px;background:white;color:var(--black);
+  border:1px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;
+  font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;
+}
+.btn-ghost{
+  padding:8px 14px;background:transparent;color:var(--gray);
+  border:none;border-radius:8px;font-family:'Outfit',sans-serif;
+  font-size:13px;font-weight:500;cursor:pointer;
+}
+
+/* ── Page content ── */
+.page-content{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:20px}
+
+/* ── Alert banner ── */
+.alert-banner{
+  background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  font-size:13px;color:#92400E;font-weight:500;
+}
+
+/* ── KPI cards ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.kpi-card{
+  background:white;border-radius:12px;padding:18px 20px;
+  border:1px solid var(--border);
+}
+.kpi-label{font-size:12px;color:var(--gray);font-weight:500;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.kpi-value{font-size:26px;font-weight:700;color:var(--black);line-height:1.1}
+.kpi-value.gold{color:var(--gold-dk)}
+.kpi-value.orange{color:#C2410C}
+.kpi-sub{font-size:11px;color:var(--silver);margin-top:4px}
+.kpi-trend{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--gold-bg);color:var(--gold-dk)}
+
+/* ── Stepper ── */
+.stepper{
+  background:white;border:1px solid var(--border);border-radius:12px;
+  padding:20px 24px;display:flex;align-items:center;gap:0;
+}
+.step{display:flex;align-items:center;flex:1}
+.step-circle{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;flex-shrink:0;
+}
+.step-circle.done{background:rgba(196,169,107,0.15);color:var(--gold-dk);border:2px solid var(--gold)}
+.step-circle.active{background:var(--gold);color:white;border:2px solid var(--gold-dk)}
+.step-circle.pending{background:#F1F5F9;color:#94A3B8;border:2px solid #E2E8F0}
+.step-label{font-size:11px;margin-top:6px;font-weight:600;text-align:center}
+.step-label.done{color:var(--gold-dk)}
+.step-label.active{color:var(--black)}
+.step-label.pending{color:#94A3B8}
+.step-inner{display:flex;flex-direction:column;align-items:center}
+.step-line{flex:1;height:2px;background:var(--border);margin:0 6px;position:relative;top:-10px}
+.step-line.done{background:var(--gold)}
+
+/* ── Table ── */
+.table-card{background:white;border-radius:12px;border:1px solid var(--border);overflow:hidden}
+.table-header{
+  padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+}
+.table-header h3{font-size:15px;font-weight:700;color:var(--black)}
+.table-search{
+  padding:7px 12px;border:1px solid var(--border);border-radius:8px;
+  font-family:'Outfit',sans-serif;font-size:13px;color:var(--black);
+  background:var(--cream);width:220px;outline:none;
+}
+.table-head{
+  display:grid;padding:10px 20px;
+  background:var(--cream);border-bottom:1px solid var(--border);
+}
+.table-head span{font-size:11px;font-weight:700;color:var(--gray);letter-spacing:.05em;text-transform:uppercase}
+.table-row{
+  display:grid;padding:14px 20px;border-bottom:1px solid #F5F3EF;
+  align-items:center;cursor:pointer;transition:background .12s;
+}
+.table-row:hover{background:#FDFBF7}
+.table-row:last-child{border-bottom:none}
+.table-row span{font-size:13px;color:var(--black)}
+.table-row .sub{font-size:12px;color:var(--gray);margin-top:2px}
+
+/* ── Section card ── */
+.section-card{background:white;border-radius:12px;border:1px solid var(--border)}
+.section-head{
+  padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);cursor:pointer;
+}
+.section-head h3{font-size:14px;font-weight:700;color:var(--black)}
+.section-body{padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+
+/* ── Detail row ── */
+.detail-row{display:flex;align-items:flex-start;gap:0}
+.detail-label{width:160px;flex-shrink:0;font-size:12px;color:var(--gray);font-weight:500;padding-top:2px}
+.detail-value{flex:1;font-size:13px;color:var(--black);font-weight:500}
+
+/* ── Stop item ── */
+.stop-item{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-radius:10px;border:1px solid var(--border);background:var(--cream);
+}
+.stop-badge{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.06em}
+.stop-pickup{background:#DCFCE7;color:#15803D}
+.stop-delivery{background:#EDE3C6;color:#A8883F}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 28px;background:white}
+.tab{
+  padding:12px 20px;font-size:13px;font-weight:500;color:var(--gray);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;border-top:none;border-left:none;border-right:none;
+  font-family:'Outfit',sans-serif;
+}
+.tab.active{color:var(--black);border-bottom-color:var(--gold);font-weight:700}
+
+/* ── Emission card ── */
+.emission-card{
+  background:white;border-radius:12px;border:1px solid var(--border);overflow:hidden;
+}
+.emission-head{
+  display:grid;grid-template-columns:1fr 1fr 1fr auto;
+  padding:14px 20px;align-items:center;gap:16px;cursor:pointer;
+}
+.emission-head:hover{background:#FDFBF7}
+
+/* ── Dashboard stats ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.stat-card{
+  background:white;border-radius:12px;padding:20px;border:1px solid var(--border);
+  display:flex;flex-direction:column;gap:8px;
+}
+.stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.stat-val{font-size:28px;font-weight:800;color:var(--black);letter-spacing:-.02em}
+.stat-lbl{font-size:12px;color:var(--gray);font-weight:500}
+.stat-sub{font-size:11px;color:var(--silver)}
+
+/* ── Task list ── */
+.task-row{
+  display:flex;align-items:center;gap:12px;padding:12px 0;
+  border-bottom:1px solid #F5F3EF;
+}
+.task-check{width:18px;height:18px;border-radius:5px;border:2px solid var(--border);flex-shrink:0}
+.task-check.done{background:var(--gold);border-color:var(--gold)}
+
+/* ── Two col layout ── */
+.two-col{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+
+/* ── Inline logo ── */
+.ggs-mark{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.05em}
+
+/* ── Page views ── */
+.page-view{display:none;height:100%;flex-direction:column}
+.page-view.active{display:flex}
+</style>
+</head>
+<body>
+
+<!-- ══ SWITCHER ══ -->
+<div class="switcher">
+  <div class="switcher-logo">
+    <img src="/ggs-icon.svg" alt="GGS"/>
+  </div>
+  <span class="switcher-label">Preview · Nueva Estructura</span>
+  <button class="sw-btn active" onclick="showPage('dashboard')">Dashboard</button>
+  <button class="sw-btn" onclick="showPage('polizas')">Pólizas</button>
+  <button class="sw-btn" onclick="showPage('poliza-detalle')">Detalle Póliza</button>
+  <button class="sw-btn" onclick="showPage('clientes')">Clientes</button>
+  <button class="sw-btn" onclick="showPage('tareas')">Tareas</button>
+  <span class="sw-note">Solo estructura — colores y tipografía sin cambios</span>
+</div>
+
+<!-- ══ APP SHELL ══ -->
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <button class="sb-expand">»</button>
+    <div class="sb-icon active" title="Dashboard">⊞</div>
+    <div class="sb-icon" title="Clientes">👤</div>
+    <div class="sb-icon" title="Pólizas">📄</div>
+    <div class="sb-icon" title="Vehículos">🚗</div>
+    <div class="sb-divider"></div>
+    <div class="sb-icon" title="Aseguradoras">🏢</div>
+    <div class="sb-icon" title="Requerimientos">💳</div>
+    <div class="sb-icon" title="Liquidaciones">📚</div>
+    <div class="sb-icon" title="Comisiones">💰</div>
+    <div class="sb-icon" title="Tareas">✅</div>
+    <div class="sb-divider"></div>
+    <div class="sb-icon" title="Configuración" style="margin-top:auto">⚙️</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ════════ DASHBOARD ════════ -->
+    <div class="page-view active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-header-main" style="padding-top:14px">
+          <div class="page-header-title">
+            <h1>Dashboard</h1>
+            <span style="font-size:13px;color:var(--gray);font-weight:400">Buenos días · miércoles 6 de mayo</span>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn-secondary">📊 Exportar</button>
+            <button class="btn-primary">+ Nueva solicitud</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-content">
+        <!-- KPIs -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(196,169,107,0.12)">📄</div>
+            <div class="stat-val">48</div>
+            <div class="stat-lbl">Pólizas activas</div>
+            <div class="stat-sub">+3 este mes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#F0FDF4">👤</div>
+            <div class="stat-val">32</div>
+            <div class="stat-lbl">Clientes activos</div>
+            <div class="stat-sub">2 prospectos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#FFF7ED">💳</div>
+            <div class="stat-val" style="color:#C2410C">5</div>
+            <div class="stat-lbl">Requerimientos pendientes</div>
+            <div class="stat-sub">1 vencido</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--gold-bg)">💰</div>
+            <div class="stat-val" style="color:var(--gold-dk)">Q 142k</div>
+            <div class="stat-lbl">Prima total activa</div>
+            <div class="stat-sub">Año 2025</div>
+          </div>
+        </div>
+
+        <!-- Two col -->
+        <div class="two-col">
+          <!-- Tareas -->
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Tareas pendientes</h3>
+              <button class="btn-secondary" style="font-size:12px;padding:6px 12px">+ Nueva tarea</button>
+            </div>
+            <div style="padding:4px 20px">
+              <div class="task-row">
+                <div class="task-check"></div>
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:500">Renovar póliza POL-2025-0042 — Zurich</div>
+                  <div style="font-size:11px;color:#C2410C;margin-top:2px">Vence: 08/05/2025</div>
+                </div>
+                <span class="badge badge-orange">Urgente</span>
+              </div>
+              <div class="task-row">
+                <div class="task-check"></div>
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:500">Enviar documentos a Mapfre — María López</div>
+                  <div style="font-size:11px;color:var(--gray);margin-top:2px">Vence: 12/05/2025</div>
+                </div>
+                <span class="badge badge-gray">Manual</span>
+              </div>
+              <div class="task-row">
+                <div class="task-check done"></div>
+                <div style="flex:1;opacity:.5">
+                  <div style="font-size:13px;font-weight:500;text-decoration:line-through">Confirmar pago requerimiento #18</div>
+                  <div style="font-size:11px;color:var(--gray);margin-top:2px">Completada hoy</div>
+                </div>
+                <span class="badge badge-green">Listo</span>
+              </div>
+              <div class="task-row" style="border-bottom:none">
+                <div class="task-check"></div>
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:500">Seguimiento cliente Juan Pérez</div>
+                  <div style="font-size:11px;color:var(--gray);margin-top:2px">Vence: 15/05/2025</div>
+                </div>
+                <span class="badge badge-gray">Auto</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actividad reciente -->
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Actividad reciente</h3>
+            </div>
+            <div style="padding:8px 20px;display:flex;flex-direction:column;gap:0">
+              <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #F5F3EF;align-items:flex-start">
+                <div style="width:32px;height:32px;border-radius:8px;background:var(--gold-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">📄</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600">POL-2025-0048 emitida</div>
+                  <div style="font-size:11px;color:var(--gray)">Zurich · Automóviles · hace 2h</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #F5F3EF;align-items:flex-start">
+                <div style="width:32px;height:32px;border-radius:8px;background:#F0FDF4;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">👤</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600">Nuevo cliente: Ana García</div>
+                  <div style="font-size:11px;color:var(--gray)">Prospecto añadido · hace 5h</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #F5F3EF;align-items:flex-start">
+                <div style="width:32px;height:32px;border-radius:8px;background:#FFF7ED;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">💳</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600">Requerimiento vencido</div>
+                  <div style="font-size:11px;color:var(--gray)">REQ-0022 · Juan Pérez · ayer</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;padding:10px 0;align-items:flex-start">
+                <div style="width:32px;height:32px;border-radius:8px;background:var(--gold-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">✅</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600">Inclusión completada</div>
+                  <div style="font-size:11px;color:var(--gray)">POL-2025-0039 · Mapfre · ayer</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ PÓLIZAS ════════ -->
+    <div class="page-view" id="page-polizas">
+      <div class="page-header">
+        <div class="page-header-main" style="padding-top:14px">
+          <div class="page-header-title">
+            <h1>Pólizas</h1>
+            <span class="badge badge-gray">48 activas</span>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn-ghost">Filtros</button>
+            <button class="btn-secondary">📊 Exportar</button>
+            <button class="btn-primary">+ Nueva póliza</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="tabs">
+        <button class="tab active">Todas <span style="background:var(--gold-lt);color:var(--gold-dk);padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px">48</span></button>
+        <button class="tab">Emitidas <span style="background:#DCFCE7;color:#15803D;padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px">35</span></button>
+        <button class="tab">Enviadas <span style="background:#FFF7ED;color:#C2410C;padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px">8</span></button>
+        <button class="tab">Solicitudes <span style="background:#F1F5F9;color:#64748B;padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px">5</span></button>
+      </div>
+
+      <div class="page-content" style="padding-top:20px">
+        <div class="table-card">
+          <div class="table-header">
+            <div style="display:flex;align-items:center;gap:12px">
+              <input class="table-search" placeholder="🔍  Buscar póliza, cliente, aseguradora..."/>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <select style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;background:var(--cream);color:var(--black)">
+                <option>Todas las aseguradoras</option>
+                <option>Zurich</option>
+                <option>Mapfre</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-head" style="grid-template-columns:1.5fr 1fr 1fr 0.8fr 0.8fr 0.6fr">
+            <span>Número / Cliente</span>
+            <span>Aseguradora</span>
+            <span>Tipo</span>
+            <span>Prima</span>
+            <span>Vencimiento</span>
+            <span>Estado</span>
+          </div>
+          <!-- Rows -->
+          <div class="table-row" style="grid-template-columns:1.5fr 1fr 1fr 0.8fr 0.8fr 0.6fr">
+            <div><div style="font-weight:600;font-size:13px">POL-2025-0048</div><div class="sub">Juan Pérez</div></div>
+            <span>Zurich</span>
+            <span>Automóviles</span>
+            <span style="font-weight:600">Q 8,500</span>
+            <span>31/12/2025</span>
+            <span class="badge badge-green">Emitida</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:1.5fr 1fr 1fr 0.8fr 0.8fr 0.6fr">
+            <div><div style="font-weight:600;font-size:13px">POL-2025-0047</div><div class="sub">María López</div></div>
+            <span>Mapfre</span>
+            <span>Vida</span>
+            <span style="font-weight:600">Q 4,200</span>
+            <span>30/06/2025</span>
+            <span class="badge badge-orange">Enviada</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:1.5fr 1fr 1fr 0.8fr 0.8fr 0.6fr">
+            <div><div style="font-weight:600;font-size:13px">POL-2025-0046</div><div class="sub">Carlos Ruiz</div></div>
+            <span>Seguros G&amp;T</span>
+            <span>Empresa</span>
+            <span style="font-weight:600">Q 22,000</span>
+            <span>15/11/2025</span>
+            <span class="badge badge-green">Emitida</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:1.5fr 1fr 1fr 0.8fr 0.8fr 0.6fr">
+            <div><div style="font-weight:600;font-size:13px">SOL-2025-0019</div><div class="sub">Ana García</div></div>
+            <span>Qualitas</span>
+            <span>Automóviles</span>
+            <span style="font-weight:600;color:var(--gray)">—</span>
+            <span style="color:var(--gray)">—</span>
+            <span class="badge badge-gray">Solicitud</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:1.5fr 1fr 1fr 0.8fr 0.8fr 0.6fr">
+            <div><div style="font-weight:600;font-size:13px">POL-2025-0044</div><div class="sub">Roberto Díaz</div></div>
+            <span>Zurich</span>
+            <span>Automóviles</span>
+            <span style="font-weight:600">Q 6,800</span>
+            <span>28/02/2026</span>
+            <span class="badge badge-green">Emitida</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:1.5fr 1fr 1fr 0.8fr 0.8fr 0.6fr;border-bottom:none">
+            <div><div style="font-weight:600;font-size:13px">POL-2025-0042</div><div class="sub">Empresa XYZ S.A.</div></div>
+            <span>Seguros Universales</span>
+            <span>Comercial</span>
+            <span style="font-weight:600">Q 45,000</span>
+            <span>01/08/2026</span>
+            <span class="badge badge-blue">En reproceso</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ PÓLIZA DETALLE ════════ -->
+    <div class="page-view" id="page-poliza-detalle">
+      <div class="page-header">
+        <div class="page-header-top">
+          <button class="back-btn">← Volver a Pólizas</button>
+          <span class="breadcrumb-sep">/</span>
+          <span>POL-2025-0048</span>
+        </div>
+        <div class="page-header-main">
+          <div class="page-header-title">
+            <h1>POL-2025-0048</h1>
+            <span class="badge badge-green">Emitida</span>
+            <span class="badge badge-gray" style="font-weight:400">Zurich · Automóviles</span>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn-secondary">✏️ Editar</button>
+            <button class="btn-secondary">📋 Bitácora</button>
+            <button class="btn-primary">+ Nueva gestión</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active">Detalle</button>
+        <button class="tab">Gestiones <span style="background:var(--gold-lt);color:var(--gold-dk);padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px">3</span></button>
+        <button class="tab">Vehículos <span style="background:#F1F5F9;color:#64748B;padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px">2</span></button>
+        <button class="tab">Documentos</button>
+        <button class="tab">Bitácora</button>
+      </div>
+
+      <div class="page-content">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Prima Total <span style="font-size:16px">💰</span></div>
+            <div class="kpi-value gold">Q 8,500</div>
+            <div class="kpi-sub">Monto anual emitido</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Aseguradora <span style="font-size:16px">🏢</span></div>
+            <div class="kpi-value" style="font-size:20px">Zurich</div>
+            <div class="kpi-sub">Automóviles</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Vencimiento <span style="font-size:16px">📅</span></div>
+            <div class="kpi-value" style="font-size:20px">31/12/2025</div>
+            <div class="kpi-sub" style="color:#15803D">239 días restantes</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Cliente <span style="font-size:16px">👤</span></div>
+            <div class="kpi-value" style="font-size:18px;color:var(--gold-dk)">Juan Pérez →</div>
+            <div class="kpi-sub">Ver perfil del cliente</div>
+          </div>
+        </div>
+
+        <!-- Two col -->
+        <div class="two-col">
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <!-- Detalle -->
+            <div class="section-card">
+              <div class="section-head">
+                <h3>Información de la póliza</h3>
+                <span style="font-size:12px;color:var(--gray)">▲</span>
+              </div>
+              <div class="section-body">
+                <div class="detail-row"><span class="detail-label">Número</span><span class="detail-value">POL-2025-0048</span></div>
+                <div class="detail-row"><span class="detail-label">Aseguradora</span><span class="detail-value">Zurich Guatemala</span></div>
+                <div class="detail-row"><span class="detail-label">Tipo</span><span class="detail-value">Automóviles — Flota</span></div>
+                <div class="detail-row"><span class="detail-label">Vigencia inicio</span><span class="detail-value">01/01/2025</span></div>
+                <div class="detail-row"><span class="detail-label">Vigencia fin</span><span class="detail-value">31/12/2025</span></div>
+                <div class="detail-row"><span class="detail-label">Prima total</span><span class="detail-value" style="color:var(--gold-dk);font-weight:700">Q 8,500.00</span></div>
+                <div class="detail-row"><span class="detail-label">Moneda</span><span class="detail-value">Quetzal (GTQ)</span></div>
+              </div>
+            </div>
+
+            <!-- Gestiones recientes -->
+            <div class="section-card">
+              <div class="section-head">
+                <h3>Gestiones recientes</h3>
+                <button class="btn-secondary" style="font-size:12px;padding:5px 12px">Ver todas</button>
+              </div>
+              <div class="section-body">
+                <div class="emission-card">
+                  <div class="emission-head">
+                    <div><div style="font-size:13px;font-weight:600">E01 — Emisión principal</div><div style="font-size:11px;color:var(--gray)">01/01/2025</div></div>
+                    <div style="font-size:13px;font-weight:600;color:var(--gold-dk)">Q 8,500</div>
+                    <span class="badge badge-green">Emitida</span>
+                    <span style="color:var(--gray);font-size:12px">▼</span>
+                  </div>
+                </div>
+                <div class="emission-card">
+                  <div class="emission-head">
+                    <div><div style="font-size:13px;font-weight:600">E02 — Inclusión</div><div style="font-size:11px;color:var(--gray)">15/02/2025</div></div>
+                    <div style="font-size:13px;font-weight:600;color:var(--gold-dk)">Q 650</div>
+                    <span class="badge badge-green">Emitida</span>
+                    <span style="color:var(--gray);font-size:12px">▶</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right col -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <!-- Vehículos -->
+            <div class="section-card">
+              <div class="section-head">
+                <h3>Vehículos <span style="font-size:12px;background:var(--gold-lt);color:var(--gold-dk);padding:1px 7px;border-radius:10px;margin-left:4px">2</span></h3>
+                <span style="font-size:12px;color:var(--gray)">▲</span>
+              </div>
+              <div class="section-body">
+                <div class="stop-item">
+                  <div style="font-size:18px">🚗</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600">Toyota Hilux 2022</div>
+                    <div style="font-size:11px;color:var(--gray)">Placa: 123ABC · Gris</div>
+                  </div>
+                  <span class="badge badge-green" style="margin-left:auto">Activo</span>
+                </div>
+                <div class="stop-item">
+                  <div style="font-size:18px">🚗</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600">Honda CR-V 2021</div>
+                    <div style="font-size:11px;color:var(--gray)">Placa: 456DEF · Blanco</div>
+                  </div>
+                  <span class="badge badge-green" style="margin-left:auto">Activo</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bitácora mini -->
+            <div class="section-card">
+              <div class="section-head">
+                <h3>Bitácora reciente</h3>
+              </div>
+              <div style="padding:12px 20px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;gap:10px;align-items:flex-start">
+                  <div style="width:6px;height:6px;border-radius:50%;background:var(--gold);margin-top:5px;flex-shrink:0"></div>
+                  <div><div style="font-size:12px;font-weight:600">Emisión E02 completada</div><div style="font-size:11px;color:var(--gray)">Hace 3 días</div></div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-start">
+                  <div style="width:6px;height:6px;border-radius:50%;background:#94A3B8;margin-top:5px;flex-shrink:0"></div>
+                  <div><div style="font-size:12px;font-weight:600">Documentos enviados a Zurich</div><div style="font-size:11px;color:var(--gray)">Hace 5 días</div></div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-start">
+                  <div style="width:6px;height:6px;border-radius:50%;background:#94A3B8;margin-top:5px;flex-shrink:0"></div>
+                  <div><div style="font-size:12px;font-weight:600">Póliza emitida por Zurich</div><div style="font-size:11px;color:var(--gray)">01/01/2025</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ CLIENTES ════════ -->
+    <div class="page-view" id="page-clientes">
+      <div class="page-header">
+        <div class="page-header-main" style="padding-top:14px">
+          <div class="page-header-title">
+            <h1>Clientes</h1>
+            <span class="badge badge-gray">32 activos</span>
+            <span class="badge badge-orange">2 prospectos</span>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn-ghost">Filtros</button>
+            <button class="btn-secondary">📊 Exportar</button>
+            <button class="btn-primary">+ Nuevo cliente</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active">Todos</button>
+        <button class="tab">Activos</button>
+        <button class="tab">Prospectos</button>
+        <button class="tab">Inactivos</button>
+      </div>
+
+      <div class="page-content">
+        <div class="table-card">
+          <div class="table-header">
+            <input class="table-search" placeholder="🔍  Buscar por nombre, NIT, correo..."/>
+            <div style="display:flex;gap:8px">
+              <select style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;background:var(--cream);color:var(--black)">
+                <option>Todos los tipos</option>
+                <option>Persona</option>
+                <option>Empresa</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-head" style="grid-template-columns:2fr 1fr 1fr 0.8fr 0.6fr">
+            <span>Cliente</span>
+            <span>NIT / Correo</span>
+            <span>Pólizas activas</span>
+            <span>Prima total</span>
+            <span>Tipo</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:2fr 1fr 1fr 0.8fr 0.6fr">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-bg);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--gold-dk);flex-shrink:0">JP</div>
+              <div><div style="font-weight:600;font-size:13px">Juan Pérez</div><div class="sub">Activo desde 2023</div></div>
+            </div>
+            <div><div style="font-size:13px">1234567-8</div><div class="sub">juan@email.com</div></div>
+            <span style="font-weight:600">3</span>
+            <span style="font-weight:600;color:var(--gold-dk)">Q 18,500</span>
+            <span class="badge badge-gray">Persona</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:2fr 1fr 1fr 0.8fr 0.6fr">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:50%;background:#F0FDF4;display:flex;align-items:center;justify-content:center;font-weight:700;color:#15803D;flex-shrink:0">ML</div>
+              <div><div style="font-weight:600;font-size:13px">María López</div><div class="sub">Activo desde 2024</div></div>
+            </div>
+            <div><div style="font-size:13px">8765432-1</div><div class="sub">maria@empresa.gt</div></div>
+            <span style="font-weight:600">1</span>
+            <span style="font-weight:600;color:var(--gold-dk)">Q 4,200</span>
+            <span class="badge badge-gray">Persona</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:2fr 1fr 1fr 0.8fr 0.6fr">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:50%;background:#EDE3C6;display:flex;align-items:center;justify-content:center;font-weight:700;color:#A8883F;flex-shrink:0">XY</div>
+              <div><div style="font-weight:600;font-size:13px">Empresa XYZ S.A.</div><div class="sub">Activo desde 2022</div></div>
+            </div>
+            <div><div style="font-size:13px">CF</div><div class="sub">admin@xyz.com.gt</div></div>
+            <span style="font-weight:600">5</span>
+            <span style="font-weight:600;color:var(--gold-dk)">Q 67,000</span>
+            <span class="badge badge-blue">Empresa</span>
+          </div>
+          <div class="table-row" style="grid-template-columns:2fr 1fr 1fr 0.8fr 0.6fr;border-bottom:none">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:50%;background:#FFF7ED;display:flex;align-items:center;justify-content:center;font-weight:700;color:#C2410C;flex-shrink:0">AG</div>
+              <div><div style="font-weight:600;font-size:13px">Ana García</div><div class="sub">Prospecto</div></div>
+            </div>
+            <div><div style="font-size:13px">—</div><div class="sub">ana@correo.com</div></div>
+            <span style="color:var(--gray)">—</span>
+            <span style="color:var(--gray)">—</span>
+            <span class="badge badge-orange">Prospecto</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ TAREAS ════════ -->
+    <div class="page-view" id="page-tareas">
+      <div class="page-header">
+        <div class="page-header-main" style="padding-top:14px">
+          <div class="page-header-title">
+            <h1>Tareas</h1>
+            <span class="badge badge-orange">3 pendientes</span>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn-secondary">Filtros</button>
+            <button class="btn-primary">+ Nueva tarea</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active">Pendientes <span style="background:#FFF7ED;color:#C2410C;padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px">3</span></button>
+        <button class="tab">Completadas</button>
+        <button class="tab">Todas</button>
+      </div>
+
+      <div class="page-content">
+        <div class="two-col" style="grid-template-columns:1fr 280px">
+          <div class="table-card">
+            <div class="table-head" style="grid-template-columns:auto 2fr 1fr 1fr 0.8fr 0.6fr">
+              <span></span><span>Tarea</span><span>Póliza / Cliente</span><span>Vencimiento</span><span>Tipo</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="grid-template-columns:auto 2fr 1fr 1fr 0.8fr 0.6fr;align-items:center">
+              <input type="checkbox" style="accent-color:var(--gold);width:16px;height:16px"/>
+              <div><div style="font-weight:600;font-size:13px">Renovar póliza POL-2025-0042</div><div class="sub">Zurich · Automóviles</div></div>
+              <span>Juan Pérez</span>
+              <span style="color:#C2410C;font-weight:600">08/05/2025</span>
+              <span class="badge badge-gray">Manual</span>
+              <span class="badge badge-orange">Urgente</span>
+            </div>
+            <div class="table-row" style="grid-template-columns:auto 2fr 1fr 1fr 0.8fr 0.6fr;align-items:center">
+              <input type="checkbox" style="accent-color:var(--gold);width:16px;height:16px"/>
+              <div><div style="font-weight:600;font-size:13px">Enviar documentos a Mapfre</div><div class="sub">SOL-2025-0047</div></div>
+              <span>María López</span>
+              <span>12/05/2025</span>
+              <span class="badge badge-gray">Manual</span>
+              <span class="badge badge-gray">Pendiente</span>
+            </div>
+            <div class="table-row" style="grid-template-columns:auto 2fr 1fr 1fr 0.8fr 0.6fr;align-items:center;border-bottom:none">
+              <input type="checkbox" style="accent-color:var(--gold);width:16px;height:16px"/>
+              <div><div style="font-weight:600;font-size:13px">Seguimiento prospecto Ana García</div><div class="sub">Sin póliza</div></div>
+              <span>Ana García</span>
+              <span>15/05/2025</span>
+              <span class="badge badge-gold">Auto</span>
+              <span class="badge badge-gray">Pendiente</span>
+            </div>
+          </div>
+
+          <div class="section-card" style="height:fit-content">
+            <div class="section-head">
+              <h3>Resumen</h3>
+            </div>
+            <div class="section-body">
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F5F3EF">
+                <span style="font-size:13px;color:var(--gray)">Pendientes</span>
+                <span style="font-weight:700;font-size:13px">3</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F5F3EF">
+                <span style="font-size:13px;color:#C2410C">Urgentes (vencen hoy)</span>
+                <span style="font-weight:700;font-size:13px;color:#C2410C">1</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F5F3EF">
+                <span style="font-size:13px;color:var(--gray)">Esta semana</span>
+                <span style="font-weight:700;font-size:13px">2</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0">
+                <span style="font-size:13px;color:var(--gray)">Completadas hoy</span>
+                <span style="font-weight:700;font-size:13px;color:#15803D">1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app-shell -->
+
+<script>
+function showPage(id) {
+  document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('active'))
+  document.getElementById('page-'+id).classList.add('active')
+  event.target.classList.add('active')
+  // Update sidebar active icon index
+  var iconMap = {dashboard:0,polizas:2,clientes:1,tareas:8}
+  document.querySelectorAll('.sb-icon').forEach((el,i) => el.classList.remove('active'))
+  var idx = iconMap[id]
+  if(idx!==undefined) document.querySelectorAll('.sb-icon')[idx].classList.add('active')
+}
+</script>
+</body>
+</html>
