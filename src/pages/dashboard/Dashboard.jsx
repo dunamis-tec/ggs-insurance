@@ -1,70 +1,186 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { FileText, Users, CreditCard, AlertCircle, TrendingUp, Clock } from 'lucide-react'
+import {
+  FileText, Users, CreditCard, AlertCircle, TrendingUp, Clock,
+  Calendar, DollarSign, Plus, CheckSquare, AlertTriangle, Activity,
+  CheckCircle, ArrowRight, Check
+} from 'lucide-react'
 
-function StatCard({ icon: Icon, label, value, color }) {
+/* ── Helpers ── */
+const fmtQ = (v) => `Q ${parseFloat(v || 0).toLocaleString('es-GT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+const fmtDateShort = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT', { day: '2-digit', month: 'short' }) : '—'
+const diasHasta = (fecha) => {
+  if (!fecha) return null
+  return Math.ceil((new Date(fecha + 'T12:00:00') - new Date()) / 864e5)
+}
+const nombreCliente = (c) => c ? [c.nombre, c.apellido].filter(Boolean).join(' ') : '—'
+
+const estadoLabel = { solicitud: 'Solicitud', enviada: 'Enviada', en_reproceso: 'En reproceso' }
+const estadoBadge = {
+  solicitud:    { bg: '#dbeafe', color: '#1d4ed8' },
+  enviada:      { bg: '#fef9c3', color: '#854d0e' },
+  en_reproceso: { bg: '#fee2e2', color: '#991b1b' },
+}
+
+function urgenciaStyle(dias) {
+  if (dias == null) return { bg: '#f1f5f9', color: '#64748b' }
+  if (dias <= 0)  return { bg: '#fef2f2', color: '#ef4444' }
+  if (dias <= 7)  return { bg: '#fef2f2', color: '#ef4444' }
+  if (dias <= 15) return { bg: '#fff7ed', color: '#ea580c' }
+  if (dias <= 30) return { bg: '#fefce8', color: '#ca8a04' }
+  return { bg: '#f0fdf4', color: '#16a34a' }
+}
+
+/* ── Sub-components ── */
+function KpiCard({ label, value, icon: Icon, color, sub, alert }) {
   return (
-    <div style={{background:'white',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:'12px'}}>
-      <div style={{width:'48px',height:'48px',borderRadius:'10px',background:color+'20',display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <Icon size={22} color={color} />
+    <div style={{ background: 'white', borderRadius: '12px', padding: '18px 20px', border: `1px solid ${alert ? color + '60' : '#e2e8f0'}`, position: 'relative', overflow: 'hidden' }}>
+      {alert && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: color }} />}
+      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+        <Icon size={18} color={color} />
       </div>
-      <div>
-        <p style={{fontSize:'13px',color:'#64748b',marginBottom:'4px'}}>{label}</p>
-        <p style={{fontSize:'24px',fontWeight:700,color:'#111111'}}>{value}</p>
-      </div>
+      <p style={{ fontSize: '24px', fontWeight: 800, color: '#111111', margin: 0, letterSpacing: '-0.5px', lineHeight: 1.1 }}>{value}</p>
+      <p style={{ fontSize: '13px', color: '#374151', fontWeight: 600, margin: '6px 0 2px' }}>{label}</p>
+      {sub && <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>{sub}</p>}
     </div>
   )
 }
 
-function TareaItem({ tarea, onComplete }) {
+function SectionHeader({ icon: Icon, label, color, badge, badgeColor, action, onAction }) {
   return (
-    <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 0',borderBottom:'1px solid #f1f5f9'}}>
-      <input type="checkbox" onChange={()=>onComplete(tarea.id)}
-        style={{width:'16px',height:'16px',cursor:'pointer',accentColor:'#C4A96B'}} />
-      <div style={{flex:1}}>
-        <p style={{fontSize:'14px',color:'#1e293b',fontWeight:500}}>{tarea.titulo}</p>
-        {tarea.fecha_vencimiento && (
-          <p style={{fontSize:'12px',color: new Date(tarea.fecha_vencimiento) < new Date() ? '#ef4444' : '#64748b',marginTop:'2px'}}>
-            Vence: {new Date(tarea.fecha_vencimiento).toLocaleDateString('es-GT')}
-          </p>
-        )}
-      </div>
-      <span style={{fontSize:'11px',padding:'3px 8px',borderRadius:'20px',
-        background: tarea.tipo==='automatica' ? '#dbeafe' : '#f0fdf4',
-        color: tarea.tipo==='automatica' ? '#1d4ed8' : '#15803d'}}>
-        {tarea.tipo==='automatica' ? 'Auto' : 'Manual'}
-      </span>
+    <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <Icon size={15} color={color} />
+      <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#111111', margin: 0 }}>{label}</h2>
+      {badge != null && (
+        <span style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: (badgeColor || color) + '20', color: badgeColor || color, fontWeight: 700 }}>
+          {badge}
+        </span>
+      )}
+      {action && (
+        <button onClick={onAction} style={{ marginLeft: badge != null ? '8px' : 'auto', fontSize: '12px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {action} <ArrowRight size={12} />
+        </button>
+      )}
     </div>
   )
 }
 
+/* ── Main ── */
 export default function Dashboard() {
-  const [stats, setStats] = useState({ polizas:0, clientes:0, reqs_pendientes:0, reqs_vencidos:0 })
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(true)
+  const [kpis, setKpis] = useState({})
+  const [polizasVencen, setPolizasVencen] = useState([])
+  const [reqsVencidos, setReqsVencidos] = useState([])
+  const [pipeline, setPipeline] = useState([])
+  const [vencimientos, setVencimientos] = useState([])
   const [tareas, setTareas] = useState([])
   const [nuevaTarea, setNuevaTarea] = useState('')
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+  useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ count: polizas }, { count: clientes }, { count: reqs_pendientes }, { count: reqs_vencidos }, { data: tareasData }] = await Promise.all([
-      supabase.from('polizas').select('*', { count: 'exact', head: true }).eq('activa', true),
-      supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true).neq('tipo', 'prospecto'),
-      supabase.from('requerimientos_pago').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
-      supabase.from('requerimientos_pago').select('*', { count: 'exact', head: true }).eq('estado', 'vencido'),
-      supabase.from('tareas').select('*').eq('estado', 'pendiente').order('fecha_vencimiento', { ascending: true }).limit(10)
+    const hoy = new Date().toISOString().split('T')[0]
+    const en30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0]
+    const en60 = new Date(Date.now() + 60 * 864e5).toISOString().split('T')[0]
+
+    const [
+      { data: polizasActivas },
+      { data: reqsPend },
+      { data: reqsVenc },
+      { data: polVencen30 },
+      { data: polVencen60 },
+      { data: pipelineData },
+      { data: tareasData },
+      { count: cntClientes },
+    ] = await Promise.all([
+      supabase.from('polizas')
+        .select('id, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido), aseguradoras(nombre)')
+        .eq('activa', true),
+      supabase.from('requerimientos_pago')
+        .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido))')
+        .eq('estado', 'pendiente'),
+      supabase.from('requerimientos_pago')
+        .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido))')
+        .eq('estado', 'vencido')
+        .order('fecha_vencimiento', { ascending: true })
+        .limit(5),
+      supabase.from('polizas')
+        .select('id, numero_poliza, fecha_vencimiento, prima_total, clientes(nombre,apellido), aseguradoras(nombre)')
+        .eq('activa', true)
+        .lte('fecha_vencimiento', en30)
+        .gte('fecha_vencimiento', hoy)
+        .order('fecha_vencimiento', { ascending: true }),
+      supabase.from('polizas')
+        .select('id, numero_poliza, fecha_vencimiento, clientes(nombre,apellido)')
+        .eq('activa', true)
+        .lte('fecha_vencimiento', en60)
+        .gte('fecha_vencimiento', hoy)
+        .order('fecha_vencimiento', { ascending: true }),
+      supabase.from('polizas')
+        .select('id, numero_poliza, prima_total, estado, created_at, clientes(nombre,apellido), aseguradoras(nombre), productos(nombre)')
+        .in('estado', ['solicitud', 'enviada', 'en_reproceso'])
+        .order('created_at', { ascending: false })
+        .limit(6),
+      supabase.from('tareas')
+        .select('*, polizas(numero_poliza), clientes(nombre,apellido)')
+        .eq('estado', 'pendiente')
+        .order('fecha_vencimiento', { ascending: true, nullsFirst: false })
+        .limit(8),
+      supabase.from('clientes')
+        .select('*', { count: 'exact', head: true })
+        .eq('activo', true)
+        .neq('tipo', 'prospecto'),
     ])
-    setStats({ polizas: polizas||0, clientes: clientes||0, reqs_pendientes: reqs_pendientes||0, reqs_vencidos: reqs_vencidos||0 })
+
+    const primaTotal = (polizasActivas || []).reduce((s, p) => s + parseFloat(p.prima_total || 0), 0)
+    const montosPend = (reqsPend || []).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
+    const montosVenc = (reqsVenc || []).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
+    const reqsPendProximos = (reqsPend || [])
+      .filter(r => r.fecha_vencimiento && r.fecha_vencimiento >= hoy && r.fecha_vencimiento <= en60)
+      .sort((a, b) => new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento))
+      .slice(0, 5)
+
+    setKpis({
+      primaTotal,
+      cntPolizas: (polizasActivas || []).length,
+      cntClientes: cntClientes || 0,
+      montosPend,
+      cntPend: (reqsPend || []).length,
+      montosVenc,
+      cntVenc: (reqsVenc || []).length,
+      cntVencen30: (polVencen30 || []).length,
+      cntPipeline: (pipelineData || []).length,
+    })
+
+    setPolizasVencen(polVencen30 || [])
+    setReqsVencidos(reqsVenc || [])
+    setPipeline(pipelineData || [])
     setTareas(tareasData || [])
+
+    const venc = [
+      ...(polVencen60 || []).map(p => ({
+        tipo: 'poliza', id: p.id, label: p.numero_poliza,
+        cliente: nombreCliente(p.clientes), fecha: p.fecha_vencimiento,
+      })),
+      ...reqsPendProximos.map(r => ({
+        tipo: 'req', id: r.codigo, label: r.codigo,
+        cliente: nombreCliente(r.polizas?.clientes),
+        fecha: r.fecha_vencimiento, monto: r.monto,
+        poliza: r.polizas?.numero_poliza,
+      })),
+    ].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+
+    setVencimientos(venc)
     setLoading(false)
   }
 
   const completarTarea = async (id) => {
     await supabase.from('tareas').update({ estado: 'completada', fecha_completada: new Date().toISOString() }).eq('id', id)
-    setTareas(tareas.filter(t => t.id !== id))
+    setTareas(t => t.filter(x => x.id !== id))
   }
 
   const agregarTarea = async (e) => {
@@ -72,73 +188,256 @@ export default function Dashboard() {
     if (!nuevaTarea.trim()) return
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase.from('tareas').insert({ titulo: nuevaTarea, tipo: 'manual', estado: 'pendiente', created_by: user?.id }).select().single()
-    if (data) setTareas([...tareas, data])
+    if (data) setTareas(t => [...t, data])
     setNuevaTarea('')
   }
 
-  if (loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh'}}><p style={{color:'#64748b'}}>Cargando...</p></div>
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <p style={{ color: '#64748b' }}>Cargando...</p>
+    </div>
+  )
+
+  const totalAlertas = polizasVencen.length + reqsVencidos.length
+  const tareasVencidas = tareas.filter(t => t.fecha_vencimiento && new Date(t.fecha_vencimiento) < new Date()).length
 
   return (
     <div>
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Dashboard</h1>
-            <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
-              {stats.polizas} pólizas · {stats.clientes} clientes · {stats.reqs_pendientes} reqs pendientes
-            </p>
-          </div>
+
+      {/* ── Header ── */}
+      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
+        <div style={{ padding: '20px 24px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111111', margin: 0 }}>Dashboard</h1>
+          <p style={{ color: '#6B6B62', fontSize: '14px', marginTop: '4px', marginBottom: 0 }}>
+            {kpis.cntPolizas} pólizas activas · {kpis.cntClientes} clientes · {kpis.cntVencen30 > 0 ? `⚠ ${kpis.cntVencen30} pólizas vencen en ≤30 días` : 'Sin vencimientos urgentes'}
+          </p>
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'12px',marginBottom:'20px'}}>
-        <StatCard icon={FileText} label="Pólizas activas" value={stats.polizas} color="#C4A96B" />
-        <StatCard icon={Users} label="Clientes activos" value={stats.clientes} color="#111111" />
-        <StatCard icon={CreditCard} label="Reqs. pendientes" value={stats.reqs_pendientes} color="#C8A84B" />
-        <StatCard icon={AlertCircle} label="Reqs. vencidos" value={stats.reqs_vencidos} color="#ef4444" />
+      {/* ── KPI Row ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        <KpiCard
+          label="Prima total activa" value={fmtQ(kpis.primaTotal)}
+          icon={DollarSign} color="#C4A96B" sub={`${kpis.cntPolizas} pólizas emitidas`}
+        />
+        <KpiCard
+          label="Clientes activos" value={kpis.cntClientes}
+          icon={Users} color="#111111" sub="personas y empresas"
+        />
+        <KpiCard
+          label="Por cobrar" value={fmtQ(kpis.montosPend)}
+          icon={CreditCard} color="#f59e0b" sub={`${kpis.cntPend} reqs pendientes`}
+        />
+        <KpiCard
+          label="Vencido" value={fmtQ(kpis.montosVenc)}
+          icon={AlertCircle} color="#ef4444" sub={`${kpis.cntVenc} reqs vencidos`}
+          alert={kpis.cntVenc > 0}
+        />
+        <KpiCard
+          label="Pólizas vencen ≤30d" value={kpis.cntVencen30}
+          icon={Calendar} color={kpis.cntVencen30 > 0 ? '#f59e0b' : '#22c55e'}
+          sub={`${kpis.cntPipeline} solicitudes en pipeline`}
+          alert={kpis.cntVencen30 > 0}
+        />
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))',gap:'24px'}}>
-        <div style={{background:'white',borderRadius:'12px',padding:'24px',border:'1px solid #e2e8f0'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'20px'}}>
-            <Clock size={18} color="#C4A96B" />
-            <h2 style={{fontSize:'16px',fontWeight:600,color:'#111111'}}>Tareas pendientes</h2>
-            <span style={{marginLeft:'auto',background:'#dbeafe',color:'#1d4ed8',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>{tareas.length}</span>
-          </div>
-          {tareas.length === 0 ? (
-            <p style={{color:'#94a3b8',fontSize:'14px',textAlign:'center',padding:'24px 0'}}>No hay tareas pendientes 🎉</p>
-          ) : (
-            tareas.map(t => <TareaItem key={t.id} tarea={t} onComplete={completarTarea} />)
-          )}
-          <form onSubmit={agregarTarea} style={{display:'flex',gap:'8px',marginTop:'16px'}}>
-            <input value={nuevaTarea} onChange={e=>setNuevaTarea(e.target.value)} placeholder="Nueva tarea..."
-              style={{flex:1,padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',outline:'none'}} />
-            <button type="submit" style={{padding:'8px 16px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
-              + Agregar
-            </button>
-          </form>
-        </div>
+      {/* ── Main 3-col ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 300px', gap: '16px', marginBottom: '16px', alignItems: 'start' }}>
 
-        <div style={{background:'white',borderRadius:'12px',padding:'24px',border:'1px solid #e2e8f0'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'20px'}}>
-            <TrendingUp size={18} color="#C4A96B" />
-            <h2 style={{fontSize:'16px',fontWeight:600,color:'#111111'}}>Resumen del sistema</h2>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-            {[
-              { label: 'Pólizas activas', value: stats.polizas, color: '#C4A96B' },
-              { label: 'Clientes activos', value: stats.clientes, color: '#111111' },
-              { label: 'Reqs. pendientes de pago', value: stats.reqs_pendientes, color: '#C8A84B' },
-              { label: 'Reqs. vencidos', value: stats.reqs_vencidos, color: '#ef4444' },
-            ].map(item => (
-              <div key={item.label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #f1f5f9'}}>
-                <span style={{fontSize:'14px',color:'#475569'}}>{item.label}</span>
-                <span style={{fontSize:'16px',fontWeight:700,color:item.color}}>{item.value}</span>
+        {/* Alertas críticas */}
+        <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${totalAlertas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
+          <SectionHeader
+            icon={AlertTriangle} label="Alertas críticas"
+            color="#ef4444" badge={totalAlertas} badgeColor="#ef4444"
+            action="Ver reqs." onAction={() => navigate('/requerimientos')}
+          />
+          <div style={{ padding: '4px 16px 16px' }}>
+            {totalAlertas === 0 ? (
+              <div style={{ padding: '32px', textAlign: 'center' }}>
+                <CheckCircle size={30} color='#22c55e' style={{ marginBottom: '8px' }} />
+                <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Sin alertas críticas 🎉</p>
               </div>
-            ))}
+            ) : (
+              <>
+                {polizasVencen.length > 0 && (
+                  <>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase', margin: '14px 0 6px' }}>Pólizas por vencer</p>
+                    {polizasVencen.map(p => {
+                      const dias = diasHasta(p.fecha_vencimiento)
+                      const { bg, color } = urgenciaStyle(dias)
+                      return (
+                        <div key={p.id}
+                          onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                          <div>
+                            <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0 }}>{p.numero_poliza}</p>
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{nombreCliente(p.clientes)} · {p.aseguradoras?.nombre}</p>
+                          </div>
+                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', background: bg, color, flexShrink: 0 }}>
+                            {dias <= 0 ? 'Venció' : `${dias}d`}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
+                {reqsVencidos.length > 0 && (
+                  <>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase', margin: '14px 0 6px' }}>Reqs. vencidos</p>
+                    {reqsVencidos.map(r => (
+                      <div key={r.codigo}
+                        onClick={() => navigate('/requerimientos')}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                        <div>
+                          <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0 }}>{r.codigo}</p>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{nombreCliente(r.polizas?.clientes)} · {r.polizas?.numero_poliza}</p>
+                        </div>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444', margin: 0 }}>{fmtQ(r.monto)}</p>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
+
+        {/* Pipeline */}
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <SectionHeader
+            icon={Activity} label="Pipeline de solicitudes"
+            color="#C4A96B" badge={pipeline.length}
+            action="Ver pólizas" onAction={() => navigate('/polizas')}
+          />
+          <div style={{ padding: '4px 16px 16px' }}>
+            {pipeline.length === 0 ? (
+              <div style={{ padding: '32px', textAlign: 'center' }}>
+                <FileText size={28} color='#cbd5e1' style={{ marginBottom: '8px' }} />
+                <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Sin solicitudes pendientes</p>
+              </div>
+            ) : pipeline.map(p => {
+              const badge = estadoBadge[p.estado] || { bg: '#f1f5f9', color: '#64748b' }
+              return (
+                <div key={p.id}
+                  onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.numero_poliza || '(Sin número)'}
+                      </p>
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '20px', background: badge.bg, color: badge.color, fontWeight: 700, flexShrink: 0 }}>
+                        {estadoLabel[p.estado]}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {nombreCliente(p.clientes)} · {p.aseguradoras?.nombre}
+                    </p>
+                  </div>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#C4A96B', margin: 0, flexShrink: 0 }}>{fmtQ(p.prima_total)}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Tareas */}
+        <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${tareasVencidas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
+          <SectionHeader
+            icon={CheckSquare} label="Tareas pendientes"
+            color="#111111" badge={tareas.length}
+            action="Ver todas" onAction={() => navigate('/tareas')}
+          />
+          <div style={{ padding: '4px 16px 0' }}>
+            {tareas.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center' }}>
+                <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>¡Sin tareas pendientes! 🎉</p>
+              </div>
+            ) : tareas.slice(0, 6).map(t => {
+              const dias = t.fecha_vencimiento ? diasHasta(t.fecha_vencimiento) : null
+              const vencida = dias != null && dias < 0
+              return (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <button onClick={() => completarTarea(t.id)}
+                    style={{ width: '17px', height: '17px', borderRadius: '4px', border: '2px solid #e2e8f0', background: 'white', cursor: 'pointer', flexShrink: 0, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titulo}</p>
+                    {t.fecha_vencimiento && (
+                      <p style={{ fontSize: '11px', color: vencida ? '#ef4444' : '#94a3b8', margin: '2px 0 0', fontWeight: vencida ? 600 : 400 }}>
+                        {vencida ? `⚠ Venció hace ${Math.abs(dias)}d` : `Vence ${fmtDateShort(t.fecha_vencimiento)}`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            <form onSubmit={agregarTarea} style={{ display: 'flex', gap: '6px', padding: '10px 0 14px' }}>
+              <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea rápida..."
+                style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', outline: 'none', background: 'white', color: '#1e293b' }} />
+              <button type="submit" style={{ padding: '7px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
+                <Plus size={13} />
+              </button>
+            </form>
+          </div>
+        </div>
+
       </div>
+
+      {/* ── Próximos vencimientos ── */}
+      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <SectionHeader icon={Calendar} label="Próximos vencimientos — 60 días" color="#C4A96B" badge={vencimientos.length} />
+        {vencimientos.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>
+            <Calendar size={30} color='#cbd5e1' style={{ marginBottom: '10px' }} />
+            <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Sin vencimientos en los próximos 60 días</p>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                {['Tipo', 'Referencia', 'Cliente', 'Fecha de vencimiento', 'Días restantes'].map(h => (
+                  <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 600, color: '#64748b', textAlign: 'left', letterSpacing: '0.5px', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {vencimientos.map((v, i) => {
+                const dias = diasHasta(v.fecha)
+                const { bg, color } = urgenciaStyle(dias)
+                return (
+                  <tr key={i}
+                    onClick={() => v.tipo === 'poliza' ? navigate('/polizas', { state: { openPolizaId: v.id } }) : navigate('/requerimientos')}
+                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.1s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                    <td style={{ padding: '11px 16px' }}>
+                      <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '20px', fontWeight: 600, background: v.tipo === 'poliza' ? '#FDF8EE' : '#dbeafe', color: v.tipo === 'poliza' ? '#92703a' : '#1d4ed8' }}>
+                        {v.tipo === 'poliza' ? 'Póliza' : 'Req. pago'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: '13px', fontWeight: 600, color: '#111111' }}>{v.label}</td>
+                    <td style={{ padding: '11px 16px', fontSize: '13px', color: '#475569' }}>{v.cliente || '—'}</td>
+                    <td style={{ padding: '11px 16px', fontSize: '13px', color: '#475569' }}>{fmtDate(v.fecha)}</td>
+                    <td style={{ padding: '11px 16px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', background: bg, color }}>
+                        {dias == null ? '—' : dias <= 0 ? 'Vencido' : dias === 0 ? 'Hoy' : `${dias} días`}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
     </div>
   )
 }
