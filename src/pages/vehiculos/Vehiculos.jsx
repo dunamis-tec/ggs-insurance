@@ -174,7 +174,7 @@ export default function Vehiculos() {
         style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
         <ArrowLeft size={16}/> Volver a vehiculos
       </button>
-      <div style={{maxWidth:'800px',background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
         <div style={{padding:'20px 24px',borderBottom:'1px solid #f1f5f9'}}>
           <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:0}}>{editing ? 'Editar vehículo' : 'Nuevo vehículo'}</h2>
           <p style={{fontSize:'13px',color:'#6B6B62',marginTop:'4px',marginBottom:0}}>Completa la información del vehículo</p>
