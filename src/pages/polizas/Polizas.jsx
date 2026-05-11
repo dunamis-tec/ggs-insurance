@@ -145,7 +145,7 @@ export default function Polizas() {
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: polizasData }, { data: clientesData }, { data: aseguradorasData }] = await Promise.all([
-      supabase.from('polizas').select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+      supabase.from('polizas').select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), emisiones(tipo,estado,prima_emision)')
         .eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('clientes').select('id,nombre,apellido,tipo,nit,email,telefono,dpi').eq('activo', true).order('nombre'),
       supabase.from('aseguradoras').select('id,nombre,logo_url,productos(id,nombre,activo)').eq('activa', true).order('nombre')
@@ -673,10 +673,19 @@ export default function Polizas() {
                     {p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre}
                   </p>
                 </div>
-                <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
-                  <p style={{fontSize:'14px',fontWeight:700,color:'#C4A96B',margin:0}}>Q {parseFloat(p.prima_total||0).toLocaleString()}</p>
-                  <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{p.tipo_pago==='financiado'?`${p.numero_cuotas||1} cuotas`:'Contado'}</p>
-                </div>
+                {(() => {
+                  const primaActiva = p.estado === 'emitida'
+                    ? (p.emisiones||[])
+                        .filter(em => em.estado === 'emitida' || em.estado === 'completado')
+                        .reduce((s,em) => { const v=parseFloat(em.prima_emision||0); return em.tipo==='exclusion'?s-v:s+v }, 0)
+                    : parseFloat(p.prima_total||0)
+                  return (
+                    <div style={{textAlign:'right',marginRight:'16px',flexShrink:0}}>
+                      <p style={{fontSize:'14px',fontWeight:700,color:'#C4A96B',margin:0}}>Q {primaActiva.toLocaleString('es-GT', {minimumFractionDigits:0})}</p>
+                      <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{p.tipo_pago==='financiado'?`${p.numero_cuotas||1} cuotas`:'Contado'}</p>
+                    </div>
+                  )
+                })()}
                 {p.fecha_vencimiento && (
                   <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
                     <p style={{fontSize:'12px',color:'#64748b',margin:0,whiteSpace:'nowrap'}}>Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}</p>
