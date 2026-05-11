@@ -80,16 +80,13 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{marginBottom:'20px'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Dashboard</h1>
             <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {stats.polizas} pólizas · {stats.clientes} clientes · {stats.reqs_pendientes} reqs pendientes
             </p>
-          </div>
-          <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <TrendingUp size={20} color='#C4A96B'/>
           </div>
         </div>
       </div>

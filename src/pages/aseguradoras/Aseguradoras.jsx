@@ -76,7 +76,7 @@ export default function Aseguradoras() {
 
   return (
     <div>
-      <div style={{marginBottom:'20px'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Aseguradoras</h1>

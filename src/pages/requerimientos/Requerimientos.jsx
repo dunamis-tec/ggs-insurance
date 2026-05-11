@@ -105,7 +105,7 @@ export default function Requerimientos() {
         </button>
 
         {/* ── Header full-width ── */}
-        <div style={{marginBottom:'16px'}}>
+        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'16px',overflow:'hidden'}}>
           <div style={{padding:'24px 28px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
               <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -304,7 +304,7 @@ export default function Requerimientos() {
   // --- LISTA ---
   return (
     <div>
-      <div style={{marginBottom:'20px'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
             <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Requerimientos de pago</h1>

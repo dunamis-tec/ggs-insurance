@@ -346,7 +346,7 @@ export default function Clientes() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom:'20px' }}>
+      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', marginBottom:'20px' }}>
         <div style={{ padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ textAlign:'left' }}>
             <h1 style={{ fontSize:'22px', fontWeight:700, color:'#111111', margin:0 }}>
@@ -360,11 +360,11 @@ export default function Clientes() {
           </div>
           {activeMainTab === 'clientes'
             ? <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
-                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#FDF8EE', color:'#111111', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
                 <Plus size={16} /> Nuevo cliente
               </button>
             : <button onClick={() => { setShowCongForm(true); setCongForm(emptyCong); setEditingCong(null) }}
-                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#FDF8EE', color:'#111111', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
                 <Plus size={16} /> Nuevo conglomerado
               </button>
           }
@@ -664,7 +664,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
               </div>
             </div>
           </div>
-          <button onClick={() => onEdit(cliente)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#FDF8EE', color:'#111111', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', flexShrink:0 }}>
+          <button onClick={() => onEdit(cliente)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', flexShrink:0 }}>
             <Edit2 size={13} /> Editar
           </button>
         </div>

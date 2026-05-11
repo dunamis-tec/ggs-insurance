@@ -174,10 +174,10 @@ export default function Vehiculos() {
         style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
         <ArrowLeft size={16}/> Volver a vehiculos
       </button>
-      <div style={{maxWidth:'800px'}}>
-        <div style={{padding:'20px 24px',}}>
-          <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:0}}>{editing ? 'Editar vehiculo' : 'Nuevo vehiculo'}</h2>
-          <p style={{fontSize:'13px',color:'#6B6B62',marginTop:'4px',marginBottom:0}}>Completa la informacion del vehiculo</p>
+      <div style={{maxWidth:'800px',background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+        <div style={{padding:'20px 24px',borderBottom:'1px solid #f1f5f9'}}>
+          <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:0}}>{editing ? 'Editar vehículo' : 'Nuevo vehículo'}</h2>
+          <p style={{fontSize:'13px',color:'#6B6B62',marginTop:'4px',marginBottom:0}}>Completa la información del vehículo</p>
         </div>
         <div style={{padding:'24px'}}>
           <form onSubmit={handleSubmit}>
@@ -259,10 +259,10 @@ export default function Vehiculos() {
 
   return (
     <div>
-      <div style={{marginBottom:'20px'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Vehiculos</h1>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Vehículos</h1>
             <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {vehiculos.length} vehiculos · {vehiculos.filter(v=>v.polizas?.activa).length} en poliza activa
             </p>
@@ -351,7 +351,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
         <ArrowLeft size={16}/> {fromPolizaId ? 'Volver a la póliza' : fromClienteId ? 'Volver al cliente' : 'Volver a vehiculos'}
       </button>
 
-      <div style={{marginBottom:'16px'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'16px',overflow:'hidden'}}>
         <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
             <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
