@@ -711,6 +711,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [vehiculoSearch, setVehiculoSearch]   = useState('')
   const [showCambiarEstadoModal, setShowCambiarEstadoModal] = useState(false)
   const [estadoOpcion, setEstadoOpcion] = useState(null)   // 'enviar' | 'emitir' | 'reproceso' | 'reenviar'
+  const [showNuevaGestionModal, setShowNuevaGestionModal] = useState(false)
+  const [tipoGestion, setTipoGestion] = useState(null)    // 'renovacion' | 'inclusion' | 'exclusion'
   const [emitirForm, setEmitirForm]   = useState({ numero_poliza:'' })
   const [emitirPdfFile, setEmitirPdfFile] = useState(null)
   const [uploadingPdf, setUploadingPdf] = useState(false)
@@ -1092,27 +1094,11 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             )}
 
             {/* ── Estado: emitida ── */}
-            {isEmitida && (
-              <>
-                {poliza.poliza_pdf_url && (
-                  <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
-                    <Download size={13}/> Póliza PDF
-                  </a>
-                )}
-                <button onClick={()=>abrirFormEmision('inclusion')}
-                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                  <Plus size={13}/> Inclusión
-                </button>
-                <button onClick={()=>abrirFormEmision('exclusion')}
-                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                  <Minus size={13}/> Exclusión
-                </button>
-                <button onClick={renovarPoliza}
-                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                  <RefreshCw size={13}/> Renovar
-                </button>
-              </>
+            {isEmitida && poliza.poliza_pdf_url && (
+              <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
+                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
+                <Download size={13}/> Póliza PDF
+              </a>
             )}
 
           </div>
@@ -1404,9 +1390,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
             <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Gestiones</h3>
-            <button onClick={()=>{ setEmisionForm({prima_emision:'',fecha_inicio:'',notas:''}); setInclusionVehiculosSelected([]); setShowEmisionForm(!showEmisionForm) }}
+            <button onClick={()=>{ setTipoGestion(null); setShowNuevaGestionModal(true) }}
               style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
-              <Plus size={13}/> Inclusión
+              <Plus size={13}/> Nueva gestión
             </button>
           </div>
 
@@ -1750,6 +1736,112 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             </div>
           ))}
         </div>
+      )}
+
+      {/* ─ Modal: Nueva gestión ─ */}
+      {showNuevaGestionModal && (
+        <>
+          <div onClick={()=>setShowNuevaGestionModal(false)}
+            style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:300}}/>
+          <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+            background:'white',borderRadius:'16px',padding:'28px',width:'90%',maxWidth:'460px',
+            zIndex:301,boxShadow:'0 20px 60px rgba(0,0,0,0.25)'}}>
+
+            <div style={{marginBottom:'20px'}}>
+              <p style={{fontSize:'12px',fontWeight:600,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',margin:'0 0 4px'}}>Gestiones</p>
+              <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:'0 0 4px'}}>¿Qué tipo de gestión deseas realizar?</h2>
+              <p style={{fontSize:'13px',color:'#6B6B62',margin:0}}>
+                Póliza: <span style={{fontWeight:600,color:'#111111'}}>{poliza.numero_poliza}</span>
+              </p>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'24px'}}>
+
+              {/* Renovación */}
+              <div onClick={()=>setTipoGestion(tipoGestion==='renovacion'?null:'renovacion')}
+                style={{border:`2px solid ${tipoGestion==='renovacion'?'#C4A96B':'#e2e8f0'}`,borderRadius:'12px',
+                  padding:'14px 16px',cursor:'pointer',background:tipoGestion==='renovacion'?'#FDF8EE':'white',transition:'all 0.15s'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                  <div style={{width:'28px',height:'28px',borderRadius:'50%',flexShrink:0,
+                    background:tipoGestion==='renovacion'?'#C4A96B':'#f1f5f9',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <RefreshCw size={13} color={tipoGestion==='renovacion'?'white':'#94a3b8'}/>
+                  </div>
+                  <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>Renovación</p>
+                </div>
+                <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 38px'}}>
+                  Crear una nueva solicitud de póliza para el siguiente periodo de vigencia.
+                </p>
+              </div>
+
+              {/* Inclusión */}
+              <div onClick={()=>setTipoGestion(tipoGestion==='inclusion'?null:'inclusion')}
+                style={{border:`2px solid ${tipoGestion==='inclusion'?'#1d4ed8':'#e2e8f0'}`,borderRadius:'12px',
+                  padding:'14px 16px',cursor:'pointer',background:tipoGestion==='inclusion'?'#eff6ff':'white',transition:'all 0.15s'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                  <div style={{width:'28px',height:'28px',borderRadius:'50%',flexShrink:0,
+                    background:tipoGestion==='inclusion'?'#1d4ed8':'#f1f5f9',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <Plus size={13} color={tipoGestion==='inclusion'?'white':'#94a3b8'}/>
+                  </div>
+                  <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>Inclusión</p>
+                </div>
+                <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 38px'}}>
+                  Agregar uno o más vehículos del cliente a la póliza activa.
+                </p>
+              </div>
+
+              {/* Exclusión */}
+              <div onClick={()=>setTipoGestion(tipoGestion==='exclusion'?null:'exclusion')}
+                style={{border:`2px solid ${tipoGestion==='exclusion'?'#dc2626':'#e2e8f0'}`,borderRadius:'12px',
+                  padding:'14px 16px',cursor:'pointer',background:tipoGestion==='exclusion'?'#fef2f2':'white',transition:'all 0.15s'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                  <div style={{width:'28px',height:'28px',borderRadius:'50%',flexShrink:0,
+                    background:tipoGestion==='exclusion'?'#dc2626':'#f1f5f9',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <Minus size={13} color={tipoGestion==='exclusion'?'white':'#94a3b8'}/>
+                  </div>
+                  <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>Exclusión</p>
+                </div>
+                <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 38px'}}>
+                  Remover uno o más vehículos de la póliza activa.
+                </p>
+              </div>
+
+            </div>
+
+            <div style={{display:'flex',gap:'10px'}}>
+              <button
+                disabled={!tipoGestion}
+                onClick={async()=>{
+                  setShowNuevaGestionModal(false)
+                  if (tipoGestion === 'renovacion') {
+                    await renovarPoliza()
+                  } else {
+                    abrirFormEmision(tipoGestion)
+                  }
+                  setTipoGestion(null)
+                }}
+                style={{flex:1,padding:'11px',border:'none',borderRadius:'9px',fontSize:'14px',fontWeight:700,
+                  cursor: tipoGestion ? 'pointer' : 'not-allowed', transition:'all 0.15s',
+                  background: !tipoGestion ? '#e2e8f0'
+                    : tipoGestion==='renovacion' ? '#C4A96B'
+                    : tipoGestion==='inclusion' ? '#1d4ed8'
+                    : '#dc2626',
+                  color: !tipoGestion ? '#94a3b8' : 'white'}}>
+                {!tipoGestion ? 'Selecciona un tipo'
+                  : tipoGestion==='renovacion' ? 'Crear renovación →'
+                  : tipoGestion==='inclusion' ? 'Continuar con inclusión →'
+                  : 'Continuar con exclusión →'}
+              </button>
+              <button onClick={()=>{ setShowNuevaGestionModal(false); setTipoGestion(null) }}
+                style={{padding:'11px 20px',background:'white',color:'#64748b',
+                  border:'1px solid #e2e8f0',borderRadius:'9px',fontSize:'14px',cursor:'pointer'}}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ─ Modal: Cambiar estado ─ */}
