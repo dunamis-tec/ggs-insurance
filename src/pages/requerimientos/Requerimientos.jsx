@@ -113,7 +113,7 @@ export default function Requerimientos() {
               </div>
               <div>
                 <h2 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0,letterSpacing:'-0.3px'}}>{selected.codigo}</h2>
-                <p style={{fontSize:'13px',color:'rgba(255,255,255,0.65)',margin:'4px 0 0'}}>
+                <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>
                   Cuota {selected.numero_cuota} de {selected.total_cuotas}
                   {selected.polizas?.aseguradoras?.nombre && <span style={{marginLeft:'10px',opacity:0.8}}>· {selected.polizas.aseguradoras.nombre}</span>}
                 </p>
@@ -121,11 +121,11 @@ export default function Requerimientos() {
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'12px',flexShrink:0}}>
               <div style={{textAlign:'right'}}>
-                <p style={{fontSize:'11px',color:'rgba(255,255,255,0.55)',margin:0}}>Monto</p>
+                <p style={{fontSize:'11px',color:'#94a3b8',margin:0}}>Monto</p>
                 <p style={{fontSize:'26px',fontWeight:800,color:'#111111',margin:'2px 0 0',letterSpacing:'-0.5px'}}>Q {parseFloat(selected.monto||0).toLocaleString()}</p>
               </div>
               <div style={{width:'1px',height:'40px',background:'#FDF8EE'}}/>
-              <div style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',background:selected.estado==='pagado'?'rgba(34,197,94,0.25)':displayEstado==='vencido'?'rgba(239,68,68,0.25)':displayEstado==='por_cobrar'?'rgba(245,158,11,0.25)':'rgba(255,255,255,0.15)',border:'1px solid #e2e8f0'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',background:selected.estado==='pagado'?'rgba(34,197,94,0.25)':displayEstado==='vencido'?'rgba(239,68,68,0.25)':displayEstado==='por_cobrar'?'rgba(245,158,11,0.25)':'#f1f5f9',border:'1px solid #e2e8f0'}}>
                 <Icon size={13} color='#C4A96B'/>
                 <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>{estadoLabel[displayEstado]}</span>
               </div>

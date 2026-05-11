@@ -946,7 +946,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             {/* Left: logo + title + badge */}
             <div style={{display:'flex',alignItems:'center',gap:'14px',minWidth:0}}>
               <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#FDF8EE',flexShrink:0}}>
-                {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="white"/>}
+                {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="#C4A96B"/>}
               </div>
               <div style={{minWidth:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
@@ -957,16 +957,16 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   {isEmitida && vencEst==='vencida' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef2f2',color:'#ef4444',fontWeight:600}}>Vencida</span>}
                   {isEmitida && vencEst==='por_vencer' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef9c3',color:'#a16207',fontWeight:600}}>Por vencer ({diasRestantes}d)</span>}
                 </div>
-                <p style={{fontSize:'13px',color:'rgba(255,255,255,0.65)',margin:'3px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                <p style={{fontSize:'13px',color:'#6B6B62',margin:'3px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                   {poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}
                 </p>
                 {poliza.poliza_origen && (
                   <div style={{marginTop:'4px',display:'flex',alignItems:'center',gap:'4px'}}>
-                    <GitMerge size={11} color="rgba(255,255,255,0.55)"/>
-                    <span style={{fontSize:'12px',color:'rgba(255,255,255,0.65)'}}>
+                    <GitMerge size={11} color="#94a3b8"/>
+                    <span style={{fontSize:'12px',color:'#6B6B62'}}>
                       Renovación de&nbsp;
                       <button onClick={()=>navigate('/polizas',{state:{openPolizaId:poliza.poliza_origen.id}})}
-                        style={{background:'none',border:'none',color:'rgba(255,255,255,0.9)',cursor:'pointer',fontSize:'12px',fontWeight:600,padding:0,textDecoration:'underline'}}>
+                        style={{background:'none',border:'none',color:'#C4A96B',cursor:'pointer',fontSize:'12px',fontWeight:600,padding:0,textDecoration:'underline'}}>
                         {poliza.poliza_origen.numero_poliza||'solicitud anterior'}
                       </button>
                     </span>
