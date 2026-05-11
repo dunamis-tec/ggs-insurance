@@ -43,7 +43,7 @@ const emisionEstadoIcons  = { solicitada: Clock, reproceso: AlertCircle, emitida
 
 const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_total:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
 const emptyEmision = { tipo:'emision', prima_emision:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_fin:'', notas:'', persona_facturable_id:'' }
-const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1, emision_id:'' }
+const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1, emision_id:'', numero_req_matriz:'' }
 
 /* ─── SearchSelect ───────────────────────────────────────────────────────── */
 function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre', valueKey='id', renderOption }) {
@@ -1016,9 +1016,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     }
     // Create mode — bulk generate
     if (!reqForm.emision_id) { toast.error('Selecciona la emisión'); return }
+    if (!reqForm.numero_req_matriz) { toast.error('Ingresa el número de requerimiento matriz'); return }
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: codigoData } = await supabase.rpc('generate_codigo_req')
-    const codigo = codigoData || 'REQ-' + Date.now()
+    const baseNum = parseInt(reqForm.numero_req_matriz)
+    if (isNaN(baseNum)) { toast.error('El número de requerimiento debe ser numérico'); return }
     const monto = parseFloat(reqForm.monto)
     const totalCuotas = parseInt(reqForm.total_cuotas)
     const requerimientos = Array.from({ length: totalCuotas }, (_, i) => {
@@ -1026,7 +1027,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       fecha.setMonth(fecha.getMonth() + i)
       return {
         emision_id: reqForm.emision_id, poliza_id: poliza.id,
-        codigo: i===0 ? codigo : `${codigo}-${i}`, codigo_matriz: i===0 ? null : codigo,
+        codigo: String(baseNum + i),
+        codigo_matriz: i === 0 ? null : String(baseNum),
         numero_cuota: i+1, total_cuotas: totalCuotas, monto,
         fecha_vencimiento: fecha.toISOString().split('T')[0], created_by: user?.id,
       }
@@ -1711,6 +1713,24 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                             return <option key={em.id} value={em.id}>{em.numero_emision} · {tipoLabel} · {estLabel}</option>
                           })}
                         </select>
+                      </div>
+                    )}
+
+                    {/* Número req. matriz — only on create */}
+                    {!editingReq && (
+                      <div>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                          No. de requerimiento matriz * <span style={{fontWeight:400,color:'#94a3b8'}}>(asignado por aseguradora)</span>
+                        </label>
+                        <input type='text' required
+                          value={reqForm.numero_req_matriz}
+                          onChange={e=>setReqForm({...reqForm,numero_req_matriz:e.target.value})}
+                          placeholder='Ej: 10001' style={inputStyle}/>
+                        {reqForm.numero_req_matriz && parseInt(reqForm.total_cuotas) > 1 && !isNaN(parseInt(reqForm.numero_req_matriz)) && (
+                          <p style={{fontSize:'11px',color:'#64748b',margin:'4px 0 0'}}>
+                            Los reqs. se numerarán: {reqForm.numero_req_matriz} → {String(parseInt(reqForm.numero_req_matriz) + parseInt(reqForm.total_cuotas) - 1)}
+                          </p>
+                        )}
                       </div>
                     )}
 
