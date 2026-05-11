@@ -5,7 +5,7 @@ import { generateSolicitudPdf } from '../../lib/generateSolicitudPdf'
 import { generateInclusionPdf } from '../../lib/generateInclusionPdf'
 import { FileText, Plus, Minus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
   CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge,
-  AlertTriangle, Download, History, CheckSquare, Square, Upload, Lock } from 'lucide-react'
+  AlertTriangle, Download, History, CheckSquare, Square, Upload, Lock, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 
@@ -732,6 +732,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const tabFromUrl = searchParams.get('tab')
   const [activeTab, setActiveTabState] = useState(validTabs.includes(tabFromUrl) ? tabFromUrl : defaultTab)
   const setActiveTab = (tab) => { setActiveTabState(tab); setSearchParams(p => { p.set('tab', tab); return p }, { replace: true }) }
+  const [showTabDropdown, setShowTabDropdown] = useState(false)
   const [showEmisionForm, setShowEmisionForm] = useState(false)
   const [preselectedTipo, setPreselectedTipo] = useState(null)
   const [showReqModal, setShowReqModal]       = useState(false)
@@ -1316,44 +1317,88 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       </div>
 
       {/* Tabs */}
-      <div style={{display:'flex',gap:'8px',marginBottom:'16px',flexWrap:'wrap'}}>
-        {[
+      {(() => {
+        const activeIds = new Set(
+          emisiones.filter(em => em.tipo !== 'exclusion' && em.estado !== 'cancelada')
+            .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || [])
+        )
+        const excludedIds = new Set(
+          emisiones.filter(em => em.tipo === 'exclusion' && (em.estado === 'emitida' || em.estado === 'completado'))
+            .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || [])
+        )
+        const uniqueActive = [...activeIds].filter(id => !excludedIds.has(id)).length
+        const tabList = [
           ['detalle','Detalle'],
           ['bitacora',`Bitácora (${bitacora.length})`],
-          ['vehiculos_sol', (() => {
-            if (!isEmitida) return `Vehículos (${solicitudVehiculos.length})`
-            const activeIds = new Set(
-              emisiones
-                .filter(em => em.tipo !== 'exclusion' && em.estado !== 'cancelada')
-                .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || [])
-            )
-            const excludedIds = new Set(
-              emisiones
-                .filter(em => em.tipo === 'exclusion' && (em.estado === 'emitida' || em.estado === 'completado'))
-                .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || [])
-            )
-            const uniqueActive = [...activeIds].filter(id => !excludedIds.has(id)).length
-            return `Vehículos (${uniqueActive})`
-          })()],
+          ['vehiculos_sol', isEmitida ? `Vehículos (${uniqueActive})` : `Vehículos (${solicitudVehiculos.length})`],
           ...(isEmitida ? [
             ['emisiones',`Gestiones (${emisiones.length})`],
             ['pagos',`Pagos (${reqs.length})`],
           ] : []),
           ['tareas',`Tareas (${tareas.length})`],
-        ].map(([tab,label])=>(
-          <button key={tab} onClick={()=>setActiveTab(tab)}
-            style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
-              background:activeTab===tab?'#111111':'white',color:activeTab===tab?'white':'#64748b',
-              border:`1px solid ${activeTab===tab?'#111111':'#e2e8f0'}`}}>
-            {label}
-          </button>
-        ))}
-        {!isEmitida && (
-          <p style={{fontSize:'13px',color:'#94a3b8',margin:'auto 0',paddingLeft:'4px'}}>
-            Emisiones y pagos disponibles al emitir la póliza.
-          </p>
-        )}
-      </div>
+        ]
+        const activeLabel = tabList.find(([t]) => t === activeTab)?.[1] || 'Detalle'
+
+        if (isMobile) {
+          return (
+            <div style={{position:'relative',marginBottom:'16px'}}>
+              <button
+                onClick={() => setShowTabDropdown(v => !v)}
+                style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
+                  padding:'11px 16px',background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',
+                  fontSize:'14px',fontWeight:600,color:'#111111',cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
+                <span>{activeLabel}</span>
+                <ChevronDown size={16} color='#64748b' style={{transform:showTabDropdown?'rotate(180deg)':'none',transition:'transform 0.2s'}}/>
+              </button>
+              {showTabDropdown && (
+                <>
+                  <div onClick={() => setShowTabDropdown(false)}
+                    style={{position:'fixed',inset:0,zIndex:100}}/>
+                  <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,right:0,background:'white',
+                    border:'1px solid #e2e8f0',borderRadius:'10px',boxShadow:'0 8px 24px rgba(0,0,0,0.12)',
+                    zIndex:101,overflow:'hidden'}}>
+                    {tabList.map(([tab, label]) => (
+                      <button key={tab}
+                        onClick={() => { setActiveTab(tab); setShowTabDropdown(false) }}
+                        style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
+                          padding:'12px 16px',background:activeTab===tab?'#f8fafc':'white',
+                          border:'none',borderBottom:'1px solid #f1f5f9',fontSize:'14px',
+                          fontWeight:activeTab===tab?600:400,color:activeTab===tab?'#111111':'#374151',
+                          cursor:'pointer',textAlign:'left'}}>
+                        {label}
+                        {activeTab===tab && <Check size={15} color='#111111'/>}
+                      </button>
+                    ))}
+                    {!isEmitida && (
+                      <p style={{fontSize:'12px',color:'#94a3b8',padding:'10px 16px',margin:0,background:'#f8fafc'}}>
+                        Gestiones y pagos disponibles al emitir.
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        }
+
+        return (
+          <div style={{display:'flex',gap:'8px',marginBottom:'16px',flexWrap:'wrap'}}>
+            {tabList.map(([tab,label])=>(
+              <button key={tab} onClick={()=>setActiveTab(tab)}
+                style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
+                  background:activeTab===tab?'#111111':'white',color:activeTab===tab?'white':'#64748b',
+                  border:`1px solid ${activeTab===tab?'#111111':'#e2e8f0'}`}}>
+                {label}
+              </button>
+            ))}
+            {!isEmitida && (
+              <p style={{fontSize:'13px',color:'#94a3b8',margin:'auto 0',paddingLeft:'4px'}}>
+                Emisiones y pagos disponibles al emitir la póliza.
+              </p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ─ TAB: Detalle ─ */}
       {activeTab === 'detalle' && (() => {
