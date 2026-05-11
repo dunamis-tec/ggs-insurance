@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
-const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
+const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', fecha_nacimiento:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
 const emptyPF = { nombre:'', apellido:'', nit:'', email:'', telefono:'', direccion:'' }
 
 const tipoColors = { prospecto:{ bg:'#fef9c3', color:'#a16207' }, individual:{ bg:'#dbeafe', color:'#1d4ed8' }, empresa:{ bg:'#fef3c7', color:'#d97706' } }
@@ -76,7 +76,8 @@ export default function Clientes() {
     const payload = {
       nombre: form.nombre, apellido: form.apellido || null, tipo: form.tipo,
       email: form.email || null, telefono: form.telefono || null, nit: form.nit || null, dpi: form.dpi || null,
-      direccion: form.direccion || null, conglomerado_id: form.conglomerado_id || null,
+      direccion: form.direccion || null, fecha_nacimiento: form.fecha_nacimiento || null,
+      conglomerado_id: form.conglomerado_id || null,
       razon_social: form.razon_social || null, nombre_empresa: form.nombre_empresa || null,
       contacto_nombre: form.contacto_nombre || null, contacto_apellido: form.contacto_apellido || null,
       contacto_telefono: form.contacto_telefono || null, contacto_email: form.contacto_email || null,
@@ -105,7 +106,8 @@ export default function Clientes() {
       razon_social: c.razon_social || '', nombre_empresa: c.nombre_empresa || '',
       contacto_nombre: c.contacto_nombre || '', contacto_apellido: c.contacto_apellido || '',
       contacto_telefono: c.contacto_telefono || '', contacto_email: c.contacto_email || '',
-      contacto_cargo: c.contacto_cargo || '', dpi: c.dpi || ''
+      contacto_cargo: c.contacto_cargo || '', dpi: c.dpi || '',
+      fecha_nacimiento: c.fecha_nacimiento || ''
     })
     const cong = conglomerados.find(x => x.id === c.conglomerado_id)
     setConglomeradoSearch(cong?.nombre || '')
@@ -289,6 +291,13 @@ export default function Clientes() {
                 <div>
                   <label style={labelStyle}>Direccion</label>
                   <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Fecha de nacimiento</label>
+                  <input type='date' value={form.fecha_nacimiento}
+                    onChange={e => setForm({ ...form, fecha_nacimiento: e.target.value })}
+                    max={new Date().toISOString().split('T')[0]}
+                    style={inp} />
                 </div>
               </div>
             </>

@@ -39,7 +39,7 @@ const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Excl
 const emisionEstadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const emisionEstadoIcons  = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
 
-const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio' }
+const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
 const emptyEmision = { tipo:'emision', prima_emision:'', fraccionamiento:'', fecha_inicio:'', fecha_fin:'', notas:'' }
 const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1 }
 
@@ -105,6 +105,7 @@ export default function Polizas() {
   const [clienteVehiculos, setClienteVehiculos]     = useState([])
   const [vehiculosSeleccionados, setVehiculosSeleccionados] = useState([])
   const [clienteValidation, setClienteValidation]   = useState([])
+  const [personasFacturables, setPersonasFacturables] = useState([])
   const location  = useLocation()
   const navigate  = useNavigate()
   const fromClienteId = location.state?.fromClienteId || null
@@ -150,16 +151,21 @@ export default function Polizas() {
   }
 
   const handleClienteChange = async (id) => {
-    setForm(f => ({ ...f, cliente_id: id }))
+    setForm(f => ({ ...f, cliente_id: id, persona_facturable_id: '' }))
     setVehiculosSeleccionados([])
     setClienteVehiculos([])
     setClienteValidation([])
+    setPersonasFacturables([])
     if (!id) return
     const { data: c } = await supabase.from('clientes').select('*').eq('id', id).single()
     const missing = camposClienteReq.filter(f => !c?.[f.key])
     setClienteValidation(missing)
-    const { data: vData } = await supabase.from('vehiculos').select('*').eq('cliente_id', id).eq('activo', true).order('marca')
+    const [{ data: vData }, { data: pfData }] = await Promise.all([
+      supabase.from('vehiculos').select('*').eq('cliente_id', id).eq('activo', true).order('marca'),
+      supabase.from('personas_facturables').select('*').eq('cliente_id', id).eq('activa', true).order('nombre'),
+    ])
     setClienteVehiculos(vData || [])
+    setPersonasFacturables(pfData || [])
   }
 
   const toggleVehiculo = (id) => {
@@ -207,6 +213,7 @@ export default function Polizas() {
         prima_total: parseFloat(form.prima_total) || 0, tipo_pago: form.tipo_pago,
         fraccionamiento: form.tipo_pago === 'financiado' ? form.fraccionamiento : 'anual',
         fecha_inicio: form.fecha_inicio, fecha_vencimiento: form.fecha_vencimiento,
+        persona_facturable_id: form.persona_facturable_id || null,
       }
       const { error } = await supabase.from('polizas').update(payload).eq('id', editing)
       if (error) { toast.error('Error: ' + error.message); return }
@@ -227,7 +234,7 @@ export default function Polizas() {
         setView('detalle')
         setEditing(null); setReturnToPolizaId(null)
         setForm(emptyPoliza); setProductosFiltered([]); setClienteVehiculos([])
-        setVehiculosSeleccionados([]); setClienteValidation([])
+        setVehiculosSeleccionados([]); setClienteValidation([]); setPersonasFacturables([])
         fetchAll()
         return
       }
@@ -241,6 +248,7 @@ export default function Polizas() {
         prima_total: parseFloat(form.prima_total) || 0, tipo_pago: form.tipo_pago,
         fraccionamiento: form.tipo_pago === 'financiado' ? form.fraccionamiento : 'anual',
         fecha_inicio: form.fecha_inicio, fecha_vencimiento: form.fecha_vencimiento,
+        persona_facturable_id: form.persona_facturable_id || null,
         agente_id: user?.id
       }
       const { data: polizaData, error } = await supabase.from('polizas').insert(payload).select().single()
@@ -265,6 +273,7 @@ export default function Polizas() {
     setForm(emptyPoliza); setEditing(null)
     setProductosFiltered([]); setClienteVehiculos([])
     setVehiculosSeleccionados([]); setClienteValidation([])
+    setPersonasFacturables([])
     setView('list')
   }
 
@@ -276,7 +285,8 @@ export default function Polizas() {
     setForm({
       cliente_id: p.cliente_id, aseguradora_id: p.aseguradora_id, producto_id: p.producto_id,
       prima_total: p.prima_total, tipo_pago: p.tipo_pago||'contado', fraccionamiento: p.fraccionamiento||'',
-      fecha_inicio: p.fecha_inicio, fecha_vencimiento: p.fecha_vencimiento, vigencia:'manual'
+      fecha_inicio: p.fecha_inicio, fecha_vencimiento: p.fecha_vencimiento, vigencia:'manual',
+      persona_facturable_id: p.persona_facturable_id || ''
     })
     // Load existing vehiculos
     const { data: svData } = await supabase.from('solicitud_vehiculos').select('vehiculo_id').eq('poliza_id', p.id)
@@ -382,9 +392,51 @@ export default function Polizas() {
               )}
             </div>
 
+            {/* ─ Persona facturable ─ */}
+            <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
+              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>2 · Responsable de pago</p>
+              {!form.cliente_id ? (
+                <p style={{fontSize:'13px',color:'#94a3b8',margin:0}}>Selecciona un cliente para ver sus personas facturables</p>
+              ) : personasFacturables.length === 0 ? (
+                <div style={{background:'#f8fafc',borderRadius:'8px',padding:'14px 16px',display:'flex',alignItems:'center',gap:'10px'}}>
+                  <AlertTriangle size={15} color='#94a3b8'/>
+                  <p style={{fontSize:'13px',color:'#94a3b8',margin:0}}>
+                    Este cliente no tiene personas facturables registradas.{' '}
+                    <button type="button"
+                      onClick={()=>navigate('/clientes',{state:{openClienteId:form.cliente_id}})}
+                      style={{fontSize:'13px',color:'#1d4ed8',background:'none',border:'none',cursor:'pointer',padding:0,textDecoration:'underline'}}>
+                      Agregar persona facturable →
+                    </button>
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label style={lbl}>Persona responsable de pago <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+                  <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                    {personasFacturables.map(pf => {
+                      const sel = form.persona_facturable_id === pf.id
+                      return (
+                        <div key={pf.id}
+                          onClick={()=>setForm(f=>({...f,persona_facturable_id:sel?'':pf.id}))}
+                          style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',background:sel?'#f0fdf4':'#f8fafc',border:`2px solid ${sel?'#16a34a':'#e2e8f0'}`,borderRadius:'10px',cursor:'pointer',transition:'all 0.15s'}}>
+                          <div style={{width:'20px',height:'20px',borderRadius:'50%',border:`2px solid ${sel?'#16a34a':'#cbd5e1'}`,background:sel?'#16a34a':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                            {sel && <div style={{width:'8px',height:'8px',borderRadius:'50%',background:'white'}}/>}
+                          </div>
+                          <div style={{flex:1}}>
+                            <p style={{fontWeight:600,color:'#111111',fontSize:'13px',margin:0}}>{pf.nombre} {pf.apellido||''}</p>
+                            <p style={{fontSize:'12px',color:'#64748b',margin:0}}>NIT: {pf.nit||'N/A'}{pf.email?` · ${pf.email}`:''}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* ─ Aseguradora + Producto ─ */}
             <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
-              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>2 · Aseguradora y producto</p>
+              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>3 · Aseguradora y producto</p>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'16px'}}>
                 <div>
                   <label style={lbl}>Aseguradora *</label>
@@ -407,7 +459,7 @@ export default function Polizas() {
 
             {/* ─ Vehículos ─ */}
             <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
-              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>3 · Vehículos</p>
+              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>4 · Vehículos</p>
               {!form.cliente_id ? (
                 <p style={{fontSize:'13px',color:'#94a3b8',margin:0}}>Selecciona un cliente para ver sus vehículos</p>
               ) : clienteVehiculos.length === 0 ? (
@@ -449,7 +501,7 @@ export default function Polizas() {
 
             {/* ─ Pago + Prima ─ */}
             <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
-              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>4 · Pago y prima</p>
+              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>5 · Pago y prima</p>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px'}}>
                 <div>
                   <label style={lbl}>Prima total (Q)</label>
@@ -490,7 +542,7 @@ export default function Polizas() {
 
             {/* ─ Vigencia ─ */}
             <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
-              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>5 · Vigencia</p>
+              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>6 · Vigencia</p>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px'}}>
                 <div>
                   <label style={lbl}>Fecha de inicio *</label>
@@ -547,7 +599,7 @@ export default function Polizas() {
               {counts.todas} total · {counts.solicitud} solicitudes · {counts.enviada} enviadas · {counts.en_reproceso} en reproceso · {counts.emitida} emitidas
             </p>
           </div>
-          <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([]);setClienteVehiculos([]);setVehiculosSeleccionados([]);setClienteValidation([])}}
+          <button onClick={()=>{setView('form');setEditing(null);setForm(emptyPoliza);setProductosFiltered([]);setClienteVehiculos([]);setVehiculosSeleccionados([]);setClienteValidation([]);setPersonasFacturables([])}}
             style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
             <Plus size={16}/> Nueva solicitud
           </button>
@@ -998,9 +1050,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   const { data: clienteFull } = await supabase.from('clientes')
                     .select('*').eq('id', poliza.cliente_id).single()
 
-                  const { data: pfsData } = await supabase.from('personas_facturables')
-                    .select('*').eq('cliente_id', poliza.cliente_id).eq('activa', true).limit(1)
-                  const personaFacturable = pfsData?.[0] || null
+                  let personaFacturable = null
+                  if (poliza.persona_facturable_id) {
+                    const { data: pfData } = await supabase.from('personas_facturables')
+                      .select('*').eq('id', poliza.persona_facturable_id).single()
+                    personaFacturable = pfData || null
+                  }
 
                   await generateSolicitudPdf({
                     poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
