@@ -761,7 +761,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const reloadPoliza = async () => {
     const { data } = await supabase.from('polizas')
-      .select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+      .select('*, clientes(nombre,apellido,nit,email,telefono,dpi,direccion,fecha_nacimiento), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), personas_facturables:persona_facturable_id(id,nombre,apellido,nit,direccion), emisiones(tipo,estado,prima_emision)')
       .eq('id', poliza.id).single()
     if (data) setPoliza(data)
   }
@@ -1346,39 +1346,143 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       </div>
 
       {/* ─ TAB: Detalle ─ */}
-      {activeTab === 'detalle' && (
-        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Datos del cliente</h3>
-            <button onClick={()=>navigate('/clientes',{state:{openClienteId:poliza.cliente_id}})}
-              style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 12px',background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
-              Ver perfil del cliente →
-            </button>
+      {activeTab === 'detalle' && (() => {
+        const cli = poliza.clientes || {}
+        const pf  = poliza.personas_facturables
+        const hoy = new Date()
+        const fVenc = poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento) : null
+        const diasRestantes = fVenc ? Math.ceil((fVenc - hoy) / (1000*60*60*24)) : null
+        const diasColor = diasRestantes === null ? '#64748b' : diasRestantes < 0 ? '#ef4444' : diasRestantes <= 30 ? '#f59e0b' : diasRestantes <= 60 ? '#a16207' : '#15803d'
+        const diasBg    = diasRestantes === null ? '#f1f5f9' : diasRestantes < 0 ? '#fef2f2' : diasRestantes <= 30 ? '#fef2f2' : diasRestantes <= 60 ? '#fef9c3' : '#dcfce7'
+        const diasLabel = diasRestantes === null ? '—' : diasRestantes < 0 ? `Venció hace ${Math.abs(diasRestantes)} días` : diasRestantes === 0 ? 'Vence hoy' : `${diasRestantes} días restantes`
+        const nombreCliente = [cli.nombre, cli.apellido].filter(Boolean).join(' ')
+        const initials = [cli.nombre?.[0], cli.apellido?.[0]].filter(Boolean).join('').toUpperCase() || '?'
+
+        const SectionLabel = ({children}) => (
+          <p style={{fontSize:'11px',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.5px',margin:'0 0 12px'}}>{children}</p>
+        )
+        const Field = ({label, value, mono=false}) => value ? (
+          <div>
+            <p style={{fontSize:'11px',color:'#94a3b8',margin:'0 0 2px'}}>{label}</p>
+            <p style={{fontSize:'13px',fontWeight:600,color:'#111111',margin:0,fontFamily:mono?'monospace':'inherit'}}>{value}</p>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'12px'}}>
-            {[
-              ['Nombre', `${poliza.clientes?.nombre||''} ${poliza.clientes?.apellido||''}`],
-              ['NIT', poliza.clientes?.nit||'—'],
-              ['Correo', poliza.clientes?.email||'—'],
-              ['Teléfono', poliza.clientes?.telefono||'—'],
-              ['DPI', poliza.clientes?.dpi||'—'],
-            ].map(([label,val])=>(
-              <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px 16px',border:'1px solid #e2e8f0'}}>
-                <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{label}</p>
-                <p style={{fontSize:'14px',fontWeight:600,color:'#1e293b',margin:'4px 0 0'}}>{val}</p>
+        ) : null
+
+        return (
+          <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:'16px',alignItems:'start'}}>
+
+            {/* ── Left column ── */}
+            <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+
+              {/* Póliza card */}
+              <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+                <SectionLabel>Datos de la póliza</SectionLabel>
+                <div style={{display:'flex',alignItems:'center',gap:'14px',marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
+                  <div style={{width:'48px',height:'48px',borderRadius:'10px',background:'#f8fafc',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
+                    {poliza.aseguradoras?.logo_url
+                      ? <img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+                      : <FileText size={20} color='#C4A96B'/>}
+                  </div>
+                  <div>
+                    <p style={{fontSize:'15px',fontWeight:700,color:'#111111',margin:0}}>{poliza.aseguradoras?.nombre || '—'}</p>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>{poliza.productos?.nombre || '—'}</p>
+                  </div>
+                  {poliza.poliza_pdf_url && (
+                    <a href={poliza.poliza_pdf_url} target='_blank' rel='noopener noreferrer'
+                      style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:'5px',padding:'6px 12px',background:'#f8fafc',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'12px',fontWeight:600,textDecoration:'none',flexShrink:0}}>
+                      <Download size={13}/> PDF póliza
+                    </a>
+                  )}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'16px'}}>
+                  <Field label='Número de póliza' value={poliza.numero_poliza || poliza.numero_solicitud} mono/>
+                  <Field label='Estado' value={polizaEstados[poliza.estado]?.label || poliza.estado}/>
+                  <Field label='Prima total activa' value={`Q ${primaTotal.toLocaleString('es-GT', {minimumFractionDigits:2})}`}/>
+                  <Field label='Tipo de pago' value={poliza.tipo_pago === 'contado' ? 'Contado' : `Financiado · ${poliza.numero_cuotas || 1} cuotas mensuales`}/>
+                  {poliza.poliza_origen && (
+                    <div>
+                      <p style={{fontSize:'11px',color:'#94a3b8',margin:'0 0 2px'}}>Renovación de</p>
+                      <button onClick={()=>navigate('/polizas/'+poliza.poliza_origen.id)}
+                        style={{fontSize:'13px',fontWeight:600,color:'#1d4ed8',background:'none',border:'none',cursor:'pointer',padding:0,textDecoration:'underline'}}>
+                        {poliza.poliza_origen.numero_poliza}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
-          {poliza.poliza_pdf_url && (
-            <div style={{marginTop:'16px',paddingTop:'16px',borderTop:'1px solid #f1f5f9'}}>
-              <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
-                style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>
-                <Download size={14}/> Ver PDF de la póliza
-              </a>
+
+              {/* Vigencia card */}
+              <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+                <SectionLabel>Vigencia</SectionLabel>
+                <div style={{display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                      <div style={{textAlign:'center',padding:'10px 16px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
+                        <p style={{fontSize:'10px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Inicio</p>
+                        <p style={{fontSize:'14px',fontWeight:700,color:'#111111',margin:'3px 0 0'}}>
+                          {poliza.fecha_inicio ? new Date(poliza.fecha_inicio+'T12:00:00').toLocaleDateString('es-GT') : '—'}
+                        </p>
+                      </div>
+                      <div style={{color:'#cbd5e1',fontSize:'18px'}}>→</div>
+                      <div style={{textAlign:'center',padding:'10px 16px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
+                        <p style={{fontSize:'10px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Vencimiento</p>
+                        <p style={{fontSize:'14px',fontWeight:700,color:'#111111',margin:'3px 0 0'}}>
+                          {fVenc ? fVenc.toLocaleDateString('es-GT') : '—'}
+                        </p>
+                      </div>
+                      {diasRestantes !== null && (
+                        <span style={{padding:'6px 14px',borderRadius:'20px',background:diasBg,color:diasColor,fontSize:'12px',fontWeight:600}}>
+                          {diasLabel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Responsable de pago — only if different from client */}
+              {pf && (
+                <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+                  <SectionLabel>Responsable de pago</SectionLabel>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'16px'}}>
+                    <Field label='Nombre' value={[pf.nombre,pf.apellido].filter(Boolean).join(' ')}/>
+                    <Field label='NIT' value={pf.nit} mono/>
+                    <Field label='Dirección' value={pf.direccion}/>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+
+            {/* ── Right column: Cliente ── */}
+            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+              <SectionLabel>Cliente</SectionLabel>
+              {/* Avatar + name */}
+              <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px',paddingBottom:'16px',borderBottom:'1px solid #f1f5f9'}}>
+                <div style={{width:'44px',height:'44px',borderRadius:'50%',background:'#C4A96B',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <span style={{fontSize:'16px',fontWeight:700,color:'white'}}>{initials}</span>
+                </div>
+                <div>
+                  <button onClick={()=>navigate('/clientes',{state:{openClienteId:poliza.cliente_id}})}
+                    style={{fontSize:'14px',fontWeight:700,color:'#111111',background:'none',border:'none',cursor:'pointer',padding:0,textAlign:'left',textDecoration:'underline',textDecorationColor:'#e2e8f0'}}>
+                    {nombreCliente || '—'}
+                  </button>
+                  <p style={{fontSize:'11px',color:'#94a3b8',margin:'2px 0 0'}}>Ver perfil completo →</p>
+                </div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:'14px'}}>
+                <Field label='NIT' value={cli.nit} mono/>
+                <Field label='DPI' value={cli.dpi} mono/>
+                <Field label='Teléfono' value={cli.telefono}/>
+                <Field label='Correo' value={cli.email}/>
+                {cli.direccion && <Field label='Dirección' value={cli.direccion}/>}
+                {cli.fecha_nacimiento && (
+                  <Field label='Fecha de nacimiento' value={new Date(cli.fecha_nacimiento+'T12:00:00').toLocaleDateString('es-GT')}/>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ─ TAB: Bitácora ─ */}
       {activeTab === 'bitacora' && (() => {
