@@ -1838,11 +1838,21 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         const vehiculosParaInclusionModal = allClientVehiculos.filter(v =>
           !vehiculosEnEmisionesSet.has(v.id) && (!v.poliza_id || v.poliza_id === poliza.id)
         )
-        const vehiculosEnPolizaModal = emisiones.flatMap(em =>
-          (em.emision_vehiculos||[]).map(ev => ({
-            ...ev.vehiculos, evId: ev.id, emisionNumero: em.numero_emision, emisionEstado: em.estado
-          }))
-        ).filter(v => v?.id)
+        // Vehicles already excluded (in a non-cancelled exclusion) — not available to exclude again
+        const vehiculosYaExcluidosSet = new Set(
+          emisiones
+            .filter(em => em.tipo === 'exclusion' && em.estado !== 'cancelada')
+            .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id) || [])
+        )
+        // Active vehicles = in a non-cancelled inclusion/emision, not yet excluded
+        const vehiculosEnPolizaModal = emisiones
+          .filter(em => em.tipo !== 'exclusion' && em.estado !== 'cancelada')
+          .flatMap(em =>
+            (em.emision_vehiculos || []).map(ev => ({
+              ...ev.vehiculos, evId: ev.id, emisionNumero: em.numero_emision, emisionEstado: em.estado
+            }))
+          )
+          .filter(v => v?.id && !vehiculosYaExcluidosSet.has(v.id))
         return (
           <>
             <div onClick={()=>{ setShowEmisionModal(false); setEditingEmision(null); setEmisionForm(emptyEmision) }}
