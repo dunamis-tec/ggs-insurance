@@ -222,12 +222,21 @@ function TabUsuarios({ isAdmin, currentUser }) {
   const handleInvite = async (e) => {
     e.preventDefault()
     setInviting(true)
+    // Get current user's empresa_id to assign to the invited user
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: meRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
+    const empresa_id = meRow?.empresa_id
+    if (!empresa_id) { toast.error('No se pudo obtener empresa'); setInviting(false); return }
+
     const { error: authError } = await supabase.auth.signInWithOtp({
       email: inviteEmail,
       options: { shouldCreateUser: true, emailRedirectTo: window.location.origin }
     })
     if (authError) { toast.error('Error al invitar: ' + authError.message); setInviting(false); return }
-    await supabase.from('users').upsert({ email: inviteEmail, nombre: inviteNombre, rol: inviteRol }, { onConflict: 'email' })
+    await supabase.from('users').upsert(
+      { email: inviteEmail, nombre: inviteNombre, rol: inviteRol, empresa_id },
+      { onConflict: 'email' }
+    )
     toast.success('Invitación enviada a ' + inviteEmail)
     setInviteEmail(''); setInviteNombre(''); setInviteRol('agente')
     setShowInvite(false); setInviting(false)

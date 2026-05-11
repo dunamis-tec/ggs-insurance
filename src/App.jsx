@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 
 // Layout
@@ -17,6 +17,7 @@ import Comisiones from './pages/comisiones/Comisiones'
 import Tareas from './pages/tareas/Tareas'
 import Vehiculos from './pages/vehiculos/Vehiculos'
 import Configuracion from './pages/configuracion/Configuracion'
+import Onboarding from './pages/onboarding/Onboarding'
 
 function ProtectedRoute({ children, session }) {
   if (!session) return <Navigate to="/login" replace />
@@ -24,23 +25,42 @@ function ProtectedRoute({ children, session }) {
 }
 
 export default function App() {
-  const [session, setSession] = useState(undefined)
+  const [session, setSession]           = useState(undefined)
+  const [userRow, setUserRow]           = useState(undefined) // null = not found, obj = found
+  const [checkingUser, setCheckingUser] = useState(false)
+
+  const fetchUserRow = useCallback(async (uid) => {
+    setCheckingUser(true)
+    const { data } = await supabase.from('users').select('id, empresa_id, rol, role, nombre').eq('id', uid).maybeSingle()
+    setUserRow(data ?? null)
+    setCheckingUser(false)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
+      if (session?.user) fetchUserRow(session.user.id)
+      else { setUserRow(undefined) }
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      if (session?.user) fetchUserRow(session.user.id)
+      else { setUserRow(undefined) }
     })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [fetchUserRow])
 
-  if (session === undefined) return (
+  // Loading states
+  if (session === undefined || checkingUser) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <p>Cargando...</p>
     </div>
   )
+
+  // Authenticated but needs onboarding (no empresa_id)
+  if (session && (userRow === null || !userRow?.empresa_id)) {
+    return <Onboarding session={session} onComplete={() => fetchUserRow(session.user.id)} />
+  }
 
   return (
     <Routes>
