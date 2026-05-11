@@ -230,7 +230,7 @@ export default function MainLayout({ session }) {
         </div>
 
         {/* Primary nav items */}
-        <nav style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'visible' }}>
           {primaryNavItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink key={to} to={to} end={end}
               title={label}
