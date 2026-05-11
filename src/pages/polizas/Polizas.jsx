@@ -6,7 +6,7 @@ import { FileText, Plus, Minus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, C
   CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge,
   AlertTriangle, Download, History, CheckSquare, Square, Upload, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const fraccionamientoOpciones = [
@@ -713,6 +713,9 @@ export default function Polizas() {
 /* ─── PolizaDetalle ──────────────────────────────────────────────────────── */
 function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromReq }) {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const validTabs = ['detalle','bitacora','vehiculos_sol','emisiones','pagos','tareas']
+  const defaultTab = polizaInit.estado === 'emitida' ? 'detalle' : 'detalle'
   const [poliza, setPoliza]           = useState(polizaInit)
   const [emisiones, setEmisiones]     = useState([])
   const [reqs, setReqs]               = useState([])
@@ -721,7 +724,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [bitacora, setBitacora]       = useState([])
   const [solicitudVehiculos, setSolicitudVehiculos] = useState([])
   const [loading, setLoading]         = useState(true)
-  const [activeTab, setActiveTab]     = useState(polizaInit.estado === 'emitida' ? 'emisiones' : 'detalle')
+  const tabFromUrl = searchParams.get('tab')
+  const [activeTab, setActiveTabState] = useState(validTabs.includes(tabFromUrl) ? tabFromUrl : defaultTab)
+  const setActiveTab = (tab) => { setActiveTabState(tab); setSearchParams(p => { p.set('tab', tab); return p }, { replace: true }) }
   const [showEmisionForm, setShowEmisionForm] = useState(false)
   const [preselectedTipo, setPreselectedTipo] = useState(null)
   const [showReqModal, setShowReqModal]       = useState(false)
