@@ -1,28 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import {
   LayoutDashboard, Users, FileText, Building2, CreditCard,
   BookOpen, DollarSign, CheckSquare, Car, LogOut, Settings,
-  X, Grid3x3
+  X, Grid3x3, ChevronDown
 } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 
 const NAV_HEIGHT = 54
 
-// All nav items
-const navItems = [
-  { to: '/',              icon: LayoutDashboard, label: 'Dashboard',      end: true },
-  { to: '/clientes',      icon: Users,           label: 'Clientes' },
-  { to: '/polizas',       icon: FileText,        label: 'Pólizas' },
-  { to: '/vehiculos',     icon: Car,             label: 'Vehículos' },
-  { to: '/aseguradoras',  icon: Building2,       label: 'Aseguradoras' },
-  { to: '/requerimientos',icon: CreditCard,      label: 'Requerimientos' },
-  { to: '/liquidaciones', icon: BookOpen,        label: 'Liquidaciones' },
-  { to: '/comisiones',    icon: DollarSign,      label: 'Comisiones' },
-  { to: '/tareas',        icon: CheckSquare,     label: 'Tareas' },
-  { to: '/configuracion', icon: Settings,        label: 'Configuración' },
+// Primary nav — always visible in top bar
+const primaryNavItems = [
+  { to: '/',          icon: LayoutDashboard, label: 'Dashboard',  end: true },
+  { to: '/polizas',   icon: FileText,        label: 'Pólizas' },
+  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
+  { to: '/clientes',  icon: Users,           label: 'Clientes' },
 ]
+
+// Secondary nav — hidden inside "Menú" dropdown
+const menuDropdownItems = [
+  { to: '/aseguradoras',  icon: Building2,   label: 'Aseguradoras' },
+  { to: '/requerimientos',icon: CreditCard,  label: 'Requerimientos' },
+  { to: '/liquidaciones', icon: BookOpen,    label: 'Liquidaciones' },
+  { to: '/comisiones',    icon: DollarSign,  label: 'Comisiones' },
+  { to: '/tareas',        icon: CheckSquare, label: 'Tareas' },
+  { to: '/configuracion', icon: Settings,    label: 'Configuración' },
+]
+
+// All nav items (used in mobile)
+const navItems = [...primaryNavItems, ...menuDropdownItems]
 
 // Bottom-tab items (mobile)
 const tabItems = [
@@ -33,21 +40,17 @@ const tabItems = [
 ]
 
 // Menu sheet items (mobile — everything not in tab bar)
-const menuSheetItems = [
-  { to: '/aseguradoras',  icon: Building2,  label: 'Aseguradoras' },
-  { to: '/requerimientos',icon: CreditCard, label: 'Requerimientos' },
-  { to: '/liquidaciones', icon: BookOpen,   label: 'Liquidaciones' },
-  { to: '/comisiones',    icon: DollarSign, label: 'Comisiones' },
-  { to: '/tareas',        icon: CheckSquare,label: 'Tareas' },
-  { to: '/configuracion', icon: Settings,   label: 'Configuración' },
-]
+const menuSheetItems = menuDropdownItems
 
 export default function MainLayout({ session }) {
-  const [menuOpen, setMenuOpen]       = useState(false)
-  const [companyLogo, setCompanyLogo] = useState(null)
-  const navigate  = useNavigate()
-  const location  = useLocation()
+  const [menuOpen, setMenuOpen]           = useState(false)
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
+  const [companyLogo, setCompanyLogo]     = useState(null)
+  const navigate    = useNavigate()
+  const location    = useLocation()
   const { isMobile } = useBreakpoint()
+  const menuBtnRef  = useRef(null)
+  const dropdownRef = useRef(null)
 
   useEffect(() => {
     supabase.from('configuracion_empresa').select('logo_url').single()
@@ -60,12 +63,36 @@ export default function MainLayout({ session }) {
     return () => window.removeEventListener('companyLogoUpdated', handler)
   }, [])
 
-  useEffect(() => { setMenuOpen(false) }, [location.pathname])
+  // Close mobile menu and desktop dropdown on route change
+  useEffect(() => {
+    setMenuOpen(false)
+    setDesktopMenuOpen(false)
+  }, [location.pathname])
+
+  // Close desktop dropdown when clicking outside
+  useEffect(() => {
+    if (!desktopMenuOpen) return
+    const handleClick = (e) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+        menuBtnRef.current  && !menuBtnRef.current.contains(e.target)
+      ) {
+        setDesktopMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [desktopMenuOpen])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     navigate('/login')
   }
+
+  // Is any dropdown item currently active?
+  const isDropdownActive = menuDropdownItems.some(item =>
+    location.pathname.startsWith(item.to)
+  )
 
   /* ─── MOBILE LAYOUT ─────────────────────────────────────────── */
   if (isMobile) {
@@ -202,9 +229,9 @@ export default function MainLayout({ session }) {
           </div>
         </div>
 
-        {/* Nav items */}
+        {/* Primary nav items */}
         <nav style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
-          {navItems.map(({ to, icon: Icon, label, end }) => (
+          {primaryNavItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink key={to} to={to} end={end}
               title={label}
               style={({ isActive }) => ({
@@ -221,6 +248,88 @@ export default function MainLayout({ session }) {
               {label}
             </NavLink>
           ))}
+
+          {/* ── Menú dropdown button ── */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              ref={menuBtnRef}
+              onClick={() => setDesktopMenuOpen(o => !o)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                height: `${NAV_HEIGHT}px`, padding: '0 13px',
+                color: isDropdownActive || desktopMenuOpen ? '#C4A96B' : 'rgba(255,255,255,0.5)',
+                borderBottom: isDropdownActive || desktopMenuOpen ? '2px solid #C4A96B' : '2px solid transparent',
+                fontSize: '13px', fontWeight: isDropdownActive || desktopMenuOpen ? 600 : 400,
+                background: 'none', border: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'color 0.15s',
+              }}>
+              <Grid3x3 size={15} />
+              Menú
+              <ChevronDown
+                size={12}
+                style={{
+                  transform: desktopMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                  marginLeft: '1px',
+                }}
+              />
+            </button>
+
+            {/* Dropdown panel */}
+            {desktopMenuOpen && (
+              <div
+                ref={dropdownRef}
+                style={{
+                  position: 'absolute',
+                  top: `${NAV_HEIGHT + 6}px`,
+                  left: 0,
+                  background: 'white',
+                  borderRadius: '14px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                  border: '1px solid #e2e8f0',
+                  padding: '10px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '4px',
+                  minWidth: '280px',
+                  zIndex: 200,
+                }}>
+                {menuDropdownItems.map(({ to, icon: Icon, label }) => {
+                  const isActive = location.pathname.startsWith(to)
+                  return (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      style={{
+                        textDecoration: 'none',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', gap: '6px',
+                        padding: '12px 8px', borderRadius: '10px',
+                        background: isActive ? '#FDF8EE' : 'transparent',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f8fafc' }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}>
+                      <div style={{
+                        width: '44px', height: '44px', borderRadius: '12px',
+                        background: isActive ? '#C4A96B' : '#f1f5f9',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Icon size={20} color={isActive ? 'white' : '#64748b'} />
+                      </div>
+                      <span style={{
+                        fontSize: '11px',
+                        color: isActive ? '#C4A96B' : '#64748b',
+                        fontWeight: isActive ? 700 : 500,
+                        textAlign: 'center', lineHeight: '1.2',
+                      }}>{label}</span>
+                    </NavLink>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Right: user + logout */}
