@@ -921,7 +921,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         notas: emisionForm.notas || null,
         persona_facturable_id: emisionForm.persona_facturable_id || null,
         tipo_pago: emisionForm.tipo_pago || 'contado',
-        fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || 'mensual') : 'contado',
+        fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || 'mensual') : 'anual',
       }).eq('id', editingEmision.id)
       if (error) { toast.error('Error: ' + error.message); return }
       const tipoLabel = isExclusion ? 'Exclusión' : 'Inclusión'
@@ -948,7 +948,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       notas: emisionForm.notas || null,
       persona_facturable_id: emisionForm.persona_facturable_id || null,
       tipo_pago: emisionForm.tipo_pago || 'contado',
-      fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || 'mensual') : 'contado',
+      fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || 'mensual') : 'anual',
       created_by: user?.id
     }).select().single()
     if (error) { toast.error('Error: ' + error.message); return }
