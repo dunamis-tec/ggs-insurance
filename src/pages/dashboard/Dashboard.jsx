@@ -86,9 +86,13 @@ export default function Dashboard() {
     const hoy = new Date().toISOString().split('T')[0]
     const en30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0]
     const en60 = new Date(Date.now() + 60 * 864e5).toISOString().split('T')[0]
+    const ahora = new Date()
+    const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString().split('T')[0]
+    const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0).toISOString().split('T')[0]
 
     const [
       { data: polizasActivas },
+      { data: reqsPendMes },
       { data: reqsPend },
       { data: reqsVenc },
       { data: polVencen30 },
@@ -100,6 +104,11 @@ export default function Dashboard() {
       supabase.from('polizas')
         .select('id, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido), aseguradoras(nombre)')
         .eq('activa', true),
+      supabase.from('requerimientos_pago')
+        .select('monto')
+        .eq('estado', 'pendiente')
+        .gte('fecha_vencimiento', primerDiaMes)
+        .lte('fecha_vencimiento', ultimoDiaMes),
       supabase.from('requerimientos_pago')
         .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido))')
         .eq('estado', 'pendiente'),
@@ -137,8 +146,9 @@ export default function Dashboard() {
     ])
 
     const primaTotal = (polizasActivas || []).reduce((s, p) => s + parseFloat(p.prima_total || 0), 0)
-    const montosPend = (reqsPend || []).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
+    const montosPendMes = (reqsPendMes || []).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
     const montosVenc = (reqsVenc || []).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
+    const mesLabel = ahora.toLocaleDateString('es-GT', { month: 'long' })
     const reqsPendProximos = (reqsPend || [])
       .filter(r => r.fecha_vencimiento && r.fecha_vencimiento >= hoy && r.fecha_vencimiento <= en60)
       .sort((a, b) => new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento))
@@ -148,8 +158,9 @@ export default function Dashboard() {
       primaTotal,
       cntPolizas: (polizasActivas || []).length,
       cntClientes: cntClientes || 0,
-      montosPend,
-      cntPend: (reqsPend || []).length,
+      montosPendMes,
+      cntPendMes: (reqsPendMes || []).length,
+      mesLabel,
       montosVenc,
       cntVenc: (reqsVenc || []).length,
       cntVencen30: (polVencen30 || []).length,
@@ -225,8 +236,8 @@ export default function Dashboard() {
           icon={Users} color="#111111" sub="personas y empresas"
         />
         <KpiCard
-          label="Por cobrar" value={fmtQ(kpis.montosPend)}
-          icon={CreditCard} color="#f59e0b" sub={`${kpis.cntPend} reqs pendientes`}
+          label={`Por cobrar — ${kpis.mesLabel}`} value={fmtQ(kpis.montosPendMes)}
+          icon={CreditCard} color="#f59e0b" sub={`${kpis.cntPendMes} reqs este mes`}
         />
         <KpiCard
           label="Vencido" value={fmtQ(kpis.montosVenc)}
