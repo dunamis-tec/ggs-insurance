@@ -12,23 +12,6 @@ const fmt = (v) => v || '—'
 const fmtQ = (v) => v ? `Q ${parseFloat(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
 
-function calcNumeroPagos(emision, poliza) {
-  if (emision.tipo_pago === 'contado') return 1
-  const inicio = new Date(emision.fecha_inicio || poliza?.fecha_inicio)
-  const fin    = new Date(emision.fecha_fin || poliza?.fecha_vencimiento)
-  const meses  = (fin.getFullYear() - inicio.getFullYear()) * 12 + (fin.getMonth() - inicio.getMonth())
-  const frac   = emision.fraccionamiento
-  if (frac === 'mensual')    return meses
-  if (frac === 'trimestral') return Math.round(meses / 3)
-  if (frac === 'semestral')  return Math.round(meses / 6)
-  return 1
-}
-
-const fracLabel = {
-  mensual:    'Mensual',
-  trimestral: 'Trimestral',
-  semestral:  'Semestral',
-}
 
 async function buildLogoDataUrl() {
   try {
@@ -213,17 +196,13 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
 
   /* ══ INFORMACIÓN DE PAGO ══ */
   if (!isExclusion) {
-    const numPagos = calcNumeroPagos(emision, poliza)
-    const frecLabel = emision.tipo_pago === 'contado'
-      ? 'Contado'
-      : fracLabel[emision.fraccionamiento] || emision.fraccionamiento || '—'
-
+    const numCuotas = emision.tipo_pago === 'contado' ? 1 : (emision.numero_cuotas || 1)
     y = sectionTable('INFORMACIÓN DE PAGO', [
-      { label: 'Prima de inclusión',  value: fmtQ(emision.prima_emision) },
-      { label: 'Tipo de pago',        value: emision.tipo_pago === 'contado' ? 'Contado' : `Financiado · ${frecLabel}` },
-      { label: 'Frecuencia de pago',  value: frecLabel },
-      { label: 'No. de pagos',        value: String(numPagos) },
-      { label: 'Vigencia inclusión',  value: `${fmtDate(emision.fecha_inicio)} — ${fmtDate(emision.fecha_fin)}` },
+      { label: 'Prima de inclusión',   value: fmtQ(emision.prima_emision) },
+      { label: 'Tipo de pago',         value: emision.tipo_pago === 'contado' ? 'Contado' : 'Financiado' },
+      { label: 'No. de cuotas',        value: String(numCuotas) },
+      { label: 'Frecuencia',           value: numCuotas === 1 ? 'Pago único' : 'Mensual' },
+      { label: 'Vigencia inclusión',   value: `${fmtDate(emision.fecha_inicio)} — ${fmtDate(emision.fecha_fin)}` },
     ], y)
   } else {
     y = sectionTable('INFORMACIÓN DE EXCLUSIÓN', [

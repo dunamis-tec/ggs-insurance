@@ -42,7 +42,7 @@ const emisionEstadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida
 const emisionEstadoIcons  = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
 
 const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
-const emptyEmision = { tipo:'emision', prima_emision:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_fin:'', notas:'', persona_facturable_id:'' }
+const emptyEmision = { tipo:'emision', prima_emision:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_fin:'', notas:'', persona_facturable_id:'' }
 const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1 }
 
 /* ─── SearchSelect ───────────────────────────────────────────────────────── */
@@ -893,7 +893,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       tipo: em.tipo,
       prima_emision: em.prima_emision ?? '',
       tipo_pago: em.tipo_pago || 'contado',
-      fraccionamiento: em.fraccionamiento || '',
+      numero_cuotas: em.numero_cuotas ?? 1,
       fecha_inicio: em.fecha_inicio || '',
       fecha_fin: em.fecha_fin || '',
       notas: em.notas || '',
@@ -921,7 +921,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         notas: emisionForm.notas || null,
         persona_facturable_id: emisionForm.persona_facturable_id || null,
         tipo_pago: emisionForm.tipo_pago || 'contado',
-        fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || 'mensual') : 'anual',
+        fraccionamiento: 'anual',
+        numero_cuotas: emisionForm.tipo_pago === 'contado' ? 1 : (parseInt(emisionForm.numero_cuotas) || 1),
       }).eq('id', editingEmision.id)
       if (error) { toast.error('Error: ' + error.message); return }
       const tipoLabel = isExclusion ? 'Exclusión' : 'Inclusión'
@@ -948,7 +949,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       notas: emisionForm.notas || null,
       persona_facturable_id: emisionForm.persona_facturable_id || null,
       tipo_pago: emisionForm.tipo_pago || 'contado',
-      fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || 'mensual') : 'anual',
+      fraccionamiento: 'anual',
+      numero_cuotas: emisionForm.tipo_pago === 'contado' ? 1 : (parseInt(emisionForm.numero_cuotas) || 1),
       created_by: user?.id
     }).select().single()
     if (error) { toast.error('Error: ' + error.message); return }
@@ -1922,7 +1924,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                         <div style={{display:'flex',gap:'8px'}}>
                           {[['contado','Contado'],['financiado','Financiado']].map(([val,lbl])=>(
                             <button key={val} type="button"
-                              onClick={()=>setEmisionForm({...emisionForm,tipo_pago:val,fraccionamiento:''})}
+                              onClick={()=>setEmisionForm({...emisionForm,tipo_pago:val,numero_cuotas:val==='contado'?1:emisionForm.numero_cuotas})}
                               style={{flex:1,padding:'8px 10px',border:`1.5px solid ${emisionForm.tipo_pago===val?'#111111':'#e2e8f0'}`,
                                 borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer',
                                 background:emisionForm.tipo_pago===val?'#111111':'white',
@@ -1932,20 +1934,21 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                           ))}
                         </div>
                       </div>
-                      {emisionForm.tipo_pago === 'financiado' && (
-                        <div>
-                          <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>Fraccionamiento *</label>
-                          <select value={emisionForm.fraccionamiento}
-                            onChange={e=>setEmisionForm({...emisionForm,fraccionamiento:e.target.value})}
-                            required={emisionForm.tipo_pago==='financiado'}
-                            style={inputStyle}>
-                            <option value="">Seleccionar...</option>
-                            {fraccionamientoOpciones.map(op=>(
-                              <option key={op.value} value={op.value}>{op.label} ({op.sub})</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                      <div>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                          Número de cuotas <span style={{fontWeight:400,color:'#94a3b8'}}>(pagos mensuales)</span>
+                        </label>
+                        <input
+                          type="number" min="1" max="36"
+                          value={emisionForm.numero_cuotas}
+                          onChange={e=>setEmisionForm({...emisionForm,numero_cuotas:parseInt(e.target.value)||1})}
+                          disabled={emisionForm.tipo_pago==='contado'}
+                          style={{...inputStyle,background:emisionForm.tipo_pago==='contado'?'#f1f5f9':'white',color:emisionForm.tipo_pago==='contado'?'#94a3b8':'#1e293b'}}
+                        />
+                        {emisionForm.tipo_pago==='contado' && (
+                          <p style={{fontSize:'12px',color:'#94a3b8',margin:'4px 0 0'}}>Contado = 1 pago</p>
+                        )}
+                      </div>
                     </>
                   )}
 
