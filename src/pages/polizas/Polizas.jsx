@@ -1359,16 +1359,21 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
              ) : (
               <>
                 {/* Póliza events */}
-                {polizaEntries.length > 0 && (
-                  <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-                    <div style={{padding:'12px 16px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
-                      <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',fontWeight:700,background:'#f1f5f9',color:'#475569'}}>PÓLIZA</span>
-                      <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>Historial de la póliza</span>
-                      <span style={{marginLeft:'auto',fontSize:'12px',color:'#94a3b8'}}>{polizaEntries.length} evento(s)</span>
+                {polizaEntries.length > 0 && (() => {
+                  const isPolizaExpanded = expandedEmision === 'bit-poliza'
+                  return (
+                    <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+                      <div style={{padding:'12px 16px',borderBottom:isPolizaExpanded?'1px solid #f1f5f9':'none',display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}}
+                        onClick={()=>setExpandedEmision(isPolizaExpanded?null:'bit-poliza')}>
+                        <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',fontWeight:700,background:'#f1f5f9',color:'#475569'}}>PÓLIZA</span>
+                        <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>Bitácora completa</span>
+                        <span style={{marginLeft:'auto',fontSize:'12px',color:'#94a3b8'}}>{polizaEntries.length} evento(s)</span>
+                        {isPolizaExpanded ? <ChevronUp size={14} color="#94a3b8"/> : <ChevronDown size={14} color="#94a3b8"/>}
+                      </div>
+                      {isPolizaExpanded && <div style={{overflowX:'auto'}}>{renderTable(polizaEntries)}</div>}
                     </div>
-                    <div style={{overflowX:'auto'}}>{renderTable(polizaEntries)}</div>
-                  </div>
-                )}
+                  )
+                })()}
                 {/* Gestión events grouped by emission */}
                 {groupKeys.map(key => {
                   const grp = gestionGroups[key]
