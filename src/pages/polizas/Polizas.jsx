@@ -22,6 +22,7 @@ const polizaEstados = {
   en_reproceso: { bg:'#fef2f2', color:'#ef4444', label:'En reproceso' },
   emitida:      { bg:'#dcfce7', color:'#15803d', label:'Emitida' },
   completado:   { bg:'#f0fdfa', color:'#0891b2', label:'Completado' },
+  cancelada:    { bg:'#f1f5f9', color:'#64748b', label:'Cancelada' },
 }
 // Flujo lineal simple (un solo siguiente): solicitud→enviada, en_reproceso→enviada (regresa)
 const estadoFlujo  = { solicitud:'enviada', en_reproceso:'enviada' }
@@ -723,8 +724,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [allClientVehiculos, setAllClientVehiculos] = useState([])
   const [personasFacturablesEmision, setPersonasFacturablesEmision] = useState([])
   const [showGestionEstadoModal, setShowGestionEstadoModal] = useState(false)
-  const [gestionEstadoOpcion, setGestionEstadoOpcion] = useState(null) // 'enviar'|'emitir'|'completar'|'reproceso'|'reenviar'
+  const [gestionEstadoOpcion, setGestionEstadoOpcion] = useState(null) // 'enviar'|'emitir'|'completar'|'reproceso'|'reenviar'|'cancelar'
   const [emisionForModal, setEmisionForModal] = useState(null)
+  const [showEmisionModal, setShowEmisionModal] = useState(false)
+  const [editingEmision, setEditingEmision] = useState(null)
 
   useEffect(() => { fetchData() }, [poliza.id])
 
@@ -864,21 +867,61 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const abrirFormEmision = async (tipo) => {
     setEmisionForm({ ...emptyEmision, tipo }); setPreselectedTipo(tipo)
     setInclusionVehiculosSelected([]); setExclusionVehiculosSelected([])
-    setShowEmisionForm(true); setActiveTab('emisiones')
-    // Fetch personas facturables for this client
+    setEditingEmision(null)
+    setActiveTab('emisiones')
     const { data: pfData } = await supabase.from('personas_facturables')
       .select('*').eq('cliente_id', poliza.cliente_id).eq('activa', true).order('nombre')
     setPersonasFacturablesEmision(pfData || [])
-    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' }), 100)
+    setShowEmisionModal(true)
+  }
+
+  const editarEmision = async (em) => {
+    setEmisionForm({
+      tipo: em.tipo,
+      prima_emision: em.prima_emision ?? '',
+      tipo_pago: em.tipo_pago || 'contado',
+      fraccionamiento: em.fraccionamiento || '',
+      fecha_inicio: em.fecha_inicio || '',
+      fecha_fin: em.fecha_fin || '',
+      notas: em.notas || '',
+      persona_facturable_id: em.persona_facturable_id || '',
+    })
+    setEditingEmision(em)
+    setInclusionVehiculosSelected([]); setExclusionVehiculosSelected([])
+    const { data: pfData } = await supabase.from('personas_facturables')
+      .select('*').eq('cliente_id', poliza.cliente_id).eq('activa', true).order('nombre')
+    setPersonasFacturablesEmision(pfData || [])
+    setShowEmisionModal(true)
   }
 
   const handleEmisionSubmit = async (e) => {
     e.preventDefault()
     const isExclusion = emisionForm.tipo === 'exclusion'
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // ── EDIT mode ──
+    if (editingEmision) {
+      const { error } = await supabase.from('emisiones').update({
+        prima_emision: parseFloat(emisionForm.prima_emision) || 0,
+        fecha_inicio: emisionForm.fecha_inicio,
+        fecha_fin: isExclusion ? emisionForm.fecha_inicio : poliza.fecha_vencimiento,
+        notas: emisionForm.notas || null,
+        persona_facturable_id: emisionForm.persona_facturable_id || null,
+        tipo_pago: emisionForm.tipo_pago || 'contado',
+        fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || null) : null,
+      }).eq('id', editingEmision.id)
+      if (error) { toast.error('Error: ' + error.message); return }
+      const tipoLabel = isExclusion ? 'Exclusión' : 'Inclusión'
+      await addBitacora(editingEmision.estado, editingEmision.estado, `${tipoLabel} ${editingEmision.numero_emision} editada`)
+      toast.success(`${tipoLabel} actualizada`)
+      setShowEmisionModal(false); setEditingEmision(null); setEmisionForm(emptyEmision)
+      fetchData(); return
+    }
+
+    // ── CREATE mode ──
     if (isExclusion && exclusionVehiculosSelected.length === 0) {
       toast.error('Selecciona al menos un vehículo para excluir'); return
     }
-    const { data: { user } } = await supabase.auth.getUser()
     const tipoCode = isExclusion ? 'EXC' : 'INC'
     const tipoFilter = isExclusion ? 'exclusion' : 'inclusion'
     const count = emisiones.filter(em=>em.tipo===tipoFilter).length + 1
@@ -896,18 +939,16 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       created_by: user?.id
     }).select().single()
     if (error) { toast.error('Error: ' + error.message); return }
-    // Assign selected vehicles (track which vehicles are being included/excluded)
     const selectedVids = isExclusion ? exclusionVehiculosSelected : inclusionVehiculosSelected
     if (selectedVids.length > 0) {
       await supabase.from('emision_vehiculos').insert(
         selectedVids.map(vid => ({ emision_id: emData.id, vehiculo_id: vid }))
       )
     }
-    // Log in bitácora
     const tipoLabel = isExclusion ? 'Exclusión' : 'Inclusión'
     await addBitacora(null, 'solicitud', `${tipoLabel} ${numEmision} creada`)
     toast.success(`${tipoLabel} creada · ` + numEmision)
-    setEmisionForm(emptyEmision); setShowEmisionForm(false)
+    setShowEmisionModal(false); setEmisionForm(emptyEmision)
     setInclusionVehiculosSelected([]); setExclusionVehiculosSelected([])
     fetchData()
   }
@@ -1435,160 +1476,6 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             </button>
           </div>
 
-          {/* Nueva inclusión / exclusión form */}
-          {showEmisionForm && (() => {
-            const isExclusion = emisionForm.tipo === 'exclusion'
-            const formTitle = isExclusion ? 'Nueva exclusión' : 'Nueva inclusión'
-            const submitLabel = isExclusion ? 'Crear exclusión' : 'Crear inclusión'
-            // Vehicles currently active in the poliza (in any emission)
-            const vehiculosEnPoliza = emisiones.flatMap(em =>
-              (em.emision_vehiculos||[]).map(ev => ({
-                ...ev.vehiculos, evId: ev.id, emisionNumero: em.numero_emision, emisionEstado: em.estado
-              }))
-            ).filter(v => v?.id)
-            return (
-            <div style={{padding:'20px',borderBottom:'1px solid #f1f5f9',background:isExclusion?'#fff8f8':'#f8fafc'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'14px'}}>
-                {isExclusion ? <Minus size={15} color='#ef4444'/> : <Plus size={15} color='#1d4ed8'/>}
-                <p style={{fontSize:'13px',fontWeight:700,color:isExclusion?'#ef4444':'#111111',margin:0}}>{formTitle}</p>
-              </div>
-              <form onSubmit={handleEmisionSubmit}>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'14px'}}>
-                  <div>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Prima {isExclusion?'de exclusión':'de inclusión'} (Q) *</label>
-                    <input type="number" step="0.01" value={emisionForm.prima_emision} onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})} required style={inputStyle} placeholder="0.00"/>
-                  </div>
-                  {isExclusion ? (
-                    <div>
-                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de exclusión *</label>
-                      <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required style={inputStyle}/>
-                    </div>
-                  ) : (
-                    <>
-                      <div>
-                        <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de inicio *</label>
-                        <input type="date" value={emisionForm.fecha_inicio} onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})} required style={inputStyle}/>
-                      </div>
-                      <div>
-                        <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha fin</label>
-                        <div style={{padding:'8px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#374151'}}>
-                          {poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—'} <span style={{fontSize:'11px',color:'#94a3b8'}}>(fecha venc. póliza)</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  <div style={{gridColumn:'1/-1'}}>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas</label>
-                    <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle} placeholder={`Descripción de la ${isExclusion?'exclusión':'inclusión'}`}/>
-                  </div>
-
-                  {/* ── Persona facturable ── */}
-                  <div style={{gridColumn:'1/-1'}}>
-                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Responsable de pago <span style={{fontWeight:400,color:'#94a3b8'}}>(si es distinto al cliente)</span></label>
-                    {personasFacturablesEmision.length === 0 ? (
-                      <div style={{padding:'8px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'12px',color:'#94a3b8'}}>Sin personas facturables registradas para este cliente</div>
-                    ) : (
-                      <select value={emisionForm.persona_facturable_id} onChange={e=>setEmisionForm({...emisionForm,persona_facturable_id:e.target.value})} style={inputStyle}>
-                        <option value="">— Mismo cliente —</option>
-                        {personasFacturablesEmision.map(pf=>(
-                          <option key={pf.id} value={pf.id}>{[pf.nombre,pf.apellido].filter(Boolean).join(' ')}{pf.nit ? ` · NIT ${pf.nit}` : ''}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  {/* ── Tipo de pago (solo inclusión) ── */}
-                  {!isExclusion && (
-                    <>
-                      <div>
-                        <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo de pago *</label>
-                        <div style={{display:'flex',gap:'8px'}}>
-                          {[['contado','Contado'],['financiado','Financiado']].map(([val,lbl])=>(
-                            <button key={val} type="button" onClick={()=>setEmisionForm({...emisionForm,tipo_pago:val,fraccionamiento:''})}
-                              style={{flex:1,padding:'7px 10px',border:`1.5px solid ${emisionForm.tipo_pago===val?'#111111':'#e2e8f0'}`,borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer',background:emisionForm.tipo_pago===val?'#111111':'white',color:emisionForm.tipo_pago===val?'white':'#374151'}}>
-                              {lbl}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      {emisionForm.tipo_pago === 'financiado' && (
-                        <div>
-                          <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fraccionamiento *</label>
-                          <select value={emisionForm.fraccionamiento} onChange={e=>setEmisionForm({...emisionForm,fraccionamiento:e.target.value})} required={emisionForm.tipo_pago==='financiado'} style={inputStyle}>
-                            <option value="">Seleccionar...</option>
-                            {fraccionamientoOpciones.map(op=>(
-                              <option key={op.value} value={op.value}>{op.label} ({op.sub})</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* Vehicle selection */}
-                <div style={{marginBottom:'14px'}}>
-                  {isExclusion ? (
-                    <>
-                      <p style={{fontSize:'12px',fontWeight:600,color:'#ef4444',margin:'0 0 8px'}}>Vehículos a excluir * <span style={{fontWeight:400,color:'#94a3b8'}}>(activos en la póliza)</span></p>
-                      {vehiculosEnPoliza.length === 0 ? (
-                        <p style={{fontSize:'12px',color:'#94a3b8',padding:'8px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0',margin:0}}>Sin vehículos en la póliza</p>
-                      ) : (
-                        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
-                          {vehiculosEnPoliza.map(v => {
-                            const sel = exclusionVehiculosSelected.includes(v.id)
-                            const eEst = polizaEstados[v.emisionEstado] || { bg:'#f1f5f9', color:'#64748b', label: v.emisionEstado }
-                            return (
-                              <div key={v.id} onClick={()=>setExclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
-                                style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:sel?'#fef2f2':'white',border:`1px solid ${sel?'#ef4444':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
-                                <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#ef4444':'#cbd5e1'}`,background:sel?'#ef4444':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                  {sel && <CheckCircle size={12} color="white"/>}
-                                </div>
-                                <Car size={14} color={sel?'#ef4444':'#64748b'}/>
-                                <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#ef4444':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
-                                <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
-                                <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'20px',background:eEst.bg,color:eEst.color,fontWeight:600,flexShrink:0}}>{v.emisionNumero}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:'0 0 8px'}}>Vehículos a incluir <span style={{fontWeight:400,color:'#94a3b8'}}>(del cliente, no asignados a otra emisión)</span></p>
-                      {vehiculosParaInclusion.length === 0 ? (
-                        <p style={{fontSize:'12px',color:'#94a3b8',padding:'8px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0',margin:0}}>Sin vehículos disponibles</p>
-                      ) : (
-                        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
-                          {vehiculosParaInclusion.map(v=>{
-                            const sel = inclusionVehiculosSelected.includes(v.id)
-                            return (
-                              <div key={v.id} onClick={()=>setInclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
-                                style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:sel?'#eff6ff':'white',border:`1px solid ${sel?'#3b82f6':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
-                                <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#3b82f6':'#cbd5e1'}`,background:sel?'#3b82f6':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                  {sel && <CheckCircle size={12} color="white"/>}
-                                </div>
-                                <Car size={14} color={sel?'#1d4ed8':'#64748b'}/>
-                                <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#1d4ed8':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
-                                <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div style={{display:'flex',gap:'8px'}}>
-                  <button type="submit" style={{padding:'8px 16px',background:isExclusion?'#dc2626':'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>{submitLabel}</button>
-                  <button type="button" onClick={()=>{setShowEmisionForm(false);setInclusionVehiculosSelected([]);setExclusionVehiculosSelected([])}} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
-                </div>
-              </form>
-            </div>
-            )
-          })()}
 
           {/* List of ALL gestiones */}
           {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
@@ -1626,6 +1513,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   {/* Action buttons (stop propagation) — not shown on principal emission */}
                   {!isPrincipal && (
                     <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
+                      {/* Edit button — only for editable states */}
+                      {(em.estado === 'solicitud' || em.estado === 'en_reproceso') && (
+                        <button onClick={()=>editarEmision(em)}
+                          title="Editar gestión"
+                          style={{display:'flex',alignItems:'center',justifyContent:'center',width:'28px',height:'28px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer',flexShrink:0}}>
+                          <Edit2 size={12}/>
+                        </button>
+                      )}
                       {/* PDF button for solicitud / enviada / en_reproceso */}
                       {(em.estado === 'solicitud' || em.estado === 'enviada' || em.estado === 'en_reproceso') && (
                         <button onClick={()=>handleGestionPdf(em)}
@@ -1912,6 +1807,253 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         </>
       )}
 
+      {/* ─ Modal: Nueva / Editar gestión ─ */}
+      {showEmisionModal && (() => {
+        const isExclusion = emisionForm.tipo === 'exclusion'
+        const isEdit = !!editingEmision
+        const formTitle = isEdit
+          ? (isExclusion ? 'Editar exclusión' : 'Editar inclusión')
+          : (isExclusion ? 'Nueva exclusión' : 'Nueva inclusión')
+        const submitLabel = isEdit
+          ? 'Guardar cambios'
+          : (isExclusion ? 'Crear exclusión' : 'Crear inclusión')
+        // Vehicle lists for the modal
+        const vehiculosEnEmisionesSet = new Set(emisiones.flatMap(em=>em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[]))
+        const vehiculosParaInclusionModal = allClientVehiculos.filter(v =>
+          !vehiculosEnEmisionesSet.has(v.id) && (!v.poliza_id || v.poliza_id === poliza.id)
+        )
+        const vehiculosEnPolizaModal = emisiones.flatMap(em =>
+          (em.emision_vehiculos||[]).map(ev => ({
+            ...ev.vehiculos, evId: ev.id, emisionNumero: em.numero_emision, emisionEstado: em.estado
+          }))
+        ).filter(v => v?.id)
+        return (
+          <>
+            <div onClick={()=>{ setShowEmisionModal(false); setEditingEmision(null); setEmisionForm(emptyEmision) }}
+              style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:300}}/>
+            <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+              background:'white',borderRadius:'16px',padding:'28px',width:'90%',maxWidth:'520px',
+              zIndex:301,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
+
+              {/* Header */}
+              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'20px'}}>
+                <div style={{width:'32px',height:'32px',borderRadius:'50%',flexShrink:0,
+                  background:isExclusion?'#fef2f2':'#eff6ff',
+                  display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {isExclusion ? <Minus size={15} color='#ef4444'/> : <Plus size={15} color='#1d4ed8'/>}
+                </div>
+                <div>
+                  <h2 style={{fontSize:'17px',fontWeight:700,color:'#111111',margin:0}}>{formTitle}</h2>
+                  <p style={{fontSize:'12px',color:'#6B6B62',margin:0}}>Póliza: <span style={{fontWeight:600,color:'#111111'}}>{poliza.numero_poliza}</span></p>
+                </div>
+                <button onClick={()=>{ setShowEmisionModal(false); setEditingEmision(null); setEmisionForm(emptyEmision) }}
+                  style={{marginLeft:'auto',background:'none',border:'none',cursor:'pointer',padding:'4px',color:'#94a3b8'}}>
+                  <X size={18}/>
+                </button>
+              </div>
+
+              <form onSubmit={handleEmisionSubmit}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'14px',marginBottom:'16px'}}>
+
+                  {/* Prima */}
+                  <div>
+                    <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                      Prima {isExclusion?'de exclusión':'de inclusión'} (Q) *
+                    </label>
+                    <input type="number" step="0.01" value={emisionForm.prima_emision}
+                      onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})}
+                      required style={inputStyle} placeholder="0.00"/>
+                  </div>
+
+                  {/* Fecha */}
+                  {isExclusion ? (
+                    <div>
+                      <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>Fecha de exclusión *</label>
+                      <input type="date" value={emisionForm.fecha_inicio}
+                        onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})}
+                        required style={inputStyle}/>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>Fecha de inicio *</label>
+                        <input type="date" value={emisionForm.fecha_inicio}
+                          onChange={e=>setEmisionForm({...emisionForm,fecha_inicio:e.target.value})}
+                          required style={inputStyle}/>
+                      </div>
+                      <div style={{gridColumn:'1/-1'}}>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>Fecha fin</label>
+                        <div style={{padding:'9px 12px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#374151'}}>
+                          {poliza.fecha_vencimiento ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—'}
+                          <span style={{fontSize:'11px',color:'#94a3b8',marginLeft:'6px'}}>(fecha venc. póliza)</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Persona facturable */}
+                  <div style={{gridColumn:'1/-1'}}>
+                    <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                      Responsable de pago <span style={{fontWeight:400,color:'#94a3b8'}}>(si es distinto al cliente)</span>
+                    </label>
+                    {personasFacturablesEmision.length === 0 ? (
+                      <div style={{padding:'9px 12px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',color:'#94a3b8'}}>
+                        Sin personas facturables registradas para este cliente
+                      </div>
+                    ) : (
+                      <select value={emisionForm.persona_facturable_id}
+                        onChange={e=>setEmisionForm({...emisionForm,persona_facturable_id:e.target.value})}
+                        style={inputStyle}>
+                        <option value="">— Mismo cliente —</option>
+                        {personasFacturablesEmision.map(pf=>(
+                          <option key={pf.id} value={pf.id}>
+                            {[pf.nombre,pf.apellido].filter(Boolean).join(' ')}{pf.nit?` · NIT ${pf.nit}`:''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Tipo de pago — solo inclusión */}
+                  {!isExclusion && (
+                    <>
+                      <div>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>Tipo de pago *</label>
+                        <div style={{display:'flex',gap:'8px'}}>
+                          {[['contado','Contado'],['financiado','Financiado']].map(([val,lbl])=>(
+                            <button key={val} type="button"
+                              onClick={()=>setEmisionForm({...emisionForm,tipo_pago:val,fraccionamiento:''})}
+                              style={{flex:1,padding:'8px 10px',border:`1.5px solid ${emisionForm.tipo_pago===val?'#111111':'#e2e8f0'}`,
+                                borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer',
+                                background:emisionForm.tipo_pago===val?'#111111':'white',
+                                color:emisionForm.tipo_pago===val?'white':'#374151'}}>
+                              {lbl}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {emisionForm.tipo_pago === 'financiado' && (
+                        <div>
+                          <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>Fraccionamiento *</label>
+                          <select value={emisionForm.fraccionamiento}
+                            onChange={e=>setEmisionForm({...emisionForm,fraccionamiento:e.target.value})}
+                            required={emisionForm.tipo_pago==='financiado'}
+                            style={inputStyle}>
+                            <option value="">Seleccionar...</option>
+                            {fraccionamientoOpciones.map(op=>(
+                              <option key={op.value} value={op.value}>{op.label} ({op.sub})</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Notas */}
+                  <div style={{gridColumn:'1/-1'}}>
+                    <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>Notas</label>
+                    <input value={emisionForm.notas}
+                      onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})}
+                      style={inputStyle}
+                      placeholder={`Descripción de la ${isExclusion?'exclusión':'inclusión'}`}/>
+                  </div>
+                </div>
+
+                {/* Vehicle selection — only in create mode */}
+                {!isEdit && (
+                  <div style={{marginBottom:'16px',padding:'14px',background:'#f8fafc',borderRadius:'10px',border:'1px solid #e2e8f0'}}>
+                    {isExclusion ? (
+                      <>
+                        <p style={{fontSize:'13px',fontWeight:600,color:'#ef4444',margin:'0 0 10px'}}>
+                          Vehículos a excluir * <span style={{fontWeight:400,color:'#94a3b8'}}>(activos en la póliza)</span>
+                        </p>
+                        {vehiculosEnPolizaModal.length === 0 ? (
+                          <p style={{fontSize:'13px',color:'#94a3b8',margin:0}}>Sin vehículos en la póliza</p>
+                        ) : (
+                          <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                            {vehiculosEnPolizaModal.map(v => {
+                              const sel = exclusionVehiculosSelected.includes(v.id)
+                              const eEst = polizaEstados[v.emisionEstado] || { bg:'#f1f5f9', color:'#64748b', label: v.emisionEstado }
+                              return (
+                                <div key={v.id}
+                                  onClick={()=>setExclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
+                                  style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',
+                                    background:sel?'#fef2f2':'white',border:`1px solid ${sel?'#ef4444':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
+                                  <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#ef4444':'#cbd5e1'}`,
+                                    background:sel?'#ef4444':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                    {sel && <CheckCircle size={12} color="white"/>}
+                                  </div>
+                                  <Car size={14} color={sel?'#ef4444':'#64748b'}/>
+                                  <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#ef4444':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
+                                  <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
+                                  <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'20px',background:eEst.bg,color:eEst.color,fontWeight:600,flexShrink:0}}>{v.emisionNumero}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:'0 0 10px'}}>
+                          Vehículos a incluir <span style={{fontWeight:400,color:'#94a3b8'}}>(del cliente, sin asignar)</span>
+                        </p>
+                        {vehiculosParaInclusionModal.length === 0 ? (
+                          <p style={{fontSize:'13px',color:'#94a3b8',margin:0}}>Sin vehículos disponibles para incluir</p>
+                        ) : (
+                          <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                            {vehiculosParaInclusionModal.map(v => {
+                              const sel = inclusionVehiculosSelected.includes(v.id)
+                              return (
+                                <div key={v.id}
+                                  onClick={()=>setInclusionVehiculosSelected(prev=>sel?prev.filter(x=>x!==v.id):[...prev,v.id])}
+                                  style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',
+                                    background:sel?'#eff6ff':'white',border:`1px solid ${sel?'#3b82f6':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer'}}>
+                                  <div style={{width:'18px',height:'18px',borderRadius:'4px',border:`2px solid ${sel?'#3b82f6':'#cbd5e1'}`,
+                                    background:sel?'#3b82f6':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                    {sel && <CheckCircle size={12} color="white"/>}
+                                  </div>
+                                  <Car size={14} color={sel?'#1d4ed8':'#64748b'}/>
+                                  <span style={{flex:1,fontSize:'13px',fontWeight:500,color:sel?'#1d4ed8':'#374151'}}>{v.marca} {v.modelo} {v.anio}</span>
+                                  <span style={{fontSize:'12px',color:'#64748b'}}>Placa: {fp(v)}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Edit mode hint */}
+                {isEdit && (
+                  <div style={{background:'#eff6ff',borderRadius:'8px',padding:'10px 14px',marginBottom:'16px',display:'flex',gap:'8px',alignItems:'flex-start'}}>
+                    <AlertCircle size={14} color='#1d4ed8' style={{flexShrink:0,marginTop:'1px'}}/>
+                    <p style={{fontSize:'12px',color:'#1d4ed8',margin:0}}>
+                      Para agregar o quitar vehículos de esta gestión, usa el panel expandido en la lista de gestiones.
+                    </p>
+                  </div>
+                )}
+
+                <div style={{display:'flex',gap:'10px'}}>
+                  <button type="submit"
+                    style={{flex:1,padding:'11px',background:isExclusion&&!isEdit?'#dc2626':'#111111',color:'white',
+                      border:'none',borderRadius:'9px',fontSize:'14px',fontWeight:700,cursor:'pointer'}}>
+                    {submitLabel}
+                  </button>
+                  <button type="button"
+                    onClick={()=>{ setShowEmisionModal(false); setEditingEmision(null); setEmisionForm(emptyEmision) }}
+                    style={{padding:'11px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'9px',fontSize:'14px',cursor:'pointer'}}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </>
+        )
+      })()}
+
       {/* ─ Modal: Cambiar estado gestión ─ */}
       {showGestionEstadoModal && emisionForModal && (() => {
         const em = emisionForModal
@@ -2021,6 +2163,23 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   </div>
                 )}
 
+                {/* Cancelar gestión — available for solicitud, enviada, en_reproceso */}
+                <div onClick={()=>setGestionEstadoOpcion(gestionEstadoOpcion==='cancelar'?null:'cancelar')}
+                  style={{border:`2px solid ${gestionEstadoOpcion==='cancelar'?'#94a3b8':'#e2e8f0'}`,borderRadius:'12px',
+                    padding:'14px 16px',cursor:'pointer',background:gestionEstadoOpcion==='cancelar'?'#f8fafc':'white',transition:'all 0.15s'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                    <div style={{width:'26px',height:'26px',borderRadius:'50%',flexShrink:0,
+                      background:gestionEstadoOpcion==='cancelar'?'#64748b':'#f1f5f9',
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <X size={12} color={gestionEstadoOpcion==='cancelar'?'white':'#94a3b8'}/>
+                    </div>
+                    <p style={{fontWeight:700,fontSize:'14px',color:'#374151',margin:0}}>Cancelar gestión</p>
+                  </div>
+                  <p style={{fontSize:'12px',color:'#94a3b8',margin:'0 0 0 36px'}}>
+                    La gestión será marcada como cancelada. Esta acción no se puede deshacer.
+                  </p>
+                </div>
+
               </div>
 
               <div style={{display:'flex',gap:'10px'}}>
@@ -2028,7 +2187,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   disabled={!gestionEstadoOpcion}
                   onClick={async()=>{
                     if (!gestionEstadoOpcion) return
-                    const mapa = { enviar:'enviada', emitir:'emitida', completar:'completado', reproceso:'en_reproceso', reenviar:'enviada' }
+                    const mapa = { enviar:'enviada', emitir:'emitida', completar:'completado', reproceso:'en_reproceso', reenviar:'enviada', cancelar:'cancelada' }
                     await actualizarEstadoEmision(em, mapa[gestionEstadoOpcion])
                     setShowGestionEstadoModal(false)
                     setGestionEstadoOpcion(null)
@@ -2038,6 +2197,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     background: !gestionEstadoOpcion ? '#e2e8f0'
                       : gestionEstadoOpcion==='emitir' || gestionEstadoOpcion==='completar' ? '#16a34a'
                       : gestionEstadoOpcion==='reproceso' ? '#dc2626'
+                      : gestionEstadoOpcion==='cancelar' ? '#64748b'
                       : gestionEstadoOpcion==='reenviar' ? '#C4A96B'
                       : '#111111',
                     color: !gestionEstadoOpcion ? '#94a3b8' : 'white',
@@ -2047,11 +2207,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     : gestionEstadoOpcion==='emitir' ? '✓ Confirmar emisión'
                     : gestionEstadoOpcion==='completar' ? '✓ Confirmar completado'
                     : gestionEstadoOpcion==='reproceso' ? 'Confirmar reproceso'
+                    : gestionEstadoOpcion==='cancelar' ? 'Confirmar cancelación'
                     : 'Confirmar re-envío'}
                 </button>
                 <button onClick={()=>{ setShowGestionEstadoModal(false); setGestionEstadoOpcion(null); setEmisionForModal(null) }}
                   style={{padding:'11px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'9px',fontSize:'14px',cursor:'pointer'}}>
-                  Cancelar
+                  Cerrar
                 </button>
               </div>
             </div>
