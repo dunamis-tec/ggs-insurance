@@ -116,12 +116,22 @@ export default function Polizas() {
 
   useEffect(() => { fetchAll() }, [])
 
+  // Sync URL → view: open detail if URL has /polizas/{id}
   useEffect(() => {
-    if (location.state?.openPolizaId && polizas.length > 0) {
+    if (polizas.length === 0) return
+    // Priority 1: location.state (cross-page navigation)
+    if (location.state?.openPolizaId) {
       const p = polizas.find(p => p.id === location.state.openPolizaId)
+      if (p) { setSelected(p); setView('detalle'); navigate('/polizas/' + p.id, { replace: true }) }
+      return
+    }
+    // Priority 2: URL path on direct load / refresh
+    const urlId = location.pathname.replace(/^\/polizas\/?/, '')
+    if (urlId && view === 'list') {
+      const p = polizas.find(p => p.id === urlId)
       if (p) { setSelected(p); setView('detalle') }
     }
-  }, [location.state, polizas])
+  }, [location.state, location.pathname, polizas])
 
   useEffect(() => {
     if (location.state?.newPoliza && prefilledClienteId && clientes.length > 0) {
@@ -234,6 +244,7 @@ export default function Polizas() {
           .eq('id', returnToPolizaId).single()
         if (updatedPoliza) setSelected(updatedPoliza)
         setView('detalle')
+        navigate('/polizas/' + returnToPolizaId, { replace: true })
         setEditing(null); setReturnToPolizaId(null)
         setForm(emptyPoliza); setProductosFiltered([]); setClienteVehiculos([])
         setVehiculosSeleccionados([]); setClienteValidation([]); setPersonasFacturables([])
@@ -277,6 +288,7 @@ export default function Polizas() {
     setVehiculosSeleccionados([]); setClienteValidation([])
     setPersonasFacturables([])
     setView('list')
+    navigate('/polizas', { replace: true })
   }
 
   const handleEdit = async (p, fromDetalle = false) => {
@@ -334,7 +346,7 @@ export default function Polizas() {
   /* ── VIEW: DETALLE ── */
   if (view === 'detalle' && selected) return (
     <PolizaDetalle poliza={selected} fromCliente={!!fromClienteId} fromReq={!!fromReqId}
-      onBack={()=>{ if (fromClienteId) navigate('/clientes',{state:{openClienteId:fromClienteId}}); else if (fromReqId) navigate('/requerimientos',{state:{openReqId:fromReqId}}); else { setView('list'); fetchAll() } }}
+      onBack={()=>{ if (fromClienteId) navigate('/clientes',{state:{openClienteId:fromClienteId}}); else if (fromReqId) navigate('/requerimientos',{state:{openReqId:fromReqId}}); else { setView('list'); navigate('/polizas', {replace:true}); fetchAll() } }}
       onEdit={(p) => handleEdit(p, true)} />
   )
 
@@ -646,7 +658,7 @@ export default function Polizas() {
             const vencBadge = vencEst === 'vencida' ? { bg:'#fef2f2',color:'#ef4444',label:'Vencida' } : vencEst === 'por_vencer' ? { bg:'#fef9c3',color:'#a16207',label:'Por vencer' } : null
             return (
               <div key={p.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
-                onClick={()=>{setSelected(p);setView('detalle')}}
+                onClick={()=>{ setSelected(p); setView('detalle'); navigate('/polizas/'+p.id, {replace:true}) }}
                 onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
                 onMouseLeave={e=>e.currentTarget.style.background='white'}>
                 <div style={{width:'40px',height:'40px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
