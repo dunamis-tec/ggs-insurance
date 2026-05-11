@@ -936,6 +936,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     if (isExclusion && exclusionVehiculosSelected.length === 0) {
       toast.error('Selecciona al menos un vehículo para excluir'); return
     }
+    if (!isExclusion && inclusionVehiculosSelected.length === 0) {
+      toast.error('Selecciona al menos un vehículo para incluir'); return
+    }
     const tipoCode = isExclusion ? 'EXC' : 'INC'
     const tipoFilter = isExclusion ? 'exclusion' : 'inclusion'
     const count = emisiones.filter(em=>em.tipo===tipoFilter).length + 1
@@ -1069,12 +1072,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   }
 
   const actualizarEstadoEmision = async (em, nuevoEstado) => {
-    await supabase.from('emisiones').update({ estado: nuevoEstado }).eq('id', em.id)
+    const { error } = await supabase.from('emisiones').update({ estado: nuevoEstado }).eq('id', em.id)
+    if (error) { toast.error('Error: ' + error.message); return false }
     const tipoLabel = { emision:'Emisión principal', inclusion:'Inclusión', exclusion:'Exclusión' }[em.tipo] || em.tipo
-    const estadoLabel = { solicitud:'Solicitud', enviada:'Enviada a aseguradora', en_reproceso:'En reproceso', emitida:'Emitida' }
+    const estadoLabel = { solicitud:'Solicitud', enviada:'Enviada a aseguradora', en_reproceso:'En reproceso', emitida:'Emitida', completado:'Completada', cancelada:'Cancelada' }
     const desc = `[Gestión] ${tipoLabel} ${em.numero_emision} — ${estadoLabel[em.estado]||em.estado} → ${estadoLabel[nuevoEstado]||nuevoEstado}`
     await addBitacora(em.estado, nuevoEstado, desc)
-    // When an exclusion is completado → remove excluded vehicles from the poliza
+    // When an exclusion is completado/emitida → release excluded vehicles
     if ((nuevoEstado === 'completado' || nuevoEstado === 'emitida') && em.tipo === 'exclusion') {
       const excVehiculos = em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || []
       if (excVehiculos.length > 0) {
@@ -1083,7 +1087,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         ))
       }
     }
-    fetchData()
+    toast.success(`${tipoLabel} → ${estadoLabel[nuevoEstado]||nuevoEstado}`)
+    await fetchData()
+    return true
   }
 
   const totalPagado   = reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
@@ -2215,6 +2221,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   disabled={!gestionEstadoOpcion || (gestionEstadoOpcion==='emitir' && !isExcl && !emisionPdfFile) || uploadingPdf}
                   onClick={async()=>{
                     if (!gestionEstadoOpcion) return
+                    // Validate vehicles before sending
+                    if (gestionEstadoOpcion === 'enviar' && (em.emision_vehiculos?.length || 0) === 0) {
+                      toast.error('Debes asignar al menos un vehículo antes de enviar'); return
+                    }
                     // Upload PDF for inclusión emitir
                     if (gestionEstadoOpcion === 'emitir' && emisionPdfFile) {
                       setUploadingPdf(true)
