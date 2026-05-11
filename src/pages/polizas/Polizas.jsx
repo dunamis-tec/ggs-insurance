@@ -938,130 +938,128 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         <ArrowLeft size={16}/> {fromCliente ? 'Volver al cliente' : fromReq ? 'Volver al requerimiento' : 'Volver a pólizas'}
       </button>
 
-      {/* Header */}
-      <div style={{marginBottom:'16px'}}>
-        <div style={{padding:'20px 24px',}}>
-          {/* Row 1: identity + actions */}
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}}>
-            {/* Left: logo + title + badge */}
-            <div style={{display:'flex',alignItems:'center',gap:'14px',minWidth:0}}>
-              <div style={{width:'48px',height:'48px',borderRadius:'10px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#FDF8EE',flexShrink:0}}>
-                {poliza.aseguradoras?.logo_url?<img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={20} color="#C4A96B"/>}
-              </div>
-              <div style={{minWidth:0}}>
-                <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
-                  <h1 style={{fontSize:'20px',fontWeight:700,color:'#111111',margin:0,whiteSpace:'nowrap'}}>
-                    {poliza.numero_poliza || `SOL-${poliza.numero_solicitud||'?'}`}
-                  </h1>
-                  <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',fontWeight:700,background:pEst.bg,color:pEst.color}}>{pEst.label}</span>
-                  {isEmitida && vencEst==='vencida' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef2f2',color:'#ef4444',fontWeight:600}}>Vencida</span>}
-                  {isEmitida && vencEst==='por_vencer' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef9c3',color:'#a16207',fontWeight:600}}>Por vencer ({diasRestantes}d)</span>}
-                </div>
-                <p style={{fontSize:'13px',color:'#6B6B62',margin:'3px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  {poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}
-                </p>
-                {poliza.poliza_origen && (
-                  <div style={{marginTop:'4px',display:'flex',alignItems:'center',gap:'4px'}}>
-                    <GitMerge size={11} color="#94a3b8"/>
-                    <span style={{fontSize:'12px',color:'#6B6B62'}}>
-                      Renovación de&nbsp;
-                      <button onClick={()=>navigate('/polizas',{state:{openPolizaId:poliza.poliza_origen.id}})}
-                        style={{background:'none',border:'none',color:'#C4A96B',cursor:'pointer',fontSize:'12px',fontWeight:600,padding:0,textDecoration:'underline'}}>
-                        {poliza.poliza_origen.numero_poliza||'solicitud anterior'}
-                      </button>
-                    </span>
-                  </div>
-                )}
-              </div>
+      {/* ── Policy header card ── */}
+      <div style={{background:'white',border:'1px solid #e2e8f0',borderRadius:'14px',marginBottom:'20px',overflow:'hidden'}}>
+
+        {/* Identity row + actions */}
+        <div style={{padding:'20px 24px',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'16px',flexWrap:'wrap'}}>
+
+          {/* Left: logo + title + subtitle */}
+          <div style={{display:'flex',alignItems:'flex-start',gap:'16px',minWidth:0}}>
+            {/* Insurer logo */}
+            <div style={{width:'56px',height:'56px',borderRadius:'12px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'white',flexShrink:0,boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}>
+              {poliza.aseguradoras?.logo_url
+                ? <img src={poliza.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+                : <FileText size={22} color="#C4A96B"/>}
             </div>
 
-            {/* Right: action buttons */}
-            <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center',flexShrink:0}}>
-              {/* PDF solicitud: solo visible cuando NO emitida */}
-              {!isEmitida && (
-                <button onClick={()=>toast('Generación de PDF próximamente', {icon:'📄'})}
-                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#F7F5F2',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
-                  <Download size={13}/> PDF solicitud
-                </button>
+            {/* Title + badges + subtitle */}
+            <div style={{minWidth:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                <h1 style={{fontSize:'22px',fontWeight:800,color:'#111111',margin:0,letterSpacing:'-0.3px'}}>
+                  {poliza.numero_poliza || `SOL-${poliza.numero_solicitud||'?'}`}
+                </h1>
+                <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',fontWeight:700,background:pEst.bg,color:pEst.color}}>{pEst.label}</span>
+                {isEmitida && vencEst==='vencida' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef2f2',color:'#ef4444',fontWeight:600}}>Vencida</span>}
+                {isEmitida && vencEst==='por_vencer' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef9c3',color:'#a16207',fontWeight:600}}>Por vencer ({diasRestantes}d)</span>}
+              </div>
+              <p style={{fontSize:'13px',color:'#6B6B62',margin:'5px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}
+              </p>
+              {poliza.poliza_origen && (
+                <div style={{marginTop:'4px',display:'flex',alignItems:'center',gap:'4px'}}>
+                  <GitMerge size={11} color="#94a3b8"/>
+                  <span style={{fontSize:'12px',color:'#6B6B62'}}>
+                    Renovación de&nbsp;
+                    <button onClick={()=>navigate('/polizas',{state:{openPolizaId:poliza.poliza_origen.id}})}
+                      style={{background:'none',border:'none',color:'#C4A96B',cursor:'pointer',fontSize:'12px',fontWeight:600,padding:0,textDecoration:'underline'}}>
+                      {poliza.poliza_origen.numero_poliza||'solicitud anterior'}
+                    </button>
+                  </span>
+                </div>
               )}
-              {/* PDF póliza: visible cuando emitida y tiene PDF */}
-              {isEmitida && poliza.poliza_pdf_url && (
-                <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
-                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#F7F5F2',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
-                  <Download size={13}/> Póliza PDF
-                </a>
-              )}
-
-              {/* solicitud → Enviar a aseguradora */}
-              {poliza.estado === 'solicitud' && (
-                <button onClick={avanzarEstado}
-                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
-                  <SendHorizonal size={14}/> Enviar a aseguradora
-                </button>
-              )}
-
-              {/* enviada → dos opciones */}
-              {poliza.estado === 'enviada' && (
-                <>
-                  <button onClick={marcarEnReproceso}
-                    style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 14px',background:'rgba(239,68,68,0.15)',color:'#fca5a5',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                    <RefreshCw size={13}/> En reproceso
-                  </button>
-                  <button onClick={()=>setShowEmitirModal(true)}
-                    style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#16a34a',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
-                    <CheckCircle size={14}/> Emitir póliza
-                  </button>
-                </>
-              )}
-
-              {/* en_reproceso → Re-enviar */}
-              {poliza.estado === 'en_reproceso' && (
-                <button onClick={avanzarEstado}
-                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
-                  <SendHorizonal size={14}/> Re-enviar a aseguradora
-                </button>
-              )}
-
-              {/* emitida: Inclusión / Exclusión / Renovar */}
-              {isEmitida && (
-                <>
-                  <button onClick={()=>abrirFormEmision('inclusion')}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#FDF8EE',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                    <Plus size={13}/> Inclusión
-                  </button>
-                  <button onClick={()=>abrirFormEmision('exclusion')}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#FDF8EE',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                    <Minus size={13}/> Exclusión
-                  </button>
-                  <button onClick={renovarPoliza}
-                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 12px',background:'#FDF8EE',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                    <RefreshCw size={13}/> Renovar
-                  </button>
-                </>
-              )}
-
-              {/* Editar siempre visible */}
-              <button onClick={()=>onEdit(poliza)}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 12px',background:'#F7F5F2',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
-                <Edit2 size={13}/> Editar
-              </button>
             </div>
           </div>
+
+          {/* Right: action buttons */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center',flexShrink:0}}>
+            {!isEmitida && (
+              <button onClick={()=>toast('Generación de PDF próximamente',{icon:'📄'})}
+                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+                <Download size={13}/> PDF solicitud
+              </button>
+            )}
+            {isEmitida && poliza.poliza_pdf_url && (
+              <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
+                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
+                <Download size={13}/> Póliza PDF
+              </a>
+            )}
+            {poliza.estado === 'solicitud' && (
+              <button onClick={avanzarEstado}
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                <SendHorizonal size={14}/> Enviar a aseguradora
+              </button>
+            )}
+            {poliza.estado === 'enviada' && (
+              <>
+                <button onClick={marcarEnReproceso}
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 14px',background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                  <RefreshCw size={13}/> En reproceso
+                </button>
+                <button onClick={()=>setShowEmitirModal(true)}
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#16a34a',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                  <CheckCircle size={14}/> Emitir póliza
+                </button>
+              </>
+            )}
+            {poliza.estado === 'en_reproceso' && (
+              <button onClick={avanzarEstado}
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                <SendHorizonal size={14}/> Re-enviar a aseguradora
+              </button>
+            )}
+            {isEmitida && (
+              <>
+                <button onClick={()=>abrirFormEmision('inclusion')}
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                  <Plus size={13}/> Inclusión
+                </button>
+                <button onClick={()=>abrirFormEmision('exclusion')}
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                  <Minus size={13}/> Exclusión
+                </button>
+                <button onClick={renovarPoliza}
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                  <RefreshCw size={13}/> Renovar
+                </button>
+              </>
+            )}
+            <button onClick={()=>onEdit(poliza)}
+              style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+              <Edit2 size={13}/> Editar
+            </button>
+          </div>
         </div>
-        {/* Info cards */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'12px',padding:'16px 24px'}}>
+
+        {/* Divider */}
+        <div style={{height:'1px',background:'#f1f5f9',margin:'0 24px'}}/>
+
+        {/* KPI strip — integrated into card */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)'}}>
           {[
-            ['Prima total','Q '+primaTotal.toLocaleString(),'#C4A96B'],
-            ['Tipo de pago', poliza.tipo_pago==='financiado'?`Financiado · ${fraccionamientoLabels[poliza.fraccionamiento]||poliza.fraccionamiento}`:'Contado','#111111'],
-            ['Inicio', poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—','#64748b'],
-            ['Vencimiento', vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#64748b'],
-          ].map(([label,val,color])=>(
-            <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px 16px',border:'1px solid #e2e8f0'}}>
-              <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{label}</p>
-              <p style={{fontSize:'14px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
+            ['Prima total',   'Q '+primaTotal.toLocaleString(),  '#C4A96B'],
+            ['Tipo de pago',  poliza.tipo_pago==='financiado'?`Financiado · ${fraccionamientoLabels[poliza.fraccionamiento]||poliza.fraccionamiento}`:'Contado', '#111111'],
+            ['Inicio',        poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—', '#374151'],
+            ['Vencimiento',   vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#374151'],
+          ].map(([label,val,color],i)=>(
+            <div key={label} style={{padding:'16px 24px',borderRight:i<3?'1px solid #f1f5f9':'none'}}>
+              <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.05em',fontWeight:500}}>{label}</p>
+              <p style={{fontSize:'15px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
             </div>
           ))}
         </div>
+
       </div>
 
       {/* Tabs */}
