@@ -179,7 +179,22 @@ export default function Polizas() {
       supabase.from('vehiculos').select('*').eq('cliente_id', id).eq('activo', true).order('marca'),
       supabase.from('personas_facturables').select('*').eq('cliente_id', id).eq('activa', true).order('nombre'),
     ])
-    setClienteVehiculos(vData || [])
+    const allVehiculos = vData || []
+    // Exclude vehicles already covered by a vigent emission (emision/inclusion emitida or completado)
+    if (allVehiculos.length > 0) {
+      const { data: emVehData } = await supabase
+        .from('emision_vehiculos')
+        .select('vehiculo_id, emisiones(tipo, estado)')
+        .in('vehiculo_id', allVehiculos.map(v => v.id))
+      const coveredIds = new Set(
+        (emVehData || [])
+          .filter(ev => ['emision','inclusion'].includes(ev.emisiones?.tipo) && ['emitida','completado'].includes(ev.emisiones?.estado))
+          .map(ev => ev.vehiculo_id)
+      )
+      setClienteVehiculos(allVehiculos.filter(v => !coveredIds.has(v.id)))
+    } else {
+      setClienteVehiculos([])
+    }
     setPersonasFacturables(pfData || [])
   }
 
