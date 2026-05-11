@@ -252,72 +252,10 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Main 3-col ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 300px', gap: '16px', marginBottom: '16px', alignItems: 'start' }}>
+      {/* ── Main 2-col: Pipeline | Alertas + Tareas ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '16px', marginBottom: '16px', alignItems: 'start' }}>
 
-        {/* Alertas críticas */}
-        <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${totalAlertas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
-          <SectionHeader
-            icon={AlertTriangle} label="Alertas críticas"
-            color="#ef4444" badge={totalAlertas} badgeColor="#ef4444"
-            action="Ver reqs." onAction={() => navigate('/requerimientos')}
-          />
-          <div style={{ padding: '4px 16px 16px' }}>
-            {totalAlertas === 0 ? (
-              <div style={{ padding: '32px', textAlign: 'center' }}>
-                <CheckCircle size={30} color='#22c55e' style={{ marginBottom: '8px' }} />
-                <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Sin alertas críticas 🎉</p>
-              </div>
-            ) : (
-              <>
-                {polizasVencen.length > 0 && (
-                  <>
-                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase', margin: '14px 0 6px' }}>Pólizas por vencer</p>
-                    {polizasVencen.map(p => {
-                      const dias = diasHasta(p.fecha_vencimiento)
-                      const { bg, color } = urgenciaStyle(dias)
-                      return (
-                        <div key={p.id}
-                          onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
-                          onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
-                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                          <div>
-                            <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0 }}>{p.numero_poliza}</p>
-                            <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{nombreCliente(p.clientes)} · {p.aseguradoras?.nombre}</p>
-                          </div>
-                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', background: bg, color, flexShrink: 0 }}>
-                            {dias <= 0 ? 'Venció' : `${dias}d`}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </>
-                )}
-                {reqsVencidos.length > 0 && (
-                  <>
-                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase', margin: '14px 0 6px' }}>Reqs. vencidos</p>
-                    {reqsVencidos.map(r => (
-                      <div key={r.codigo}
-                        onClick={() => navigate('/requerimientos')}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                        <div>
-                          <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0 }}>{r.codigo}</p>
-                          <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{nombreCliente(r.polizas?.clientes)} · {r.polizas?.numero_poliza}</p>
-                        </div>
-                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444', margin: 0 }}>{fmtQ(r.monto)}</p>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Pipeline */}
+        {/* Pipeline — columna dominante */}
         <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
           <SectionHeader
             icon={Activity} label="Pipeline de solicitudes"
@@ -358,47 +296,113 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Tareas */}
-        <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${tareasVencidas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
-          <SectionHeader
-            icon={CheckSquare} label="Tareas pendientes"
-            color="#111111" badge={tareas.length}
-            action="Ver todas" onAction={() => navigate('/tareas')}
-          />
-          <div style={{ padding: '4px 16px 0' }}>
-            {tareas.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center' }}>
-                <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>¡Sin tareas pendientes! 🎉</p>
-              </div>
-            ) : tareas.slice(0, 6).map(t => {
-              const dias = t.fecha_vencimiento ? diasHasta(t.fecha_vencimiento) : null
-              const vencida = dias != null && dias < 0
-              return (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <button onClick={() => completarTarea(t.id)}
-                    style={{ width: '17px', height: '17px', borderRadius: '4px', border: '2px solid #e2e8f0', background: 'white', cursor: 'pointer', flexShrink: 0, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  </button>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titulo}</p>
-                    {t.fecha_vencimiento && (
-                      <p style={{ fontSize: '11px', color: vencida ? '#ef4444' : '#94a3b8', margin: '2px 0 0', fontWeight: vencida ? 600 : 400 }}>
-                        {vencida ? `⚠ Venció hace ${Math.abs(dias)}d` : `Vence ${fmtDateShort(t.fecha_vencimiento)}`}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-            <form onSubmit={agregarTarea} style={{ display: 'flex', gap: '6px', padding: '10px 0 14px' }}>
-              <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea rápida..."
-                style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', outline: 'none', background: 'white', color: '#1e293b' }} />
-              <button type="submit" style={{ padding: '7px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
-                <Plus size={13} />
-              </button>
-            </form>
-          </div>
-        </div>
+        {/* Columna derecha: Alertas + Tareas apiladas */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
+          {/* Alertas críticas */}
+          <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${totalAlertas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
+            <SectionHeader
+              icon={AlertTriangle} label="Alertas críticas"
+              color="#ef4444" badge={totalAlertas} badgeColor="#ef4444"
+              action="Ver reqs." onAction={() => navigate('/requerimientos')}
+            />
+            <div style={{ padding: '4px 16px 16px' }}>
+              {totalAlertas === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <CheckCircle size={16} color='#22c55e' />
+                  <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Sin alertas críticas</p>
+                </div>
+              ) : (
+                <>
+                  {polizasVencen.length > 0 && (
+                    <>
+                      <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase', margin: '14px 0 6px' }}>Pólizas por vencer</p>
+                      {polizasVencen.map(p => {
+                        const dias = diasHasta(p.fecha_vencimiento)
+                        const { bg, color } = urgenciaStyle(dias)
+                        return (
+                          <div key={p.id}
+                            onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                            onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                            onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.numero_poliza}</p>
+                              <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombreCliente(p.clientes)}</p>
+                            </div>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', background: bg, color, flexShrink: 0, marginLeft: '8px' }}>
+                              {dias <= 0 ? 'Venció' : `${dias}d`}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </>
+                  )}
+                  {reqsVencidos.length > 0 && (
+                    <>
+                      <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase', margin: '14px 0 6px' }}>Reqs. vencidos</p>
+                      {reqsVencidos.map(r => (
+                        <div key={r.codigo}
+                          onClick={() => navigate('/requerimientos')}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0 }}>{r.codigo}</p>
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombreCliente(r.polizas?.clientes)}</p>
+                          </div>
+                          <p style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444', margin: 0, flexShrink: 0, marginLeft: '8px' }}>{fmtQ(r.monto)}</p>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Tareas */}
+          <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${tareasVencidas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
+            <SectionHeader
+              icon={CheckSquare} label="Tareas pendientes"
+              color="#111111" badge={tareas.length}
+              action="Ver todas" onAction={() => navigate('/tareas')}
+            />
+            <div style={{ padding: '4px 16px 0' }}>
+              {tareas.length === 0 ? (
+                <div style={{ padding: '16px', textAlign: 'center' }}>
+                  <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>¡Sin tareas pendientes! 🎉</p>
+                </div>
+              ) : tareas.slice(0, 6).map(t => {
+                const dias = t.fecha_vencimiento ? diasHasta(t.fecha_vencimiento) : null
+                const vencida = dias != null && dias < 0
+                return (
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <button onClick={() => completarTarea(t.id)}
+                      style={{ width: '17px', height: '17px', borderRadius: '4px', border: '2px solid #e2e8f0', background: 'white', cursor: 'pointer', flexShrink: 0, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 500, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titulo}</p>
+                      {t.fecha_vencimiento && (
+                        <p style={{ fontSize: '11px', color: vencida ? '#ef4444' : '#94a3b8', margin: '2px 0 0', fontWeight: vencida ? 600 : 400 }}>
+                          {vencida ? `⚠ Venció hace ${Math.abs(dias)}d` : `Vence ${fmtDateShort(t.fecha_vencimiento)}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              <form onSubmit={agregarTarea} style={{ display: 'flex', gap: '6px', padding: '10px 0 14px' }}>
+                <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea rápida..."
+                  style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', outline: 'none', background: 'white', color: '#1e293b' }} />
+                <button type="submit" style={{ padding: '7px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
+                  <Plus size={13} />
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </div>
       </div>
 
       {/* ── Próximos vencimientos ── */}
