@@ -43,7 +43,7 @@ const emisionEstadoIcons  = { solicitada: Clock, reproceso: AlertCircle, emitida
 
 const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_total:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
 const emptyEmision = { tipo:'emision', prima_emision:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_fin:'', notas:'', persona_facturable_id:'' }
-const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1 }
+const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1, emision_id:'' }
 
 /* ─── SearchSelect ───────────────────────────────────────────────────────── */
 function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre', valueKey='id', renderOption }) {
@@ -724,7 +724,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [activeTab, setActiveTab]     = useState(polizaInit.estado === 'emitida' ? 'emisiones' : 'detalle')
   const [showEmisionForm, setShowEmisionForm] = useState(false)
   const [preselectedTipo, setPreselectedTipo] = useState(null)
-  const [showReqForm, setShowReqForm] = useState(false)
+  const [showReqModal, setShowReqModal] = useState(false)
+  const [editingReq, setEditingReq]     = useState(null)
   const [showAsignarVehiculo, setShowAsignarVehiculo] = useState(null)
   const [emisionForm, setEmisionForm] = useState(emptyEmision)
   const [reqForm, setReqForm]         = useState(emptyReq)
@@ -763,7 +764,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }, { data: vDisp },
            { data: bitacoraData }, { data: svData }, { data: allVData }] = await Promise.all([
       supabase.from('emisiones').select('*, emision_vehiculos(id, vehiculos(*)), personas_facturables:persona_facturable_id(id,nombre,apellido,nit,direccion)').eq('poliza_id', poliza.id).order('created_at'),
-      supabase.from('requerimientos_pago').select('*').eq('poliza_id', poliza.id).order('fecha_vencimiento'),
+      supabase.from('requerimientos_pago').select('*, emisiones(numero_emision,tipo)').eq('poliza_id', poliza.id).order('fecha_vencimiento'),
       supabase.from('tareas').select('*').eq('poliza_id', poliza.id).eq('estado', 'pendiente'),
       supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true).is('poliza_id', null),
       supabase.from('bitacora_polizas').select('*').eq('poliza_id', poliza.id).order('created_at'),
@@ -1002,23 +1003,45 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const handleReqSubmit = async (e) => {
     e.preventDefault()
-    if (emisiones.length === 0) { toast.error('Primero crea una emision'); return }
+    if (editingReq) {
+      // Edit mode — update single req
+      const { error } = await supabase.from('requerimientos_pago').update({
+        monto: parseFloat(reqForm.monto),
+        fecha_vencimiento: reqForm.fecha_vencimiento,
+      }).eq('id', editingReq.id)
+      if (error) { toast.error('Error: ' + error.message); return }
+      toast.success('Requerimiento actualizado')
+      setReqForm(emptyReq); setEditingReq(null); setShowReqModal(false); fetchData()
+      return
+    }
+    // Create mode — bulk generate
+    if (!reqForm.emision_id) { toast.error('Selecciona la emisión'); return }
     const { data: { user } } = await supabase.auth.getUser()
     const { data: codigoData } = await supabase.rpc('generate_codigo_req')
     const codigo = codigoData || 'REQ-' + Date.now()
-    const monto = parseFloat(reqForm.monto), totalCuotas = parseInt(reqForm.total_cuotas)
-    const emisionId = emisiones[emisiones.length-1].id
+    const monto = parseFloat(reqForm.monto)
+    const totalCuotas = parseInt(reqForm.total_cuotas)
     const requerimientos = Array.from({ length: totalCuotas }, (_, i) => {
-      const fecha = new Date(reqForm.fecha_vencimiento); fecha.setMonth(fecha.getMonth() + i)
-      return { emision_id: emisionId, poliza_id: poliza.id,
+      const fecha = new Date(reqForm.fecha_vencimiento + 'T12:00:00')
+      fecha.setMonth(fecha.getMonth() + i)
+      return {
+        emision_id: reqForm.emision_id, poliza_id: poliza.id,
         codigo: i===0 ? codigo : `${codigo}-${i}`, codigo_matriz: i===0 ? null : codigo,
         numero_cuota: i+1, total_cuotas: totalCuotas, monto,
-        fecha_vencimiento: fecha.toISOString().split('T')[0], created_by: user?.id }
+        fecha_vencimiento: fecha.toISOString().split('T')[0], created_by: user?.id,
+      }
     })
     const { error } = await supabase.from('requerimientos_pago').insert(requerimientos)
     if (error) { toast.error('Error: ' + error.message); return }
     toast.success(`${totalCuotas} requerimiento(s) creado(s)`)
-    setReqForm(emptyReq); setShowReqForm(false); fetchData()
+    setReqForm(emptyReq); setShowReqModal(false); fetchData()
+  }
+
+  const eliminarReq = async (id) => {
+    if (!confirm('¿Eliminar este requerimiento de pago?')) return
+    const { error } = await supabase.from('requerimientos_pago').delete().eq('id', id)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Requerimiento eliminado'); fetchData()
   }
 
   const marcarPagado = async (id) => {
@@ -1648,6 +1671,107 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       {/* ─ TAB: Pagos ─ */}
       {activeTab === 'pagos' && isEmitida && (
         <div>
+          {/* Req modal */}
+          {showReqModal && (
+            <>
+              <div onClick={()=>{ setShowReqModal(false); setEditingReq(null); setReqForm(emptyReq) }}
+                style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:300}}/>
+              <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+                background:'white',borderRadius:'16px',padding:'28px',width:'90%',maxWidth:'480px',
+                zIndex:301,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
+                {/* Header */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'20px'}}>
+                  <div>
+                    <h2 style={{fontSize:'17px',fontWeight:700,color:'#111111',margin:0}}>
+                      {editingReq ? 'Editar requerimiento' : 'Nuevo requerimiento de pago'}
+                    </h2>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'3px 0 0'}}>Póliza: {poliza.numero_poliza}</p>
+                  </div>
+                  <button onClick={()=>{ setShowReqModal(false); setEditingReq(null); setReqForm(emptyReq) }}
+                    style={{background:'none',border:'none',cursor:'pointer',padding:'4px',color:'#94a3b8'}}>
+                    <X size={18}/>
+                  </button>
+                </div>
+
+                <form onSubmit={handleReqSubmit}>
+                  <div style={{display:'flex',flexDirection:'column',gap:'14px',marginBottom:'20px'}}>
+                    {/* Emisión selector — only on create */}
+                    {!editingReq && (
+                      <div>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                          Emisión *
+                        </label>
+                        <select required value={reqForm.emision_id}
+                          onChange={e=>setReqForm({...reqForm,emision_id:e.target.value})}
+                          style={{...inputStyle,background:'white'}}>
+                          <option value=''>— Seleccionar emisión —</option>
+                          {emisiones.filter(em=>em.estado!=='cancelada').map(em=>{
+                            const tipoLabel = {emision:'Emisión principal',inclusion:'Inclusión',exclusion:'Exclusión',renovacion:'Renovación'}[em.tipo]||em.tipo
+                            const estLabel = polizaEstados[em.estado]?.label||em.estado
+                            return <option key={em.id} value={em.id}>{em.numero_emision} · {tipoLabel} · {estLabel}</option>
+                          })}
+                        </select>
+                      </div>
+                    )}
+
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+                      <div>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                          Monto por cuota (Q) *
+                        </label>
+                        <input type='number' step='0.01' min='0.01' required
+                          value={reqForm.monto}
+                          onChange={e=>setReqForm({...reqForm,monto:e.target.value})}
+                          placeholder='0.00' style={inputStyle}/>
+                      </div>
+                      {!editingReq && (
+                        <div>
+                          <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                            Cantidad de cuotas *
+                          </label>
+                          <input type='number' min='1' max='60' required
+                            value={reqForm.total_cuotas}
+                            onChange={e=>setReqForm({...reqForm,total_cuotas:e.target.value})}
+                            style={inputStyle}/>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                        {editingReq ? 'Fecha de vencimiento *' : 'Fecha primer vencimiento *'}
+                      </label>
+                      <input type='date' required
+                        value={reqForm.fecha_vencimiento}
+                        onChange={e=>setReqForm({...reqForm,fecha_vencimiento:e.target.value})}
+                        style={inputStyle}/>
+                    </div>
+
+                    {!editingReq && reqForm.monto && reqForm.total_cuotas > 0 && (
+                      <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'8px',padding:'10px 14px'}}>
+                        <p style={{fontSize:'12px',color:'#15803d',margin:0,fontWeight:500}}>
+                          Se generarán <strong>{reqForm.total_cuotas}</strong> cuota(s) de <strong>Q {parseFloat(reqForm.monto||0).toLocaleString()}</strong> cada una
+                          &nbsp;·&nbsp; Total: <strong>Q {(parseFloat(reqForm.monto||0)*parseInt(reqForm.total_cuotas||0)).toLocaleString()}</strong>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{display:'flex',gap:'8px'}}>
+                    <button type='submit'
+                      style={{flex:1,padding:'11px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+                      {editingReq ? 'Guardar cambios' : 'Generar requerimientos'}
+                    </button>
+                    <button type='button' onClick={()=>{ setShowReqModal(false); setEditingReq(null); setReqForm(emptyReq) }}
+                      style={{padding:'11px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </>
+          )}
+
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'16px'}}>
             {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total reqs',reqs.length,'#C4A96B']].map(([label,val,color])=>(
               <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px',border:'1px solid #e2e8f0',borderLeft:`4px solid ${color}`}}>
@@ -1656,54 +1780,59 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               </div>
             ))}
           </div>
+
           <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
               <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Requerimientos de pago</h3>
-              <button onClick={()=>setShowReqForm(!showReqForm)}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>
+              <button onClick={()=>{ setReqForm(emptyReq); setEditingReq(null); setShowReqModal(true) }}
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
                 <Plus size={13}/> Nuevo req.
               </button>
             </div>
-            {showReqForm && (
-              <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
-                <form onSubmit={handleReqSubmit}>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'12px',marginBottom:'12px'}}>
-                    <div>
-                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Monto por cuota (Q) *</label>
-                      <input type="number" step="0.01" value={reqForm.monto} onChange={e=>setReqForm({...reqForm,monto:e.target.value})} required style={inputStyle}/>
+
+            {reqs.length===0
+              ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin requerimientos</p>
+              : reqs.map((r,i)=>{
+                  const estColor = r.estado==='pagado' ? {bg:'#dcfce7',color:'#15803d'} : r.estado==='vencido' ? {bg:'#fef2f2',color:'#ef4444'} : {bg:'#fef9c3',color:'#a16207'}
+                  const emNumero = r.emisiones?.numero_emision
+                  return (
+                    <div key={r.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px 20px',borderBottom:i<reqs.length-1?'1px solid #f1f5f9':'none'}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                          <p style={{fontWeight:600,color:'#111111',fontSize:'13px',margin:0}}>{r.codigo}</p>
+                          <span style={{fontSize:'11px',color:'#64748b'}}>· cuota {r.numero_cuota}/{r.total_cuotas}</span>
+                          {emNumero && <span style={{fontSize:'11px',padding:'1px 7px',borderRadius:'20px',background:'#ede9fe',color:'#7c3aed',fontWeight:500}}>{emNumero}</span>}
+                        </div>
+                        <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>
+                          Vence: {new Date(r.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}
+                          {r.fecha_pago && ` · Pagado: ${new Date(r.fecha_pago).toLocaleDateString('es-GT')}`}
+                        </p>
+                      </div>
+                      <p style={{fontSize:'14px',fontWeight:700,color:'#1e293b',margin:0,flexShrink:0}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
+                      <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',flexShrink:0,
+                        background:estColor.bg,color:estColor.color,fontWeight:500,textTransform:'capitalize'}}>
+                        {r.estado}
+                      </span>
+                      {r.estado!=='pagado' && (
+                        <>
+                          <button onClick={()=>marcarPagado(r.id)}
+                            style={{padding:'5px 10px',background:'#dcfce7',color:'#15803d',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:500,cursor:'pointer',flexShrink:0}}>
+                            Marcar pagado
+                          </button>
+                          <button onClick={()=>{ setEditingReq(r); setReqForm({monto:r.monto,fecha_vencimiento:r.fecha_vencimiento,total_cuotas:1,emision_id:r.emision_id||''}); setShowReqModal(true) }}
+                            style={{padding:'5px',background:'none',border:'none',cursor:'pointer',color:'#64748b',flexShrink:0}}>
+                            <Edit2 size={13}/>
+                          </button>
+                          <button onClick={()=>eliminarReq(r.id)}
+                            style={{padding:'5px',background:'none',border:'none',cursor:'pointer',flexShrink:0}}>
+                            <Trash2 size={13} color='#ef4444'/>
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <div>
-                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha primer vencimiento *</label>
-                      <input type="date" value={reqForm.fecha_vencimiento} onChange={e=>setReqForm({...reqForm,fecha_vencimiento:e.target.value})} required style={inputStyle}/>
-                    </div>
-                    <div>
-                      <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Número de cuotas</label>
-                      <input type="number" min="1" max="24" value={reqForm.total_cuotas} onChange={e=>setReqForm({...reqForm,total_cuotas:e.target.value})} style={inputStyle}/>
-                    </div>
-                  </div>
-                  <div style={{display:'flex',gap:'8px'}}>
-                    <button type="submit" style={{padding:'8px 16px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>Generar requerimientos</button>
-                    <button type="button" onClick={()=>setShowReqForm(false)} style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer'}}>Cancelar</button>
-                  </div>
-                </form>
-              </div>
-            )}
-            {reqs.length===0 ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin requerimientos</p> :
-             reqs.map((r,i)=>(
-              <div key={r.id} style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:i<reqs.length-1?'1px solid #f1f5f9':'none'}}>
-                <div style={{flex:1}}>
-                  <p style={{fontWeight:600,color:'#111111',fontSize:'13px',margin:0}}>{r.codigo} <span style={{fontWeight:400,color:'#64748b'}}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Vence: {new Date(r.fecha_vencimiento).toLocaleDateString('es-GT')}{r.fecha_pago?' · Pagado: '+new Date(r.fecha_pago).toLocaleDateString('es-GT'):''}</p>
-                </div>
-                <p style={{fontSize:'14px',fontWeight:700,color:'#1e293b',marginRight:'12px',margin:'0 12px 0 0'}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
-                <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'8px',
-                  background:r.estado==='pagado'?'#dcfce7':r.estado==='vencido'?'#fef2f2':'#fef9c3',
-                  color:r.estado==='pagado'?'#15803d':r.estado==='vencido'?'#ef4444':'#a16207',fontWeight:500}}>
-                  {r.estado}
-                </span>
-                {r.estado!=='pagado' && <button onClick={()=>marcarPagado(r.id)} style={{padding:'5px 10px',background:'#dcfce7',color:'#15803d',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:500,cursor:'pointer'}}>Marcar pagado</button>}
-              </div>
-            ))}
+                  )
+                })
+            }
           </div>
         </div>
       )}
