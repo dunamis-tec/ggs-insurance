@@ -732,6 +732,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [reqGestionNotas, setReqGestionNotas] = useState('')
   const [reqComprobanteFile, setReqComprobanteFile] = useState(null)
   const [expandedReqGroups, setExpandedReqGroups] = useState(new Set())
+  const [expandedVehiculos, setExpandedVehiculos] = useState(new Set())
   const [showAsignarVehiculo, setShowAsignarVehiculo] = useState(null)
   const [emisionForm, setEmisionForm] = useState(emptyEmision)
   const [reqForm, setReqForm]         = useState(emptyReq)
@@ -1309,7 +1310,21 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         {[
           ['detalle','Detalle'],
           ['bitacora',`Bitácora (${bitacora.length})`],
-          ['vehiculos_sol', isEmitida ? `Vehículos (${totalVehiculos})` : `Vehículos (${solicitudVehiculos.length})`],
+          ['vehiculos_sol', (() => {
+            if (!isEmitida) return `Vehículos (${solicitudVehiculos.length})`
+            const activeIds = new Set(
+              emisiones
+                .filter(em => em.tipo !== 'exclusion' && em.estado !== 'cancelada')
+                .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || [])
+            )
+            const excludedIds = new Set(
+              emisiones
+                .filter(em => em.tipo === 'exclusion' && (em.estado === 'emitida' || em.estado === 'completado'))
+                .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id).filter(Boolean) || [])
+            )
+            const uniqueActive = [...activeIds].filter(id => !excludedIds.has(id)).length
+            return `Vehículos (${uniqueActive})`
+          })()],
           ...(isEmitida ? [
             ['emisiones',`Gestiones (${emisiones.length})`],
             ['pagos',`Pagos (${reqs.length})`],
@@ -1488,12 +1503,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>
               {isEmitida ? 'Vehículos de la póliza' : 'Vehículos de la solicitud'}
             </h3>
-            <span style={{marginLeft:'auto',background:'#dbeafe',color:'#1d4ed8',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>
-              {isEmitida ? totalVehiculos : solicitudVehiculos.length}
-            </span>
           </div>
           {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
            !isEmitida ? (
+            /* ── Solicitud mode: simple list ── */
             solicitudVehiculos.length === 0 ? (
               <div style={{padding:'32px',textAlign:'center'}}>
                 <Car size={28} color='#cbd5e1' style={{marginBottom:'10px'}}/>
@@ -1505,12 +1518,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 onClick={() => navigate('/vehiculos', { state: { openVehiculoId: sv.vehiculos?.id, fromPolizaId: poliza.id } })}
                 onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
                 onMouseLeave={e=>e.currentTarget.style.background='white'}>
-                <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
+                <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#f0f4ff',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
                   <Car size={18} color='#C4A96B'/>
                 </div>
                 <div style={{flex:1}}>
                   <p style={{fontWeight:700,color:'#111111',fontSize:'14px',margin:0}}>{sv.vehiculos?.marca} {sv.vehiculos?.modelo} {sv.vehiculos?.anio}</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(sv.vehiculos)} · {sv.vehiculos?.tipo}{sv.vehiculos?.color?` · ${sv.vehiculos.color}`:''}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(sv.vehiculos)}{sv.vehiculos?.color ? ` · ${sv.vehiculos.color}` : ''}</p>
                 </div>
                 {sv.vehiculos?.valor_asegurado > 0 && (
                   <p style={{fontSize:'14px',fontWeight:700,color:'#C4A96B',margin:'0 8px 0 0',flexShrink:0}}>Q {parseFloat(sv.vehiculos.valor_asegurado).toLocaleString()}</p>
@@ -1518,46 +1531,157 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 <ChevronRight size={16} color='#94a3b8'/>
               </div>
             ))
-           ) : (
-            // Emitida: show all vehicles from all emissions
-            totalVehiculos === 0 ? (
+           ) : (() => {
+            /* ── Emitida mode: deduplicated + history ── */
+
+            // 1. Build unique vehicle map with full history
+            const vehicleMap = new Map()
+            // Sort emissions by created_at so history is chronological
+            const sortedEm = [...emisiones].sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
+            sortedEm.forEach(em => {
+              (em.emision_vehiculos || []).forEach(ev => {
+                if (!ev.vehiculos?.id) return
+                const vid = ev.vehiculos.id
+                if (!vehicleMap.has(vid)) vehicleMap.set(vid, { v: ev.vehiculos, history: [] })
+                vehicleMap.get(vid).history.push({ em })
+              })
+            })
+
+            // 2. Determine current status for each vehicle
+            const vehicles = [...vehicleMap.values()].map(({ v, history }) => {
+              // Look at non-cancelled history entries to determine current state
+              const activeHistory = history.filter(h => h.em.estado !== 'cancelada')
+              let status = 'cancelado' // default if all cancelled
+              if (activeHistory.length > 0) {
+                // The most recent active emission determines status
+                const last = activeHistory[activeHistory.length - 1]
+                if (last.em.tipo === 'exclusion' && (last.em.estado === 'emitida' || last.em.estado === 'completado')) {
+                  status = 'excluido'
+                } else {
+                  status = 'activo'
+                }
+              }
+              return { v, history, status }
+            })
+
+            // 3. Sort: activos first, excluidos second, cancelados last
+            const order = { activo: 0, excluido: 1, cancelado: 2 }
+            vehicles.sort((a,b) => order[a.status] - order[b.status])
+
+            const statusStyle = {
+              activo:    { bg:'#dcfce7', color:'#15803d', label:'Activo' },
+              excluido:  { bg:'#fff7ed', color:'#ea580c', label:'Excluido' },
+              cancelado: { bg:'#f1f5f9', color:'#64748b', label:'Cancelado' },
+            }
+
+            const historyTipoStyle = {
+              emision:    { icon:'➕', color:'#1d4ed8', label:'Emisión inicial' },
+              inclusion:  { icon:'➕', color:'#15803d', label:'Inclusión' },
+              exclusion:  { icon:'➖', color:'#ea580c', label:'Exclusión' },
+              renovacion: { icon:'🔄', color:'#7c3aed', label:'Renovación' },
+            }
+
+            if (vehicles.length === 0) return (
               <div style={{padding:'32px',textAlign:'center'}}>
                 <Car size={28} color='#cbd5e1' style={{marginBottom:'10px'}}/>
                 <p style={{color:'#94a3b8',margin:0}}>Sin vehículos en la póliza</p>
               </div>
-            ) : emisiones.filter(em=>em.emision_vehiculos?.length>0).map(em => (
-              em.emision_vehiculos.map((ev, i) => {
-                const allEv = emisiones.flatMap(e=>e.emision_vehiculos||[])
-                const idx = allEv.indexOf(ev)
-                return (
-                  <div key={ev.id}
-                    style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:idx<allEv.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
-                    onClick={() => navigate('/vehiculos', { state: { openVehiculoId: ev.vehiculos?.id, fromPolizaId: poliza.id } })}
-                    onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
-                    onMouseLeave={e=>e.currentTarget.style.background='white'}>
-                    <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
-                      <Car size={18} color='#C4A96B'/>
-                    </div>
-                    <div style={{flex:1}}>
-                      <p style={{fontWeight:700,color:'#111111',fontSize:'14px',margin:0}}>{ev.vehiculos?.marca} {ev.vehiculos?.modelo} {ev.vehiculos?.anio}</p>
-                      <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(ev.vehiculos)} · {em.numero_emision}</p>
-                    </div>
-                    {(() => {
-                      const isExc = em.tipo === 'exclusion' && (em.estado === 'completado' || em.estado === 'emitida')
-                      const badge = isExc
-                        ? { bg:'#fff7ed', color:'#ea580c', label:'Excluido' }
-                        : (polizaEstados[em.estado]||{bg:'#f1f5f9',color:'#64748b',label:em.estado})
-                      return <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:badge.bg,color:badge.color,fontWeight:600,flexShrink:0,marginRight:'4px'}}>{badge.label}</span>
-                    })()}
-                    {ev.vehiculos?.valor_asegurado > 0 && (
-                      <p style={{fontSize:'14px',fontWeight:700,color:'#C4A96B',margin:'0 8px 0 0',flexShrink:0}}>Q {parseFloat(ev.vehiculos.valor_asegurado).toLocaleString()}</p>
-                    )}
-                    <ChevronRight size={16} color='#94a3b8'/>
-                  </div>
-                )
+            )
+
+            return vehicles.map(({ v, history, status }, vi) => {
+              const badge = statusStyle[status]
+              const isExpanded = expandedVehiculos.has(v.id)
+              const toggleV = () => setExpandedVehiculos(prev => {
+                const s = new Set(prev); s.has(v.id) ? s.delete(v.id) : s.add(v.id); return s
               })
-            ))
-           )}
+              return (
+                <div key={v.id} style={{borderBottom: vi < vehicles.length-1 ? '1px solid #f1f5f9' : 'none'}}>
+                  {/* Vehicle row */}
+                  <div style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer',
+                    background: status === 'excluido' ? '#fffaf7' : status === 'cancelado' ? '#fafafa' : 'white'}}
+                    onClick={toggleV}
+                    onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                    onMouseLeave={e=>e.currentTarget.style.background=status==='excluido'?'#fffaf7':status==='cancelado'?'#fafafa':'white'}>
+                    <div style={{width:'40px',height:'40px',borderRadius:'8px',
+                      background: status==='activo'?'#f0fdf4':status==='excluido'?'#fff7ed':'#f1f5f9',
+                      display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
+                      <Car size={18} color={status==='activo'?'#15803d':status==='excluido'?'#ea580c':'#94a3b8'}/>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                        <p style={{fontWeight:700,color: status==='cancelado'?'#94a3b8':'#111111',fontSize:'14px',margin:0,
+                          textDecoration: status==='cancelado'?'line-through':'none'}}>
+                          {v.marca} {v.modelo} {v.anio}
+                        </p>
+                        <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:badge.bg,color:badge.color,fontWeight:600,flexShrink:0}}>
+                          {badge.label}
+                        </span>
+                      </div>
+                      <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>
+                        Placa: {fp(v)}{v.color ? ` · ${v.color}` : ''}
+                        {' · '}<span style={{color:'#94a3b8'}}>{history.length} gestión(es)</span>
+                      </p>
+                    </div>
+                    {v.valor_asegurado > 0 && (
+                      <p style={{fontSize:'14px',fontWeight:700,color: status==='cancelado'?'#94a3b8':'#C4A96B',margin:'0 10px 0 0',flexShrink:0}}>
+                        Q {parseFloat(v.valor_asegurado).toLocaleString()}
+                      </p>
+                    )}
+                    <button onClick={e=>{e.stopPropagation(); navigate('/vehiculos',{state:{openVehiculoId:v.id,fromPolizaId:poliza.id}})}}
+                      style={{padding:'5px 10px',background:'white',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'11px',color:'#64748b',cursor:'pointer',flexShrink:0,marginRight:'8px'}}
+                      title='Ver ficha del vehículo'>
+                      Ver
+                    </button>
+                    {isExpanded ? <ChevronUp size={15} color='#94a3b8' style={{flexShrink:0}}/> : <ChevronDown size={15} color='#94a3b8' style={{flexShrink:0}}/>}
+                  </div>
+
+                  {/* History timeline */}
+                  {isExpanded && (
+                    <div style={{background:'#f8fafc',borderTop:'1px solid #f1f5f9',padding:'12px 20px 12px 72px'}}>
+                      <p style={{fontSize:'11px',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.5px',margin:'0 0 10px'}}>Historial de gestiones</p>
+                      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                        {history.map((h, hi) => {
+                          const tStyle = historyTipoStyle[h.em.tipo] || {icon:'•',color:'#64748b',label:h.em.tipo}
+                          const estBadge = h.em.estado === 'cancelada'
+                            ? {bg:'#f1f5f9',color:'#64748b',label:'Cancelada'}
+                            : (polizaEstados[h.em.estado]||{bg:'#f1f5f9',color:'#64748b',label:h.em.estado})
+                          const fechaRef = h.em.fecha_inicio || h.em.created_at
+                          return (
+                            <div key={hi} style={{display:'flex',alignItems:'center',gap:'10px',
+                              opacity: h.em.estado === 'cancelada' ? 0.5 : 1}}>
+                              {/* Timeline dot + line */}
+                              <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+                                <div style={{width:'22px',height:'22px',borderRadius:'50%',
+                                  background: h.em.tipo==='exclusion'?'#fff7ed':h.em.estado==='cancelada'?'#f1f5f9':'#f0fdf4',
+                                  border:`2px solid ${tStyle.color}`,
+                                  display:'flex',alignItems:'center',justifyContent:'center',
+                                  fontSize:'11px'}}>
+                                  {h.em.tipo === 'exclusion' ? <Minus size={10} color={tStyle.color}/> : <Plus size={10} color={tStyle.color}/>}
+                                </div>
+                                {hi < history.length-1 && <div style={{width:'2px',height:'12px',background:'#e2e8f0',margin:'2px 0'}}/>}
+                              </div>
+                              <div style={{flex:1}}>
+                                <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                                  <span style={{fontSize:'12px',fontWeight:600,color:tStyle.color}}>{tStyle.label}</span>
+                                  <span style={{fontSize:'12px',color:'#111111',fontWeight:500}}>{h.em.numero_emision}</span>
+                                  <span style={{fontSize:'11px',padding:'1px 7px',borderRadius:'20px',background:estBadge.bg,color:estBadge.color,fontWeight:500}}>
+                                    {estBadge.label}
+                                  </span>
+                                </div>
+                                {fechaRef && <p style={{fontSize:'11px',color:'#94a3b8',margin:'1px 0 0'}}>
+                                  {new Date(fechaRef+'T12:00:00').toLocaleDateString('es-GT')}
+                                </p>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          })()}
         </div>
       )}
 
