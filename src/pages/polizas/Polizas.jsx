@@ -946,6 +946,32 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     toast.success('Marcado como pagado'); fetchData()
   }
 
+  const handleGenerarPdf = async () => {
+    const toastId = toast.loading('Generando PDF…')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
+      const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
+      const { data: clienteFull } = await supabase.from('clientes').select('*').eq('id', poliza.cliente_id).single()
+      let personaFacturable = null
+      if (poliza.persona_facturable_id) {
+        const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', poliza.persona_facturable_id).single()
+        personaFacturable = pfData || null
+      }
+      await generateSolicitudPdf({
+        poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
+        vehiculos: solicitudVehiculos,
+        personaFacturable,
+        usuario: usuarioNombre,
+      })
+      toast.success('PDF generado', { id: toastId })
+      if (poliza.estado === 'solicitud') setShowPdfEnviadoModal(true)
+    } catch (err) {
+      console.error(err)
+      toast.error('Error al generar PDF', { id: toastId })
+    }
+  }
+
   const actualizarEstadoEmision = async (em, nuevoEstado) => {
     await supabase.from('emisiones').update({ estado: nuevoEstado }).eq('id', em.id)
     const tipoLabel = { emision:'Emisión principal', inclusion:'Inclusión', exclusion:'Exclusión' }[em.tipo] || em.tipo
@@ -1037,54 +1063,36 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
           {/* Right: action buttons */}
           <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center',flexShrink:0}}>
-            {/* Estado solicitud: un solo CTA primario */}
-            {poliza.estado === 'solicitud' && (
-              <button onClick={async () => {
-                const toastId = toast.loading('Generando PDF…')
-                try {
-                  const { data: { user } } = await supabase.auth.getUser()
-                  const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
-                  const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
 
-                  // Fetch full client (fecha_nacimiento, direccion not in the poliza join)
-                  const { data: clienteFull } = await supabase.from('clientes')
-                    .select('*').eq('id', poliza.cliente_id).single()
-
-                  let personaFacturable = null
-                  if (poliza.persona_facturable_id) {
-                    const { data: pfData } = await supabase.from('personas_facturables')
-                      .select('*').eq('id', poliza.persona_facturable_id).single()
-                    personaFacturable = pfData || null
-                  }
-
-                  await generateSolicitudPdf({
-                    poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
-                    vehiculos: solicitudVehiculos,
-                    personaFacturable,
-                    usuario: usuarioNombre,
-                  })
-                  toast.success('PDF generado', { id: toastId })
-                  setShowPdfEnviadoModal(true)
-                } catch (err) {
-                  console.error(err)
-                  toast.error('Error al generar PDF', { id: toastId })
-                }
-              }}
-                style={{display:'flex',alignItems:'center',gap:'7px',padding:'9px 18px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
-                <Download size={14}/> Descargar solicitud PDF
+            {/* ── Editar: ícono pequeño, siempre visible excepto emitida ── */}
+            {!isEmitida && (
+              <button onClick={()=>onEdit(poliza)} title="Editar solicitud"
+                style={{display:'flex',alignItems:'center',justifyContent:'center',width:'36px',height:'36px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',cursor:'pointer',flexShrink:0}}>
+                <Edit2 size={15}/>
               </button>
             )}
-            {/* PDF póliza emitida */}
-            {isEmitida && poliza.poliza_pdf_url && (
-              <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
-                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
-                <Download size={13}/> Póliza PDF
-              </a>
+
+            {/* ── PDF solicitud: disponible en solicitud / enviada / en_reproceso ── */}
+            {(poliza.estado === 'solicitud' || poliza.estado === 'enviada' || poliza.estado === 'en_reproceso') && (
+              <button onClick={handleGenerarPdf} title={poliza.estado === 'en_reproceso' ? 'Re-descargar PDF con cambios' : 'Descargar PDF solicitud'}
+                style={{display:'flex',alignItems:'center',gap:'7px',
+                  padding: poliza.estado === 'solicitud' ? '9px 18px' : '8px 14px',
+                  background: poliza.estado === 'solicitud' ? '#C4A96B' : 'white',
+                  color: poliza.estado === 'solicitud' ? '#111111' : '#374151',
+                  border: poliza.estado === 'solicitud' ? 'none' : '1px solid #e2e8f0',
+                  borderRadius:'8px', fontSize:'13px',
+                  fontWeight: poliza.estado === 'solicitud' ? 700 : 500,
+                  cursor:'pointer'}}>
+                <Download size={14}/>
+                {poliza.estado === 'solicitud' ? 'Descargar solicitud PDF' : poliza.estado === 'en_reproceso' ? 'Re-descargar PDF' : 'PDF solicitud'}
+              </button>
             )}
+
+            {/* ── Estado: enviada ── */}
             {poliza.estado === 'enviada' && (
               <>
                 <button onClick={marcarEnReproceso}
-                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 14px',background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:'white',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                   <RefreshCw size={13}/> En reproceso
                 </button>
                 <button onClick={()=>setShowEmitirModal(true)}
@@ -1093,14 +1101,24 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 </button>
               </>
             )}
+
+            {/* ── Estado: en_reproceso ── */}
             {poliza.estado === 'en_reproceso' && (
               <button onClick={avanzarEstado}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#C4A96B',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
                 <SendHorizonal size={14}/> Re-enviar a aseguradora
               </button>
             )}
+
+            {/* ── Estado: emitida ── */}
             {isEmitida && (
               <>
+                {poliza.poliza_pdf_url && (
+                  <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
+                    <Download size={13}/> Póliza PDF
+                  </a>
+                )}
                 <button onClick={()=>abrirFormEmision('inclusion')}
                   style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#111111',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                   <Plus size={13}/> Inclusión
@@ -1115,10 +1133,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 </button>
               </>
             )}
-            <button onClick={()=>onEdit(poliza)}
-              style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
-              <Edit2 size={13}/> Editar
-            </button>
+
           </div>
         </div>
 
