@@ -740,6 +740,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [emisionForModal, setEmisionForModal] = useState(null)
   const [showEmisionModal, setShowEmisionModal] = useState(false)
   const [editingEmision, setEditingEmision] = useState(null)
+  const [emisionPdfFile, setEmisionPdfFile] = useState(null)
 
   useEffect(() => { fetchData() }, [poliza.id])
 
@@ -1556,29 +1557,16 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 {/* Expanded detail */}
                 {expandedEmision===em.id && (
                   <div style={{padding:'12px 20px 16px',background:'#f8fafc',borderTop:'1px solid #f1f5f9'}}>
-                    {/* PDF row */}
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
-                      <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>PDF de la inclusión</p>
-                      {em.pdf_url ? (
+                    {/* PDF row — download only (upload happens when marking as emitida) */}
+                    {em.pdf_url && (
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                        <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>PDF de la aseguradora</p>
                         <a href={em.pdf_url} target="_blank" rel="noopener noreferrer"
                           style={{display:'flex',alignItems:'center',gap:'5px',padding:'4px 10px',background:'#eff6ff',color:'#1d4ed8',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',fontWeight:600,textDecoration:'none'}}>
                           <Download size={11}/> Descargar PDF
                         </a>
-                      ) : (
-                        <label style={{display:'flex',alignItems:'center',gap:'5px',padding:'4px 10px',background:'#f1f5f9',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'11px',fontWeight:500,cursor:'pointer'}}>
-                          <Upload size={11}/> Adjuntar PDF
-                          <input type="file" accept=".pdf" style={{display:'none'}} onChange={async(e)=>{
-                            const file = e.target.files[0]; if (!file) return
-                            const { data: ud, error: ue } = await supabase.storage.from('polizas-pdfs').upload(`${poliza.id}/${em.id}.pdf`, file, {upsert:true})
-                            if (ue) { toast.error('Error: '+ue.message); return }
-                            const { data: uUrl } = supabase.storage.from('polizas-pdfs').getPublicUrl(ud.path)
-                            await supabase.from('emisiones').update({ pdf_url: uUrl.publicUrl }).eq('id', em.id)
-                            toast.success('PDF adjuntado')
-                            fetchData()
-                          }}/>
-                        </label>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Vehicles */}
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
@@ -2118,7 +2106,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
                 {/* enviada → emitida / completado */}
                 {em.estado === 'enviada' && (
-                  <div onClick={()=>setGestionEstadoOpcion(isExcl ? 'completar' : 'emitir')}
+                  <div onClick={()=>{ setGestionEstadoOpcion(isExcl ? 'completar' : 'emitir'); if(!isExcl) setEmisionPdfFile(null) }}
                     style={{border:`2px solid ${(gestionEstadoOpcion==='emitir'||gestionEstadoOpcion==='completar')?'#16a34a':'#e2e8f0'}`,borderRadius:'12px',
                       padding:'14px 16px',cursor:'pointer',background:(gestionEstadoOpcion==='emitir'||gestionEstadoOpcion==='completar')?'#f0fdf4':'white',transition:'all 0.15s'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
@@ -2134,6 +2122,31 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 36px'}}>
                       {isExcl ? 'Los vehículos excluidos serán removidos de la póliza.' : 'La aseguradora aprobó la inclusión.'}
                     </p>
+                    {/* PDF upload — solo inclusión, inline al seleccionar */}
+                    {!isExcl && gestionEstadoOpcion === 'emitir' && (
+                      <div style={{marginTop:'14px',paddingTop:'14px',borderTop:'1px solid #dcfce7'}}
+                        onClick={e=>e.stopPropagation()}>
+                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'6px'}}>
+                          PDF de la aseguradora *
+                        </label>
+                        <label style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',
+                          border:`1.5px dashed ${emisionPdfFile?'#16a34a':'#e2e8f0'}`,borderRadius:'8px',cursor:'pointer',
+                          background:emisionPdfFile?'#f0fdf4':'white'}}>
+                          <Upload size={15} color={emisionPdfFile?'#15803d':'#94a3b8'}/>
+                          <span style={{fontSize:'13px',color:emisionPdfFile?'#15803d':'#94a3b8',flex:1}}>
+                            {emisionPdfFile ? emisionPdfFile.name : 'Seleccionar PDF de la aseguradora...'}
+                          </span>
+                          {emisionPdfFile && (
+                            <button type="button" onClick={e=>{e.preventDefault();setEmisionPdfFile(null)}}
+                              style={{background:'none',border:'none',cursor:'pointer',padding:'0',color:'#94a3b8'}}>
+                              <X size={13}/>
+                            </button>
+                          )}
+                          <input type="file" accept=".pdf" style={{display:'none'}}
+                            onChange={e=>setEmisionPdfFile(e.target.files[0]||null)}/>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2196,33 +2209,46 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
               <div style={{display:'flex',gap:'10px'}}>
                 <button
-                  disabled={!gestionEstadoOpcion}
+                  disabled={!gestionEstadoOpcion || (gestionEstadoOpcion==='emitir' && !isExcl && !emisionPdfFile) || uploadingPdf}
                   onClick={async()=>{
                     if (!gestionEstadoOpcion) return
+                    // Upload PDF for inclusión emitir
+                    if (gestionEstadoOpcion === 'emitir' && emisionPdfFile) {
+                      setUploadingPdf(true)
+                      const ext = emisionPdfFile.name.split('.').pop()
+                      const { data: ud, error: ue } = await supabase.storage
+                        .from('polizas-pdfs').upload(`${poliza.id}/${em.id}.${ext}`, emisionPdfFile, { upsert: true })
+                      setUploadingPdf(false)
+                      if (ue) { toast.error('Error subiendo PDF: ' + ue.message); return }
+                      const { data: uUrl } = supabase.storage.from('polizas-pdfs').getPublicUrl(ud.path)
+                      await supabase.from('emisiones').update({ pdf_url: uUrl.publicUrl }).eq('id', em.id)
+                    }
                     const mapa = { enviar:'enviada', emitir:'emitida', completar:'completado', reproceso:'en_reproceso', reenviar:'enviada', cancelar:'cancelada' }
                     await actualizarEstadoEmision(em, mapa[gestionEstadoOpcion])
                     setShowGestionEstadoModal(false)
                     setGestionEstadoOpcion(null)
                     setEmisionForModal(null)
+                    setEmisionPdfFile(null)
                   }}
                   style={{flex:1,padding:'11px',border:'none',borderRadius:'9px',fontSize:'14px',fontWeight:700,transition:'all 0.15s',
-                    background: !gestionEstadoOpcion ? '#e2e8f0'
+                    background: (!gestionEstadoOpcion || (gestionEstadoOpcion==='emitir'&&!isExcl&&!emisionPdfFile) || uploadingPdf) ? '#e2e8f0'
                       : gestionEstadoOpcion==='emitir' || gestionEstadoOpcion==='completar' ? '#16a34a'
                       : gestionEstadoOpcion==='reproceso' ? '#dc2626'
                       : gestionEstadoOpcion==='cancelar' ? '#64748b'
                       : gestionEstadoOpcion==='reenviar' ? '#C4A96B'
                       : '#111111',
-                    color: !gestionEstadoOpcion ? '#94a3b8' : 'white',
-                    cursor: !gestionEstadoOpcion ? 'not-allowed' : 'pointer'}}>
-                  {!gestionEstadoOpcion ? 'Selecciona una opción'
+                    color: (!gestionEstadoOpcion || (gestionEstadoOpcion==='emitir'&&!isExcl&&!emisionPdfFile) || uploadingPdf) ? '#94a3b8' : 'white',
+                    cursor: (!gestionEstadoOpcion || (gestionEstadoOpcion==='emitir'&&!isExcl&&!emisionPdfFile) || uploadingPdf) ? 'not-allowed' : 'pointer'}}>
+                  {uploadingPdf ? 'Subiendo PDF...'
+                    : !gestionEstadoOpcion ? 'Selecciona una opción'
                     : gestionEstadoOpcion==='enviar' ? 'Confirmar envío'
-                    : gestionEstadoOpcion==='emitir' ? '✓ Confirmar emisión'
+                    : gestionEstadoOpcion==='emitir' ? (emisionPdfFile ? '✓ Confirmar emisión' : 'Adjunta el PDF primero')
                     : gestionEstadoOpcion==='completar' ? '✓ Confirmar completado'
                     : gestionEstadoOpcion==='reproceso' ? 'Confirmar reproceso'
                     : gestionEstadoOpcion==='cancelar' ? 'Confirmar cancelación'
                     : 'Confirmar re-envío'}
                 </button>
-                <button onClick={()=>{ setShowGestionEstadoModal(false); setGestionEstadoOpcion(null); setEmisionForModal(null) }}
+                <button onClick={()=>{ setShowGestionEstadoModal(false); setGestionEstadoOpcion(null); setEmisionForModal(null); setEmisionPdfFile(null) }}
                   style={{padding:'11px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'9px',fontSize:'14px',cursor:'pointer'}}>
                   Cerrar
                 </button>
