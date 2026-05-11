@@ -724,8 +724,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [activeTab, setActiveTab]     = useState(polizaInit.estado === 'emitida' ? 'emisiones' : 'detalle')
   const [showEmisionForm, setShowEmisionForm] = useState(false)
   const [preselectedTipo, setPreselectedTipo] = useState(null)
-  const [showReqModal, setShowReqModal] = useState(false)
-  const [editingReq, setEditingReq]     = useState(null)
+  const [showReqModal, setShowReqModal]       = useState(false)
+  const [editingReq, setEditingReq]           = useState(null)
+  const [showReqGestion, setShowReqGestion]   = useState(false)
+  const [reqGestionTarget, setReqGestionTarget] = useState(null)
+  const [reqGestionFechaPago, setReqGestionFechaPago] = useState('')
+  const [reqGestionNotas, setReqGestionNotas] = useState('')
+  const [reqComprobanteFile, setReqComprobanteFile] = useState(null)
+  const [expandedReqGroups, setExpandedReqGroups] = useState(new Set())
   const [showAsignarVehiculo, setShowAsignarVehiculo] = useState(null)
   const [emisionForm, setEmisionForm] = useState(emptyEmision)
   const [reqForm, setReqForm]         = useState(emptyReq)
@@ -1043,12 +1049,52 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     if (!confirm('¿Eliminar este requerimiento de pago?')) return
     const { error } = await supabase.from('requerimientos_pago').delete().eq('id', id)
     if (error) { toast.error('Error: ' + error.message); return }
-    toast.success('Requerimiento eliminado'); fetchData()
+    toast.success('Requerimiento eliminado')
+    setShowReqGestion(false); setReqGestionTarget(null); fetchData()
   }
 
-  const marcarPagado = async (id) => {
-    await supabase.from('requerimientos_pago').update({ estado:'pagado', fecha_pago: new Date().toISOString().split('T')[0] }).eq('id', id)
-    toast.success('Marcado como pagado'); fetchData()
+  const closeReqGestion = () => {
+    setShowReqGestion(false); setReqGestionTarget(null)
+    setReqGestionFechaPago(''); setReqGestionNotas(''); setReqComprobanteFile(null)
+  }
+
+  const marcarPagado = async () => {
+    if (!reqGestionTarget) return
+    if (!reqGestionFechaPago) { toast.error('Ingresa la fecha de pago'); return }
+    const toastId = toast.loading('Registrando pago…')
+    let comprobante_url = reqGestionTarget.comprobante_url || null
+    if (reqComprobanteFile) {
+      const ext = reqComprobanteFile.name.split('.').pop()
+      const path = `comprobantes/${poliza.id}/${reqGestionTarget.id}.${ext}`
+      const { error: upErr } = await supabase.storage.from('polizas-pdfs').upload(path, reqComprobanteFile, { upsert: true })
+      if (upErr) { toast.dismiss(toastId); toast.error('Error subiendo comprobante: ' + upErr.message); return }
+      const { data: { publicUrl } } = supabase.storage.from('polizas-pdfs').getPublicUrl(path)
+      comprobante_url = publicUrl
+    }
+    const { error } = await supabase.from('requerimientos_pago').update({
+      estado: 'pagado', fecha_pago: reqGestionFechaPago,
+      comprobante_url, notas: reqGestionNotas || null,
+    }).eq('id', reqGestionTarget.id)
+    toast.dismiss(toastId)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Pago registrado')
+    closeReqGestion(); fetchData()
+  }
+
+  const subirComprobante = async () => {
+    if (!reqComprobanteFile || !reqGestionTarget) return
+    const toastId = toast.loading('Subiendo comprobante…')
+    const ext = reqComprobanteFile.name.split('.').pop()
+    const path = `comprobantes/${poliza.id}/${reqGestionTarget.id}.${ext}`
+    const { error: upErr } = await supabase.storage.from('polizas-pdfs').upload(path, reqComprobanteFile, { upsert: true })
+    if (upErr) { toast.dismiss(toastId); toast.error('Error: ' + upErr.message); return }
+    const { data: { publicUrl } } = supabase.storage.from('polizas-pdfs').getPublicUrl(path)
+    const { error } = await supabase.from('requerimientos_pago').update({ comprobante_url: publicUrl }).eq('id', reqGestionTarget.id)
+    toast.dismiss(toastId)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Comprobante guardado')
+    setReqGestionTarget(prev => ({ ...prev, comprobante_url: publicUrl }))
+    setReqComprobanteFile(null); fetchData()
   }
 
   const handleGenerarPdf = async () => {
@@ -1124,7 +1170,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     return true
   }
 
-  const totalPagado   = reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
+  const totalPagado    = reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
+  const totalVencido   = reqs.filter(r=>r.estado==='vencido').reduce((s,r)=>s+parseFloat(r.monto||0),0)
   const totalPendiente = reqs.filter(r=>r.estado!=='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
   const totalVehiculos = emisiones.reduce((s,em)=>s+(em.emision_vehiculos?.length||0),0)
   const isEmitida = poliza.estado === 'emitida'
@@ -1673,6 +1720,138 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       {/* ─ TAB: Pagos ─ */}
       {activeTab === 'pagos' && isEmitida && (
         <div>
+
+          {/* ── Gestión modal ── */}
+          {showReqGestion && reqGestionTarget && (() => {
+            const r = reqGestionTarget
+            const isPagado = r.estado === 'pagado'
+            const emNum = r.emisiones?.numero_emision
+            const estColor = r.estado==='pagado' ? {bg:'#dcfce7',color:'#15803d'} : r.estado==='vencido' ? {bg:'#fef2f2',color:'#ef4444'} : {bg:'#fef9c3',color:'#a16207'}
+            return (
+              <>
+                <div onClick={closeReqGestion} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:400}}/>
+                <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+                  background:'white',borderRadius:'16px',padding:'0',width:'90%',maxWidth:'460px',
+                  zIndex:401,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
+
+                  {/* Header */}
+                  <div style={{padding:'20px 24px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+                    <div>
+                      <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+                        <span style={{fontSize:'15px',fontWeight:700,color:'#111111'}}>{r.codigo}</span>
+                        <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:estColor.bg,color:estColor.color,fontWeight:600,textTransform:'capitalize'}}>{r.estado}</span>
+                      </div>
+                      <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
+                        <span style={{fontSize:'12px',color:'#64748b'}}>Cuota {r.numero_cuota}/{r.total_cuotas}</span>
+                        {emNum && <span style={{fontSize:'12px',color:'#7c3aed',fontWeight:500}}>{emNum}</span>}
+                        <span style={{fontSize:'12px',color:'#64748b'}}>Vence: {new Date(r.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}</span>
+                        <span style={{fontSize:'13px',fontWeight:700,color:'#111111'}}>Q {parseFloat(r.monto||0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <button onClick={closeReqGestion} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8',flexShrink:0}}><X size={18}/></button>
+                  </div>
+
+                  <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'20px'}}>
+
+                    {isPagado ? (
+                      /* ── PAID: show info + comprobante ── */
+                      <>
+                        <div style={{background:'#f0fdf4',borderRadius:'10px',padding:'14px 16px'}}>
+                          <p style={{fontSize:'12px',fontWeight:600,color:'#15803d',marginBottom:'8px',textTransform:'uppercase',letterSpacing:'0.4px'}}>Pago registrado</p>
+                          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+                            <div>
+                              <p style={{fontSize:'11px',color:'#64748b',margin:0}}>Fecha de pago</p>
+                              <p style={{fontSize:'13px',fontWeight:600,color:'#111111',margin:'2px 0 0'}}>{r.fecha_pago ? new Date(r.fecha_pago+'T12:00:00').toLocaleDateString('es-GT') : '—'}</p>
+                            </div>
+                            <div>
+                              <p style={{fontSize:'11px',color:'#64748b',margin:0}}>Monto</p>
+                              <p style={{fontSize:'13px',fontWeight:600,color:'#111111',margin:'2px 0 0'}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          {r.notas && <p style={{fontSize:'12px',color:'#374151',marginTop:'8px',marginBottom:0}}>Nota: {r.notas}</p>}
+                        </div>
+
+                        <div>
+                          <p style={{fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'10px'}}>Comprobante de pago</p>
+                          {r.comprobante_url ? (
+                            <div style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',background:'#f8fafc',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
+                              <FileText size={16} color='#C4A96B'/>
+                              <span style={{flex:1,fontSize:'13px',color:'#374151'}}>Comprobante adjunto</span>
+                              <a href={r.comprobante_url} target='_blank' rel='noreferrer'
+                                style={{fontSize:'12px',color:'#1d4ed8',fontWeight:500,textDecoration:'none'}}>Ver</a>
+                            </div>
+                          ) : (
+                            <p style={{fontSize:'12px',color:'#94a3b8',marginBottom:'8px'}}>Sin comprobante adjunto</p>
+                          )}
+                          <div style={{marginTop:'10px'}}>
+                            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                              {r.comprobante_url ? 'Reemplazar comprobante' : 'Adjuntar comprobante'}
+                            </label>
+                            <input type='file' accept='.pdf,.jpg,.jpeg,.png'
+                              onChange={e=>setReqComprobanteFile(e.target.files[0]||null)}
+                              style={{fontSize:'12px',width:'100%'}}/>
+                            {reqComprobanteFile && (
+                              <button onClick={subirComprobante}
+                                style={{marginTop:'8px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
+                                Guardar comprobante
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      /* ── UNPAID: mark paid + edit + delete ── */
+                      <>
+                        <div>
+                          <p style={{fontSize:'13px',fontWeight:700,color:'#374151',marginBottom:'12px'}}>Registrar pago</p>
+                          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+                            <div>
+                              <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de pago *</label>
+                              <input type='date' value={reqGestionFechaPago}
+                                onChange={e=>setReqGestionFechaPago(e.target.value)}
+                                style={inputStyle}/>
+                            </div>
+                            <div>
+                              <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>
+                                Comprobante <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span>
+                              </label>
+                              <input type='file' accept='.pdf,.jpg,.jpeg,.png'
+                                onChange={e=>setReqComprobanteFile(e.target.files[0]||null)}
+                                style={{fontSize:'12px',width:'100%'}}/>
+                              {reqComprobanteFile && <p style={{fontSize:'11px',color:'#64748b',margin:'3px 0 0'}}>{reqComprobanteFile.name}</p>}
+                            </div>
+                            <div>
+                              <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>
+                                Notas <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span>
+                              </label>
+                              <input value={reqGestionNotas} onChange={e=>setReqGestionNotas(e.target.value)}
+                                placeholder='Ej: Pagado por transferencia...' style={inputStyle}/>
+                            </div>
+                            <button onClick={marcarPagado}
+                              style={{padding:'11px',background:'#15803d',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+                              Confirmar pago
+                            </button>
+                          </div>
+                        </div>
+
+                        <div style={{borderTop:'1px solid #f1f5f9',paddingTop:'16px',display:'flex',gap:'8px'}}>
+                          <button onClick={()=>{ closeReqGestion(); setEditingReq(r); setReqForm({monto:r.monto,fecha_vencimiento:r.fecha_vencimiento,total_cuotas:1,emision_id:r.emision_id||'',numero_req_matriz:''}); setShowReqModal(true) }}
+                            style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',padding:'9px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',cursor:'pointer'}}>
+                            <Edit2 size={13}/> Editar
+                          </button>
+                          <button onClick={()=>eliminarReq(r.id)}
+                            style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',padding:'9px',background:'#fef2f2',color:'#ef4444',border:'1px solid #fecaca',borderRadius:'8px',fontSize:'13px',cursor:'pointer'}}>
+                            <Trash2 size={13}/> Eliminar
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )
+          })()}
+
           {/* Req modal */}
           {showReqModal && (
             <>
@@ -1792,68 +1971,124 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             </>
           )}
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px',marginBottom:'16px'}}>
-            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total reqs',reqs.length,'#C4A96B']].map(([label,val,color])=>(
-              <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px',border:'1px solid #e2e8f0',borderLeft:`4px solid ${color}`}}>
-                <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{label}</p>
-                <p style={{fontSize:'16px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
+          {/* ── Summary cards ── */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'16px'}}>
+            {[
+              ['Pagado',   'Q '+totalPagado.toLocaleString('es-GT'),   '#22c55e', reqs.filter(r=>r.estado==='pagado').length],
+              ['Pendiente','Q '+totalPendiente.toLocaleString('es-GT'), '#f59e0b', reqs.filter(r=>r.estado==='pendiente').length],
+              ['Vencido',  'Q '+totalVencido.toLocaleString('es-GT'),   '#ef4444', reqs.filter(r=>r.estado==='vencido').length],
+              ['Total',    reqs.length+' reqs',                         '#C4A96B', null],
+            ].map(([label,val,color,count])=>(
+              <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px 16px',border:'1px solid #e2e8f0',borderLeft:`4px solid ${color}`}}>
+                <p style={{fontSize:'11px',color:'#64748b',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>{label}</p>
+                <p style={{fontSize:'17px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
+                {count !== null && <p style={{fontSize:'11px',color:'#94a3b8',margin:'2px 0 0'}}>{count} requerimiento(s)</p>}
               </div>
             ))}
           </div>
 
-          <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-              <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Requerimientos de pago</h3>
-              <button onClick={()=>{ setReqForm(emptyReq); setEditingReq(null); setShowReqModal(true) }}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
-                <Plus size={13}/> Nuevo req.
-              </button>
-            </div>
+          {/* ── Header row ── */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+            <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Requerimientos de pago</h3>
+            <button onClick={()=>{ setReqForm(emptyReq); setEditingReq(null); setShowReqModal(true) }}
+              style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
+              <Plus size={13}/> Nuevo req.
+            </button>
+          </div>
 
-            {reqs.length===0
-              ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin requerimientos</p>
-              : reqs.map((r,i)=>{
-                  const estColor = r.estado==='pagado' ? {bg:'#dcfce7',color:'#15803d'} : r.estado==='vencido' ? {bg:'#fef2f2',color:'#ef4444'} : {bg:'#fef9c3',color:'#a16207'}
-                  const emNumero = r.emisiones?.numero_emision
+          {/* ── Grouped by emission ── */}
+          {reqs.length === 0
+            ? <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'32px',textAlign:'center'}}>
+                <p style={{color:'#94a3b8',margin:0}}>Sin requerimientos de pago</p>
+              </div>
+            : (() => {
+                // Group reqs by emision_id
+                const groups = {}
+                reqs.forEach(r => {
+                  const key = r.emision_id || 'sin-emision'
+                  if (!groups[key]) groups[key] = { emision: r.emisiones, reqs: [] }
+                  groups[key].reqs.push(r)
+                })
+                return Object.entries(groups).map(([emisionId, grp]) => {
+                  const isExpanded = expandedReqGroups.has(emisionId)
+                  const toggleGroup = () => setExpandedReqGroups(prev => {
+                    const s = new Set(prev)
+                    s.has(emisionId) ? s.delete(emisionId) : s.add(emisionId)
+                    return s
+                  })
+                  const gPagado   = grp.reqs.filter(r=>r.estado==='pagado').length
+                  const gVencido  = grp.reqs.filter(r=>r.estado==='vencido').length
+                  const gTotal    = grp.reqs.length
+                  const gMontoPag = grp.reqs.filter(r=>r.estado==='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
+                  const gMontoPend= grp.reqs.filter(r=>r.estado!=='pagado').reduce((s,r)=>s+parseFloat(r.monto||0),0)
+                  const pct = Math.round((gPagado/gTotal)*100)
+                  const barColor = gVencido > 0 ? '#ef4444' : gPagado === gTotal ? '#22c55e' : '#f59e0b'
+                  const emTipo = grp.emision ? ({emision:'Emisión principal',inclusion:'Inclusión',exclusion:'Exclusión',renovacion:'Renovación'}[grp.emision.tipo]||grp.emision.tipo) : '—'
+                  const emEst  = grp.emision ? (polizaEstados[grp.emision.estado]||{bg:'#f1f5f9',color:'#64748b',label:grp.emision.estado}) : null
+
                   return (
-                    <div key={r.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px 20px',borderBottom:i<reqs.length-1?'1px solid #f1f5f9':'none'}}>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
-                          <p style={{fontWeight:600,color:'#111111',fontSize:'13px',margin:0}}>{r.codigo}</p>
-                          <span style={{fontSize:'11px',color:'#64748b'}}>· cuota {r.numero_cuota}/{r.total_cuotas}</span>
-                          {emNumero && <span style={{fontSize:'11px',padding:'1px 7px',borderRadius:'20px',background:'#ede9fe',color:'#7c3aed',fontWeight:500}}>{emNumero}</span>}
+                    <div key={emisionId} style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'10px'}}>
+                      {/* Group header */}
+                      <div onClick={toggleGroup} style={{padding:'14px 20px',cursor:'pointer',display:'flex',alignItems:'center',gap:'10px',
+                        borderBottom: isExpanded ? '1px solid #f1f5f9' : 'none',
+                        background: isExpanded ? 'white' : '#fafafa'}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap',marginBottom:'6px'}}>
+                            <span style={{fontSize:'13px',fontWeight:700,color:'#111111'}}>{grp.emision?.numero_emision || 'Sin emisión'}</span>
+                            <span style={{fontSize:'11px',color:'#64748b'}}>{emTipo}</span>
+                            {emEst && <span style={{fontSize:'11px',padding:'1px 7px',borderRadius:'20px',background:emEst.bg,color:emEst.color,fontWeight:600}}>{emEst.label}</span>}
+                            {gVencido > 0 && <span style={{fontSize:'11px',padding:'1px 7px',borderRadius:'20px',background:'#fef2f2',color:'#ef4444',fontWeight:600}}>{gVencido} vencido(s)</span>}
+                          </div>
+                          {/* Progress bar */}
+                          <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                            <div style={{flex:1,height:'5px',background:'#f1f5f9',borderRadius:'99px',overflow:'hidden'}}>
+                              <div style={{width:`${pct}%`,height:'100%',background:barColor,borderRadius:'99px',transition:'width 0.3s'}}/>
+                            </div>
+                            <span style={{fontSize:'11px',color:'#64748b',flexShrink:0,whiteSpace:'nowrap'}}>{gPagado}/{gTotal} pagados</span>
+                          </div>
                         </div>
-                        <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>
-                          Vence: {new Date(r.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}
-                          {r.fecha_pago && ` · Pagado: ${new Date(r.fecha_pago).toLocaleDateString('es-GT')}`}
-                        </p>
+                        <div style={{textAlign:'right',flexShrink:0}}>
+                          <p style={{fontSize:'12px',color:'#22c55e',fontWeight:600,margin:0}}>Q {gMontoPag.toLocaleString('es-GT')} pag.</p>
+                          {gMontoPend > 0 && <p style={{fontSize:'12px',color:'#f59e0b',fontWeight:600,margin:'2px 0 0'}}>Q {gMontoPend.toLocaleString('es-GT')} pend.</p>}
+                        </div>
+                        {isExpanded ? <ChevronUp size={15} color='#94a3b8' style={{flexShrink:0}}/> : <ChevronDown size={15} color='#94a3b8' style={{flexShrink:0}}/>}
                       </div>
-                      <p style={{fontSize:'14px',fontWeight:700,color:'#1e293b',margin:0,flexShrink:0}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
-                      <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',flexShrink:0,
-                        background:estColor.bg,color:estColor.color,fontWeight:500,textTransform:'capitalize'}}>
-                        {r.estado}
-                      </span>
-                      {r.estado!=='pagado' && (
-                        <>
-                          <button onClick={()=>marcarPagado(r.id)}
-                            style={{padding:'5px 10px',background:'#dcfce7',color:'#15803d',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:500,cursor:'pointer',flexShrink:0}}>
-                            Marcar pagado
-                          </button>
-                          <button onClick={()=>{ setEditingReq(r); setReqForm({monto:r.monto,fecha_vencimiento:r.fecha_vencimiento,total_cuotas:1,emision_id:r.emision_id||''}); setShowReqModal(true) }}
-                            style={{padding:'5px',background:'none',border:'none',cursor:'pointer',color:'#64748b',flexShrink:0}}>
-                            <Edit2 size={13}/>
-                          </button>
-                          <button onClick={()=>eliminarReq(r.id)}
-                            style={{padding:'5px',background:'none',border:'none',cursor:'pointer',flexShrink:0}}>
-                            <Trash2 size={13} color='#ef4444'/>
-                          </button>
-                        </>
-                      )}
+
+                      {/* Reqs list */}
+                      {isExpanded && grp.reqs.map((r, ri) => {
+                        const estColor = r.estado==='pagado' ? {bg:'#dcfce7',color:'#15803d'} : r.estado==='vencido' ? {bg:'#fef2f2',color:'#ef4444'} : {bg:'#fef9c3',color:'#a16207'}
+                        return (
+                          <div key={r.id} onClick={()=>{ setReqGestionTarget(r); setReqGestionFechaPago(''); setReqGestionNotas(r.notas||''); setReqComprobanteFile(null); setShowReqGestion(true) }}
+                            style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 20px',
+                              borderBottom: ri < grp.reqs.length-1 ? '1px solid #f8fafc' : 'none',
+                              cursor:'pointer', background: r.estado==='vencido' ? '#fff8f8' : 'white'}}
+                            onMouseEnter={e=>e.currentTarget.style.background=r.estado==='vencido'?'#fef2f2':'#f8fafc'}
+                            onMouseLeave={e=>e.currentTarget.style.background=r.estado==='vencido'?'#fff8f8':'white'}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                                <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>{r.codigo}</span>
+                                <span style={{fontSize:'11px',color:'#94a3b8'}}>cuota {r.numero_cuota}/{r.total_cuotas}</span>
+                                {r.comprobante_url && <span title='Tiene comprobante' style={{fontSize:'10px',padding:'1px 5px',borderRadius:'10px',background:'#dbeafe',color:'#1d4ed8',fontWeight:600}}>REC</span>}
+                              </div>
+                              <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>
+                                Vence: {new Date(r.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}
+                                {r.fecha_pago && <span style={{color:'#22c55e'}}> · Pagado: {new Date(r.fecha_pago+'T12:00:00').toLocaleDateString('es-GT')}</span>}
+                              </p>
+                            </div>
+                            <span style={{fontSize:'14px',fontWeight:700,color:'#111111',flexShrink:0}}>Q {parseFloat(r.monto||0).toLocaleString()}</span>
+                            <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',flexShrink:0,
+                              background:estColor.bg,color:estColor.color,fontWeight:500,textTransform:'capitalize',minWidth:'60px',textAlign:'center'}}>
+                              {r.estado}
+                            </span>
+                            <ChevronRight size={14} color='#cbd5e1' style={{flexShrink:0}}/>
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })
-            }
-          </div>
+              })()
+          }
         </div>
       )}
 
