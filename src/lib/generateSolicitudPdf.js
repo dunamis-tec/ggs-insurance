@@ -15,20 +15,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
 
 function calcNumeroPagos(poliza) {
   if (poliza.tipo_pago === 'contado') return 1
-  const inicio = new Date(poliza.fecha_inicio)
-  const fin    = new Date(poliza.fecha_vencimiento)
-  const meses  = (fin.getFullYear() - inicio.getFullYear()) * 12 + (fin.getMonth() - inicio.getMonth())
-  const frac   = poliza.fraccionamiento
-  if (frac === 'mensual')    return meses
-  if (frac === 'trimestral') return Math.round(meses / 3)
-  if (frac === 'semestral')  return Math.round(meses / 6)
-  return 1
-}
-
-const fracLabel = {
-  mensual:    'Mensual',
-  trimestral: 'Trimestral',
-  semestral:  'Semestral',
+  return poliza.numero_cuotas || 1
 }
 
 /* ── Render GGS symbol SVG → PNG data URL (transparent background) ── */
@@ -206,15 +193,12 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
 
   /* ══════════════ INFORMACIÓN DE PAGO ══════════════ */
   const numPagos = calcNumeroPagos(poliza)
-  const frecLabel = poliza.tipo_pago === 'contado'
-    ? 'Contado'
-    : fracLabel[poliza.fraccionamiento] || poliza.fraccionamiento || '—'
 
   y = sectionTable('INFORMACIÓN DE PAGO', [
     { label: 'Prima total (plan elegido)', value: fmtQ(poliza.prima_total) },
-    { label: 'Tipo de pago',               value: poliza.tipo_pago === 'contado' ? 'Contado' : `Financiado · ${frecLabel}` },
-    { label: 'Frecuencia de pago',         value: frecLabel },
-    { label: 'No. de pagos',               value: String(numPagos) },
+    { label: 'Tipo de pago',               value: poliza.tipo_pago === 'contado' ? 'Contado' : 'Financiado' },
+    { label: 'Frecuencia de pago',         value: poliza.tipo_pago === 'contado' ? 'Pago único' : 'Mensual' },
+    { label: 'No. de cuotas',              value: String(numPagos) },
     { label: 'Vigencia',                   value: `${fmtDate(poliza.fecha_inicio)} — ${fmtDate(poliza.fecha_vencimiento)}` },
   ], y)
 
