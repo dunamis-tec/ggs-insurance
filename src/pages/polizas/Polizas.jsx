@@ -2114,11 +2114,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                           onChange={e=>setReqForm({...reqForm,emision_id:e.target.value})}
                           style={{...inputStyle,background:'white'}}>
                           <option value=''>— Seleccionar emisión —</option>
-                          {emisiones.filter(em=>em.estado!=='cancelada').map(em=>{
-                            const tipoLabel = {emision:'Emisión principal',inclusion:'Inclusión',exclusion:'Exclusión',renovacion:'Renovación'}[em.tipo]||em.tipo
-                            const estLabel = polizaEstados[em.estado]?.label||em.estado
-                            return <option key={em.id} value={em.id}>{em.numero_emision} · {tipoLabel} · {estLabel}</option>
-                          })}
+                          {emisiones
+                            .filter(em => (em.tipo === 'emision' || em.tipo === 'inclusion') && em.estado === 'emitida')
+                            .map(em=>{
+                              const tipoLabel = {emision:'Emisión principal',inclusion:'Inclusión'}[em.tipo]||em.tipo
+                              return <option key={em.id} value={em.id}>{em.numero_emision} · {tipoLabel} · Emitida</option>
+                            })}
                         </select>
                       </div>
                     )}
