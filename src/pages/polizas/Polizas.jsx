@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { generateSolicitudPdf } from '../../lib/generateSolicitudPdf'
+import { generateInclusionPdf } from '../../lib/generateInclusionPdf'
 import { FileText, Plus, Minus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
   CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge,
   AlertTriangle, Download, History, CheckSquare, Square, Upload, Lock } from 'lucide-react'
@@ -40,7 +41,7 @@ const emisionEstadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida
 const emisionEstadoIcons  = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
 
 const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_total:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
-const emptyEmision = { tipo:'emision', prima_emision:'', fraccionamiento:'', fecha_inicio:'', fecha_fin:'', notas:'' }
+const emptyEmision = { tipo:'emision', prima_emision:'', tipo_pago:'contado', fraccionamiento:'', fecha_inicio:'', fecha_fin:'', notas:'', persona_facturable_id:'' }
 const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1 }
 
 /* ─── SearchSelect ───────────────────────────────────────────────────────── */
@@ -720,6 +721,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [inclusionVehiculosSelected, setInclusionVehiculosSelected] = useState([])
   const [exclusionVehiculosSelected, setExclusionVehiculosSelected] = useState([])
   const [allClientVehiculos, setAllClientVehiculos] = useState([])
+  const [personasFacturablesEmision, setPersonasFacturablesEmision] = useState([])
+  const [showGestionEstadoModal, setShowGestionEstadoModal] = useState(false)
+  const [gestionEstadoOpcion, setGestionEstadoOpcion] = useState(null) // 'enviar'|'emitir'|'completar'|'reproceso'|'reenviar'
+  const [emisionForModal, setEmisionForModal] = useState(null)
 
   useEffect(() => { fetchData() }, [poliza.id])
 
@@ -734,7 +739,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     setLoading(true)
     const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }, { data: vDisp },
            { data: bitacoraData }, { data: svData }, { data: allVData }] = await Promise.all([
-      supabase.from('emisiones').select('*, emision_vehiculos(id, vehiculos(*))').eq('poliza_id', poliza.id).order('created_at'),
+      supabase.from('emisiones').select('*, emision_vehiculos(id, vehiculos(*)), personas_facturables:persona_facturable_id(id,nombre,apellido,nit,direccion)').eq('poliza_id', poliza.id).order('created_at'),
       supabase.from('requerimientos_pago').select('*').eq('poliza_id', poliza.id).order('fecha_vencimiento'),
       supabase.from('tareas').select('*').eq('poliza_id', poliza.id).eq('estado', 'pendiente'),
       supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true).is('poliza_id', null),
@@ -856,10 +861,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     navigate('/polizas', { state: { openPolizaId: data.id } })
   }
 
-  const abrirFormEmision = (tipo) => {
+  const abrirFormEmision = async (tipo) => {
     setEmisionForm({ ...emptyEmision, tipo }); setPreselectedTipo(tipo)
     setInclusionVehiculosSelected([]); setExclusionVehiculosSelected([])
     setShowEmisionForm(true); setActiveTab('emisiones')
+    // Fetch personas facturables for this client
+    const { data: pfData } = await supabase.from('personas_facturables')
+      .select('*').eq('cliente_id', poliza.cliente_id).eq('activa', true).order('nombre')
+    setPersonasFacturablesEmision(pfData || [])
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' }), 100)
   }
 
@@ -881,6 +890,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       fecha_inicio: emisionForm.fecha_inicio,
       fecha_fin: isExclusion ? emisionForm.fecha_inicio : poliza.fecha_vencimiento,
       notas: emisionForm.notas || null,
+      persona_facturable_id: emisionForm.persona_facturable_id || null,
+      tipo_pago: emisionForm.tipo_pago || 'contado',
+      fraccionamiento: emisionForm.tipo_pago === 'financiado' ? (emisionForm.fraccionamiento || null) : null,
       created_by: user?.id
     }).select().single()
     if (error) { toast.error('Error: ' + error.message); return }
@@ -963,6 +975,33 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       await generateSolicitudPdf({
         poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
         vehiculos: solicitudVehiculos,
+        personaFacturable,
+        usuario: usuarioNombre,
+      })
+      toast.success('PDF generado', { id: toastId })
+    } catch (err) {
+      console.error(err)
+      toast.error('Error al generar PDF', { id: toastId })
+    }
+  }
+
+  const handleGestionPdf = async (em) => {
+    const toastId = toast.loading('Generando PDF…')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
+      const usuarioNombre = userData ? `${userData.nombre||''} ${userData.apellido||''}`.trim() : (user.email?.split('@')[0]||'GGS')
+      const { data: clienteFull } = await supabase.from('clientes').select('*').eq('id', poliza.cliente_id).single()
+      let personaFacturable = null
+      if (em.persona_facturable_id) {
+        const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', em.persona_facturable_id).single()
+        personaFacturable = pfData || null
+      }
+      const vehiculos = (em.emision_vehiculos || []).map(ev => ev.vehiculos).filter(Boolean)
+      await generateInclusionPdf({
+        emision: em,
+        poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
+        vehiculos,
         personaFacturable,
         usuario: usuarioNombre,
       })
@@ -1442,6 +1481,49 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas</label>
                     <input value={emisionForm.notas} onChange={e=>setEmisionForm({...emisionForm,notas:e.target.value})} style={inputStyle} placeholder={`Descripción de la ${isExclusion?'exclusión':'inclusión'}`}/>
                   </div>
+
+                  {/* ── Persona facturable ── */}
+                  <div style={{gridColumn:'1/-1'}}>
+                    <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Responsable de pago <span style={{fontWeight:400,color:'#94a3b8'}}>(si es distinto al cliente)</span></label>
+                    {personasFacturablesEmision.length === 0 ? (
+                      <div style={{padding:'8px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'12px',color:'#94a3b8'}}>Sin personas facturables registradas para este cliente</div>
+                    ) : (
+                      <select value={emisionForm.persona_facturable_id} onChange={e=>setEmisionForm({...emisionForm,persona_facturable_id:e.target.value})} style={inputStyle}>
+                        <option value="">— Mismo cliente —</option>
+                        {personasFacturablesEmision.map(pf=>(
+                          <option key={pf.id} value={pf.id}>{[pf.nombre,pf.apellido].filter(Boolean).join(' ')}{pf.nit ? ` · NIT ${pf.nit}` : ''}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* ── Tipo de pago (solo inclusión) ── */}
+                  {!isExclusion && (
+                    <>
+                      <div>
+                        <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Tipo de pago *</label>
+                        <div style={{display:'flex',gap:'8px'}}>
+                          {[['contado','Contado'],['financiado','Financiado']].map(([val,lbl])=>(
+                            <button key={val} type="button" onClick={()=>setEmisionForm({...emisionForm,tipo_pago:val,fraccionamiento:''})}
+                              style={{flex:1,padding:'7px 10px',border:`1.5px solid ${emisionForm.tipo_pago===val?'#111111':'#e2e8f0'}`,borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer',background:emisionForm.tipo_pago===val?'#111111':'white',color:emisionForm.tipo_pago===val?'white':'#374151'}}>
+                              {lbl}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {emisionForm.tipo_pago === 'financiado' && (
+                        <div>
+                          <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fraccionamiento *</label>
+                          <select value={emisionForm.fraccionamiento} onChange={e=>setEmisionForm({...emisionForm,fraccionamiento:e.target.value})} required={emisionForm.tipo_pago==='financiado'} style={inputStyle}>
+                            <option value="">Seleccionar...</option>
+                            {fraccionamientoOpciones.map(op=>(
+                              <option key={op.value} value={op.value}>{op.label} ({op.sub})</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Vehicle selection */}
@@ -1541,40 +1623,26 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   </div>
                   <p style={{fontSize:'14px',fontWeight:700,color:'#C4A96B',margin:0,flexShrink:0}}>Q {parseFloat(em.prima_emision||0).toLocaleString()}</p>
 
-                  {/* Flow buttons (stop propagation) — not shown on principal emission */}
-                  <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
-                    {!isPrincipal && em.estado==='solicitud' && (
-                      <button onClick={()=>actualizarEstadoEmision(em,'enviada')}
-                        style={{padding:'4px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                        Enviar
-                      </button>
-                    )}
-                    {!isPrincipal && em.estado==='enviada' && (
-                      <>
-                        <button onClick={()=>actualizarEstadoEmision(em,'en_reproceso')}
-                          style={{padding:'4px 10px',background:'rgba(239,68,68,0.1)',color:'#ef4444',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                          Reproceso
+                  {/* Action buttons (stop propagation) — not shown on principal emission */}
+                  {!isPrincipal && (
+                    <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
+                      {/* PDF button for solicitud / enviada / en_reproceso */}
+                      {(em.estado === 'solicitud' || em.estado === 'enviada' || em.estado === 'en_reproceso') && (
+                        <button onClick={()=>handleGestionPdf(em)}
+                          title="Descargar PDF de esta gestión"
+                          style={{display:'flex',alignItems:'center',gap:'4px',padding:'4px 10px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'11px',fontWeight:500,cursor:'pointer',whiteSpace:'nowrap'}}>
+                          <Download size={11}/> PDF
                         </button>
-                        {em.tipo === 'exclusion' ? (
-                          <button onClick={()=>actualizarEstadoEmision(em,'completado')}
-                            style={{padding:'4px 10px',background:'#0891b2',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            Completar
-                          </button>
-                        ) : (
-                          <button onClick={()=>actualizarEstadoEmision(em,'emitida')}
-                            style={{padding:'4px 10px',background:'#16a34a',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            Emitir
-                          </button>
-                        )}
-                      </>
-                    )}
-                    {!isPrincipal && em.estado==='en_reproceso' && (
-                      <button onClick={()=>actualizarEstadoEmision(em,'enviada')}
-                        style={{padding:'4px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                        Re-enviar
-                      </button>
-                    )}
-                  </div>
+                      )}
+                      {/* Cambiar estado button */}
+                      {(em.estado === 'solicitud' || em.estado === 'enviada' || em.estado === 'en_reproceso') && (
+                        <button onClick={()=>{ setEmisionForModal(em); setGestionEstadoOpcion(null); setShowGestionEstadoModal(true) }}
+                          style={{display:'flex',alignItems:'center',gap:'4px',padding:'4px 10px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                          <RefreshCw size={10}/> Estado
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {expandedEmision===em.id ? <ChevronUp size={16} color="#64748b"/> : <ChevronDown size={16} color="#64748b"/>}
                 </div>
 
@@ -1843,6 +1911,153 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           </div>
         </>
       )}
+
+      {/* ─ Modal: Cambiar estado gestión ─ */}
+      {showGestionEstadoModal && emisionForModal && (() => {
+        const em = emisionForModal
+        const eEst = polizaEstados[em.estado] || { bg:'#f1f5f9', color:'#64748b', label: em.estado }
+        const isExcl = em.tipo === 'exclusion'
+        const tipoLabel = isExcl ? 'Exclusión' : 'Inclusión'
+        return (
+          <>
+            <div onClick={()=>setShowGestionEstadoModal(false)}
+              style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:300}}/>
+            <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+              background:'white',borderRadius:'16px',padding:'28px',width:'90%',maxWidth:'460px',
+              zIndex:301,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
+
+              {/* Header */}
+              <div style={{marginBottom:'20px'}}>
+                <p style={{fontSize:'12px',fontWeight:600,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',margin:'0 0 4px'}}>
+                  Cambiar estado · {tipoLabel}
+                </p>
+                <h2 style={{fontSize:'17px',fontWeight:700,color:'#111111',margin:'0 0 4px'}}>
+                  {em.estado === 'solicitud' ? `¿Listo para enviar ${tipoLabel.toLowerCase()}?`
+                    : em.estado === 'enviada' ? `¿Qué ocurrió con la ${tipoLabel.toLowerCase()}?`
+                    : `¿Listo para re-enviar ${tipoLabel.toLowerCase()}?`}
+                </h2>
+                <p style={{fontSize:'13px',color:'#6B6B62',margin:0}}>
+                  {em.numero_emision} · Estado actual: <span style={{fontWeight:600,color:eEst.color}}>{eEst.label}</span>
+                </p>
+              </div>
+
+              <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'20px'}}>
+
+                {/* solicitud → enviada */}
+                {em.estado === 'solicitud' && (
+                  <div onClick={()=>setGestionEstadoOpcion('enviar')}
+                    style={{border:`2px solid ${gestionEstadoOpcion==='enviar'?'#111111':'#e2e8f0'}`,borderRadius:'12px',
+                      padding:'14px 16px',cursor:'pointer',background:gestionEstadoOpcion==='enviar'?'#f8fafc':'white',transition:'all 0.15s'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                      <div style={{width:'26px',height:'26px',borderRadius:'50%',flexShrink:0,
+                        background:gestionEstadoOpcion==='enviar'?'#111111':'#f1f5f9',
+                        display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        <SendHorizonal size={12} color={gestionEstadoOpcion==='enviar'?'white':'#94a3b8'}/>
+                      </div>
+                      <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>Marcar como enviada</p>
+                    </div>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 36px'}}>
+                      El PDF fue generado y enviado a la aseguradora.
+                    </p>
+                  </div>
+                )}
+
+                {/* enviada → emitida / completado */}
+                {em.estado === 'enviada' && (
+                  <div onClick={()=>setGestionEstadoOpcion(isExcl ? 'completar' : 'emitir')}
+                    style={{border:`2px solid ${(gestionEstadoOpcion==='emitir'||gestionEstadoOpcion==='completar')?'#16a34a':'#e2e8f0'}`,borderRadius:'12px',
+                      padding:'14px 16px',cursor:'pointer',background:(gestionEstadoOpcion==='emitir'||gestionEstadoOpcion==='completar')?'#f0fdf4':'white',transition:'all 0.15s'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                      <div style={{width:'26px',height:'26px',borderRadius:'50%',flexShrink:0,
+                        background:(gestionEstadoOpcion==='emitir'||gestionEstadoOpcion==='completar')?'#16a34a':'#f1f5f9',
+                        display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        <CheckCircle size={13} color={(gestionEstadoOpcion==='emitir'||gestionEstadoOpcion==='completar')?'white':'#94a3b8'}/>
+                      </div>
+                      <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>
+                        {isExcl ? 'Completar exclusión' : 'Emitir inclusión'}
+                      </p>
+                    </div>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 36px'}}>
+                      {isExcl ? 'Los vehículos excluidos serán removidos de la póliza.' : 'La aseguradora aprobó la inclusión.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* enviada → en_reproceso */}
+                {em.estado === 'enviada' && (
+                  <div onClick={()=>setGestionEstadoOpcion('reproceso')}
+                    style={{border:`2px solid ${gestionEstadoOpcion==='reproceso'?'#dc2626':'#e2e8f0'}`,borderRadius:'12px',
+                      padding:'14px 16px',cursor:'pointer',background:gestionEstadoOpcion==='reproceso'?'#fef2f2':'white',transition:'all 0.15s'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                      <div style={{width:'26px',height:'26px',borderRadius:'50%',flexShrink:0,
+                        background:gestionEstadoOpcion==='reproceso'?'#dc2626':'#f1f5f9',
+                        display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        <RefreshCw size={12} color={gestionEstadoOpcion==='reproceso'?'white':'#94a3b8'}/>
+                      </div>
+                      <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>Marcar en reproceso</p>
+                    </div>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 36px'}}>
+                      La aseguradora solicitó correcciones. Se podrá generar un nuevo PDF.
+                    </p>
+                  </div>
+                )}
+
+                {/* en_reproceso → enviada */}
+                {em.estado === 'en_reproceso' && (
+                  <div onClick={()=>setGestionEstadoOpcion('reenviar')}
+                    style={{border:`2px solid ${gestionEstadoOpcion==='reenviar'?'#C4A96B':'#e2e8f0'}`,borderRadius:'12px',
+                      padding:'14px 16px',cursor:'pointer',background:gestionEstadoOpcion==='reenviar'?'#FDF8EE':'white',transition:'all 0.15s'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'3px'}}>
+                      <div style={{width:'26px',height:'26px',borderRadius:'50%',flexShrink:0,
+                        background:gestionEstadoOpcion==='reenviar'?'#C4A96B':'#f1f5f9',
+                        display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        <SendHorizonal size={12} color={gestionEstadoOpcion==='reenviar'?'white':'#94a3b8'}/>
+                      </div>
+                      <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>Re-enviar a aseguradora</p>
+                    </div>
+                    <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 36px'}}>
+                      Las correcciones fueron aplicadas y el PDF actualizado está listo.
+                    </p>
+                  </div>
+                )}
+
+              </div>
+
+              <div style={{display:'flex',gap:'10px'}}>
+                <button
+                  disabled={!gestionEstadoOpcion}
+                  onClick={async()=>{
+                    if (!gestionEstadoOpcion) return
+                    const mapa = { enviar:'enviada', emitir:'emitida', completar:'completado', reproceso:'en_reproceso', reenviar:'enviada' }
+                    await actualizarEstadoEmision(em, mapa[gestionEstadoOpcion])
+                    setShowGestionEstadoModal(false)
+                    setGestionEstadoOpcion(null)
+                    setEmisionForModal(null)
+                  }}
+                  style={{flex:1,padding:'11px',border:'none',borderRadius:'9px',fontSize:'14px',fontWeight:700,transition:'all 0.15s',
+                    background: !gestionEstadoOpcion ? '#e2e8f0'
+                      : gestionEstadoOpcion==='emitir' || gestionEstadoOpcion==='completar' ? '#16a34a'
+                      : gestionEstadoOpcion==='reproceso' ? '#dc2626'
+                      : gestionEstadoOpcion==='reenviar' ? '#C4A96B'
+                      : '#111111',
+                    color: !gestionEstadoOpcion ? '#94a3b8' : 'white',
+                    cursor: !gestionEstadoOpcion ? 'not-allowed' : 'pointer'}}>
+                  {!gestionEstadoOpcion ? 'Selecciona una opción'
+                    : gestionEstadoOpcion==='enviar' ? 'Confirmar envío'
+                    : gestionEstadoOpcion==='emitir' ? '✓ Confirmar emisión'
+                    : gestionEstadoOpcion==='completar' ? '✓ Confirmar completado'
+                    : gestionEstadoOpcion==='reproceso' ? 'Confirmar reproceso'
+                    : 'Confirmar re-envío'}
+                </button>
+                <button onClick={()=>{ setShowGestionEstadoModal(false); setGestionEstadoOpcion(null); setEmisionForModal(null) }}
+                  style={{padding:'11px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'9px',fontSize:'14px',cursor:'pointer'}}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       {/* ─ Modal: Cambiar estado ─ */}
       {showCambiarEstadoModal && (
