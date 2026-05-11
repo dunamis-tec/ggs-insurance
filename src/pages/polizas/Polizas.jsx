@@ -1792,15 +1792,22 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       {/* ─ TAB: Gestiones ─ */}
       {activeTab === 'emisiones' && isEmitida && (() => {
         // Vehicles available for new inclusion:
-        // - client vehicles not already in any emission of this policy
-        // - AND not assigned to a DIFFERENT policy
-        const vehiculosEnEmisiones = new Set(
+        // Vehicles currently active in the policy (in non-cancelled inclusion/emision)
+        const vehiculosActivosSet = new Set(
           emisiones
-            .filter(em => em.estado !== 'cancelada')
+            .filter(em => em.tipo !== 'exclusion' && em.estado !== 'cancelada')
             .flatMap(em => em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[])
         )
+        // Vehicles that have been excluded (active exclusion emitida/completado)
+        const vehiculosExcluidosTabSet = new Set(
+          emisiones
+            .filter(em => em.tipo === 'exclusion' && (em.estado === 'emitida' || em.estado === 'completado'))
+            .flatMap(em => em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[])
+        )
+        // Available for new inclusion = not currently active OR already excluded
+        const vehiculosEnUsoTab = new Set([...vehiculosActivosSet].filter(id => !vehiculosExcluidosTabSet.has(id)))
         const vehiculosParaInclusion = allClientVehiculos.filter(v =>
-          !vehiculosEnEmisiones.has(v.id) &&
+          !vehiculosEnUsoTab.has(v.id) &&
           (!v.poliza_id || v.poliza_id === poliza.id)
         )
         return (
@@ -2455,13 +2462,21 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           ? 'Guardar cambios'
           : (isExclusion ? 'Crear exclusión' : 'Crear inclusión')
         // Vehicle lists for the modal
-        const vehiculosEnEmisionesSet = new Set(
+        // Active = in a non-cancelled inclusion/emision
+        const vehiculosActivosModalSet = new Set(
           emisiones
-            .filter(em => em.estado !== 'cancelada')
+            .filter(em => em.tipo !== 'exclusion' && em.estado !== 'cancelada')
             .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id) || [])
         )
+        // Excluded = in a emitida/completado exclusion → available for re-inclusion
+        const vehiculosExcluidosModalSet = new Set(
+          emisiones
+            .filter(em => em.tipo === 'exclusion' && (em.estado === 'emitida' || em.estado === 'completado'))
+            .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id) || [])
+        )
+        const vehiculosEnUsoModal = new Set([...vehiculosActivosModalSet].filter(id => !vehiculosExcluidosModalSet.has(id)))
         const vehiculosParaInclusionModal = allClientVehiculos.filter(v =>
-          !vehiculosEnEmisionesSet.has(v.id) && (!v.poliza_id || v.poliza_id === poliza.id)
+          !vehiculosEnUsoModal.has(v.id) && (!v.poliza_id || v.poliza_id === poliza.id)
         )
         // Vehicles already excluded (in a non-cancelled exclusion) — not available to exclude again
         const vehiculosYaExcluidosSet = new Set(
