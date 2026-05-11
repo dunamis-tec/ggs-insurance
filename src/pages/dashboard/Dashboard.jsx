@@ -71,6 +71,7 @@ function SectionHeader({ icon: Icon, label, color, badge, badgeColor, action, on
 /* ── Main ── */
 export default function Dashboard() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(true)
   const [kpis, setKpis] = useState({})
   const [polizasVencen, setPolizasVencen] = useState([])
@@ -210,7 +211,6 @@ export default function Dashboard() {
     </div>
   )
 
-  const isMobile = useIsMobile()
   const totalAlertas = polizasVencen.length + reqsVencidos.length
   const tareasVencidas = tareas.filter(t => t.fecha_vencimiento && new Date(t.fecha_vencimiento) < new Date()).length
 
