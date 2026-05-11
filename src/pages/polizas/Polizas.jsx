@@ -1482,7 +1482,11 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         // Vehicles available for new inclusion:
         // - client vehicles not already in any emission of this policy
         // - AND not assigned to a DIFFERENT policy
-        const vehiculosEnEmisiones = new Set(emisiones.flatMap(em=>em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[]))
+        const vehiculosEnEmisiones = new Set(
+          emisiones
+            .filter(em => em.estado !== 'cancelada')
+            .flatMap(em => em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[])
+        )
         const vehiculosParaInclusion = allClientVehiculos.filter(v =>
           !vehiculosEnEmisiones.has(v.id) &&
           (!v.poliza_id || v.poliza_id === poliza.id)
@@ -1826,7 +1830,11 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           ? 'Guardar cambios'
           : (isExclusion ? 'Crear exclusión' : 'Crear inclusión')
         // Vehicle lists for the modal
-        const vehiculosEnEmisionesSet = new Set(emisiones.flatMap(em=>em.emision_vehiculos?.map(ev=>ev.vehiculos?.id)||[]))
+        const vehiculosEnEmisionesSet = new Set(
+          emisiones
+            .filter(em => em.estado !== 'cancelada')
+            .flatMap(em => em.emision_vehiculos?.map(ev => ev.vehiculos?.id) || [])
+        )
         const vehiculosParaInclusionModal = allClientVehiculos.filter(v =>
           !vehiculosEnEmisionesSet.has(v.id) && (!v.poliza_id || v.poliza_id === poliza.id)
         )
