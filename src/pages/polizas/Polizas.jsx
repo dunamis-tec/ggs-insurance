@@ -657,6 +657,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [expandedEmision, setExpandedEmision] = useState(null)
   const [vehiculoSearch, setVehiculoSearch]   = useState('')
   const [showEmitirModal, setShowEmitirModal] = useState(false)
+  const [showPdfEnviadoModal, setShowPdfEnviadoModal] = useState(false)
   const [emitirForm, setEmitirForm]   = useState({ numero_poliza:'' })
   const [emitirPdfFile, setEmitirPdfFile] = useState(null)
   const [uploadingPdf, setUploadingPdf] = useState(false)
@@ -983,23 +984,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
           {/* Right: action buttons */}
           <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'center',flexShrink:0}}>
-            {!isEmitida && (
-              <button onClick={()=>toast('Generación de PDF próximamente',{icon:'📄'})}
-                style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
-                <Download size={13}/> PDF solicitud
+            {/* Estado solicitud: un solo CTA primario */}
+            {poliza.estado === 'solicitud' && (
+              <button onClick={() => { toast('Generando PDF…', {icon:'📄'}); setShowPdfEnviadoModal(true) }}
+                style={{display:'flex',alignItems:'center',gap:'7px',padding:'9px 18px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+                <Download size={14}/> Descargar solicitud PDF
               </button>
             )}
+            {/* PDF póliza emitida */}
             {isEmitida && poliza.poliza_pdf_url && (
               <a href={poliza.poliza_pdf_url} target="_blank" rel="noopener noreferrer"
                 style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
                 <Download size={13}/> Póliza PDF
               </a>
-            )}
-            {poliza.estado === 'solicitud' && (
-              <button onClick={avanzarEstado}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#f59e0b',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
-                <SendHorizonal size={14}/> Enviar a aseguradora
-              </button>
             )}
             {poliza.estado === 'enviada' && (
               <>
@@ -1674,6 +1671,44 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             </div>
           ))}
         </div>
+      )}
+
+      {/* ─ Modal: PDF descargado — ¿marcar como enviada? ─ */}
+      {showPdfEnviadoModal && (
+        <>
+          <div onClick={()=>setShowPdfEnviadoModal(false)}
+            style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:300}}/>
+          <div style={{
+            position:'fixed',top:'50%',left:'50%',
+            transform:'translate(-50%,-50%)',
+            background:'white',borderRadius:'16px',
+            padding:'28px 28px 24px',
+            width:'100%',maxWidth:'400px',
+            boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
+            zIndex:301,
+          }}>
+            {/* Icon */}
+            <div style={{width:'48px',height:'48px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'16px'}}>
+              <SendHorizonal size={22} color='#C4A96B'/>
+            </div>
+            <h2 style={{fontSize:'17px',fontWeight:700,color:'#111111',margin:'0 0 8px'}}>
+              ¿Ya enviaste la solicitud?
+            </h2>
+            <p style={{fontSize:'13px',color:'#6B6B62',lineHeight:'1.6',margin:'0 0 24px'}}>
+              PDF listo. Si ya lo enviaste a la aseguradora, márcalo como enviado para continuar el flujo de la póliza.
+            </p>
+            <div style={{display:'flex',gap:'10px'}}>
+              <button onClick={async()=>{ await avanzarEstado(); setShowPdfEnviadoModal(false) }}
+                style={{flex:1,padding:'10px',background:'#111111',color:'white',border:'none',borderRadius:'9px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+                Marcar como enviada
+              </button>
+              <button onClick={()=>setShowPdfEnviadoModal(false)}
+                style={{padding:'10px 16px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'9px',fontSize:'14px',cursor:'pointer'}}>
+                Ahora no
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ─ Modal: Emitir póliza ─ */}
