@@ -105,6 +105,7 @@ export default function Polizas() {
   const [editing, setEditing]       = useState(null)
   const [returnToPolizaId, setReturnToPolizaId] = useState(null)
   const [productosFiltered, setProductosFiltered] = useState([])
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   // Client validation & vehicle selection
   const [clienteVehiculos, setClienteVehiculos]     = useState([])
   const [vehiculosSeleccionados, setVehiculosSeleccionados] = useState([])
@@ -626,20 +627,52 @@ export default function Polizas() {
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por número, cliente o aseguradora..."
             style={{width:'100%',padding:'9px 12px 9px 36px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
         </div>
-        <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-          {[['todas','Todas',null],['solicitud','Solicitudes',polizaEstados.solicitud],['enviada','Enviadas',polizaEstados.enviada],['en_reproceso','En reproceso',polizaEstados.en_reproceso],['emitida','Emitidas',polizaEstados.emitida]].map(([key,label,est])=>{
-            const isActive = filtroEstado === key
-            return (
-              <button key={key} onClick={()=>setFiltroEstado(key)}
-                style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
-                  background: isActive ? (est?.color||'#111111') : 'white',
-                  color: isActive ? 'white' : (est?.color||'#64748b'),
-                  border: `1px solid ${est?.color||'#e2e8f0'}`}}>
-                {label} ({counts[key]??counts.todas})
-              </button>
-            )
-          })}
-        </div>
+        {isMobile ? (
+          <div style={{position:'relative',width:'100%'}}>
+            {showFilterDropdown && (
+              <div onClick={()=>setShowFilterDropdown(false)}
+                style={{position:'fixed',inset:0,zIndex:100}}/>
+            )}
+            <button onClick={()=>setShowFilterDropdown(v=>!v)}
+              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 14px',background:'white',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',fontWeight:500,cursor:'pointer',color:'#1e293b'}}>
+              <span>
+                {[['todas','Todas',null],['solicitud','Solicitudes',polizaEstados.solicitud],['enviada','Enviadas',polizaEstados.enviada],['en_reproceso','En reproceso',polizaEstados.en_reproceso],['emitida','Emitidas',polizaEstados.emitida]].find(([k])=>k===filtroEstado)?.[1]}
+                {' '}({counts[filtroEstado]??counts.todas})
+              </span>
+              <ChevronDown size={16} color="#64748b" style={{transform:showFilterDropdown?'rotate(180deg)':'none',transition:'transform 0.2s'}}/>
+            </button>
+            {showFilterDropdown && (
+              <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,right:0,background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',boxShadow:'0 4px 16px rgba(0,0,0,0.10)',zIndex:101,overflow:'hidden'}}>
+                {[['todas','Todas',null],['solicitud','Solicitudes',polizaEstados.solicitud],['enviada','Enviadas',polizaEstados.enviada],['en_reproceso','En reproceso',polizaEstados.en_reproceso],['emitida','Emitidas',polizaEstados.emitida]].map(([key,label,est])=>{
+                  const isActive = filtroEstado === key
+                  return (
+                    <button key={key}
+                      onClick={()=>{ setFiltroEstado(key); setShowFilterDropdown(false) }}
+                      style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 16px',background:isActive?'#f8fafc':'white',border:'none',borderBottom:'1px solid #f1f5f9',fontSize:'14px',fontWeight:isActive?600:400,cursor:'pointer',color:isActive?(est?.color||'#111111'):'#374151',textAlign:'left'}}>
+                      <span>{label} ({counts[key]??counts.todas})</span>
+                      {isActive && <Check size={15} color={est?.color||'#111111'}/>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+            {[['todas','Todas',null],['solicitud','Solicitudes',polizaEstados.solicitud],['enviada','Enviadas',polizaEstados.enviada],['en_reproceso','En reproceso',polizaEstados.en_reproceso],['emitida','Emitidas',polizaEstados.emitida]].map(([key,label,est])=>{
+              const isActive = filtroEstado === key
+              return (
+                <button key={key} onClick={()=>setFiltroEstado(key)}
+                  style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
+                    background: isActive ? (est?.color||'#111111') : 'white',
+                    color: isActive ? 'white' : (est?.color||'#64748b'),
+                    border: `1px solid ${est?.color||'#e2e8f0'}`}}>
+                  {label} ({counts[key]??counts.todas})
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
