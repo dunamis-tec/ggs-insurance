@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useIsMobile } from '../../lib/useIsMobile'
 import {
   FileText, Users, CreditCard, AlertCircle, TrendingUp, Clock,
   Calendar, DollarSign, Plus, CheckSquare, AlertTriangle, Activity,
@@ -209,6 +210,7 @@ export default function Dashboard() {
     </div>
   )
 
+  const isMobile = useIsMobile()
   const totalAlertas = polizasVencen.length + reqsVencidos.length
   const tareasVencidas = tareas.filter(t => t.fecha_vencimiento && new Date(t.fecha_vencimiento) < new Date()).length
 
@@ -226,7 +228,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── KPI Row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)', gap: '12px', marginBottom: '20px' }}>
         <KpiCard
           label="Prima total activa" value={fmtQ(kpis.primaTotal)}
           icon={DollarSign} color="#C4A96B" sub={`${kpis.cntPolizas} pólizas emitidas`}
@@ -253,7 +255,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Main 2-col: Pipeline | Alertas + Tareas ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '16px', marginBottom: '16px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr', gap: '16px', marginBottom: '16px', alignItems: 'start' }}>
 
         {/* Pipeline — columna dominante */}
         <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
@@ -414,7 +416,8 @@ export default function Dashboard() {
             <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Sin vencimientos en los próximos 60 días</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
                 {['Tipo', 'Referencia', 'Cliente', 'Fecha de vencimiento', 'Días restantes'].map(h => (
@@ -450,6 +453,7 @@ export default function Dashboard() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

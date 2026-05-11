@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useIsMobile } from '../../lib/useIsMobile'
 import { generateSolicitudPdf } from '../../lib/generateSolicitudPdf'
 import { generateInclusionPdf } from '../../lib/generateInclusionPdf'
 import { FileText, Plus, Minus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
@@ -91,6 +92,7 @@ function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre'
 
 /* ─── Main Polizas component ─────────────────────────────────────────────── */
 export default function Polizas() {
+  const isMobile = useIsMobile()
   const [polizas, setPolizas]       = useState([])
   const [clientes, setClientes]     = useState([])
   const [aseguradoras, setAseguradoras] = useState([])
@@ -686,19 +688,21 @@ export default function Polizas() {
                     </div>
                   )
                 })()}
-                {p.fecha_vencimiento && (
+                {!isMobile && p.fecha_vencimiento && (
                   <div style={{textAlign:'right',marginRight:'12px',flexShrink:0}}>
                     <p style={{fontSize:'12px',color:'#64748b',margin:0,whiteSpace:'nowrap'}}>Vence: {new Date(p.fecha_vencimiento).toLocaleDateString('es-GT')}</p>
                   </div>
                 )}
                 <div style={{display:'flex',gap:'4px',marginRight:'8px',flexShrink:0}}>
                   <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:pEst.bg,color:pEst.color,fontWeight:600,whiteSpace:'nowrap'}}>{pEst.label}</span>
-                  {vencBadge && <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:vencBadge.bg,color:vencBadge.color,fontWeight:500,whiteSpace:'nowrap'}}>{vencBadge.label}</span>}
+                  {!isMobile && vencBadge && <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:vencBadge.bg,color:vencBadge.color,fontWeight:500,whiteSpace:'nowrap'}}>{vencBadge.label}</span>}
                 </div>
-                <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
-                  <button onClick={()=>handleEdit(p)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
-                  <button onClick={()=>handleDelete(p.id)} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
-                </div>
+                {!isMobile && (
+                  <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
+                    <button onClick={()=>handleEdit(p)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
+                    <button onClick={()=>handleDelete(p.id)} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -713,6 +717,7 @@ export default function Polizas() {
 /* ─── PolizaDetalle ──────────────────────────────────────────────────────── */
 function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromReq }) {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
   const validTabs = ['detalle','bitacora','vehiculos_sol','emisiones','pagos','tareas']
   const defaultTab = polizaInit.estado === 'emitida' ? 'detalle' : 'detalle'
@@ -1230,7 +1235,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 {isEmitida && vencEst==='vencida' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef2f2',color:'#ef4444',fontWeight:600}}>Vencida</span>}
                 {isEmitida && vencEst==='por_vencer' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef9c3',color:'#a16207',fontWeight:600}}>Por vencer ({diasRestantes}d)</span>}
               </div>
-              <p style={{fontSize:'13px',color:'#6B6B62',margin:'5px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              <p style={{fontSize:'13px',color:'#6B6B62',margin:'5px 0 0',overflow:'hidden',textOverflow:isMobile?'clip':'ellipsis',whiteSpace:isMobile?'normal':'nowrap'}}>
                 {poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}
               </p>
               {poliza.poliza_origen && (
@@ -1294,14 +1299,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         <div style={{height:'1px',background:'#f1f5f9',margin:'0 24px'}}/>
 
         {/* KPI strip — integrated into card */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)'}}>
+        <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)'}}>
           {[
             ['Prima total',   'Q '+primaTotal.toLocaleString(),  '#C4A96B'],
             ['Tipo de pago',  poliza.tipo_pago==='financiado'?`Financiado · ${poliza.numero_cuotas||1} cuotas`:'Contado', '#111111'],
             ['Inicio',        poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—', '#374151'],
             ['Vencimiento',   vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#374151'],
           ].map(([label,val,color],i)=>(
-            <div key={label} style={{padding:'16px 24px',borderRight:i<3?'1px solid #f1f5f9':'none'}}>
+            <div key={label} style={{padding:isMobile?'12px 16px':'16px 24px',borderRight:isMobile?(i%2===0?'1px solid #f1f5f9':'none'):(i<3?'1px solid #f1f5f9':'none'),borderBottom:isMobile&&i<2?'1px solid #f1f5f9':'none'}}>
               <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.05em',fontWeight:500}}>{label}</p>
               <p style={{fontSize:'15px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
             </div>
@@ -1374,7 +1379,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         ) : null
 
         return (
-          <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:'16px',alignItems:'start'}}>
+          <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 320px',gap:'16px',alignItems:'start'}}>
 
             {/* ── Left column ── */}
             <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
@@ -2213,7 +2218,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           )}
 
           {/* ── Summary cards ── */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'16px'}}>
+          <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:'12px',marginBottom:'16px'}}>
             {[
               ['Pagado',   'Q '+totalPagado.toLocaleString('es-GT'),   '#22c55e', reqs.filter(r=>r.estado==='pagado').length],
               ['Pendiente','Q '+totalPendiente.toLocaleString('es-GT'), '#f59e0b', reqs.filter(r=>r.estado==='pendiente').length],
