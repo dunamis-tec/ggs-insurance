@@ -823,8 +823,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       await addBitacora(null, 'emitida', `[Gestión] Emisión principal ${emisionData.numero_emision} — Solicitud → Emitida`)
     }
 
-    setShowEmitirModal(false)
     setEmitirPdfFile(null)
+    setEmitirForm({ numero_poliza: '' })
     toast.success('¡Póliza emitida exitosamente!')
     await reloadPoliza(); fetchData()
   }
