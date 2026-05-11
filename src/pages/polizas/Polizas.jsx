@@ -710,8 +710,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [expandedEmision, setExpandedEmision] = useState(null)
   const [vehiculoSearch, setVehiculoSearch]   = useState('')
   const [showCambiarEstadoModal, setShowCambiarEstadoModal] = useState(false)
-  const [estadoOpcion, setEstadoOpcion] = useState(null)   // 'emitir' | 'reproceso' | 'reenviar'
-  const [showPdfEnviadoModal, setShowPdfEnviadoModal] = useState(false)
+  const [estadoOpcion, setEstadoOpcion] = useState(null)   // 'enviar' | 'emitir' | 'reproceso' | 'reenviar'
   const [emitirForm, setEmitirForm]   = useState({ numero_poliza:'' })
   const [emitirPdfFile, setEmitirPdfFile] = useState(null)
   const [uploadingPdf, setUploadingPdf] = useState(false)
@@ -966,7 +965,6 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         usuario: usuarioNombre,
       })
       toast.success('PDF generado', { id: toastId })
-      if (poliza.estado === 'solicitud') setShowPdfEnviadoModal(true)
     } catch (err) {
       console.error(err)
       toast.error('Error al generar PDF', { id: toastId })
@@ -1073,24 +1071,20 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               </button>
             )}
 
-            {/* ── PDF solicitud: disponible en solicitud / enviada / en_reproceso ── */}
+            {/* ── PDF solicitud: outline en todos los estados pre-emitida ── */}
             {(poliza.estado === 'solicitud' || poliza.estado === 'enviada' || poliza.estado === 'en_reproceso') && (
-              <button onClick={handleGenerarPdf} title={poliza.estado === 'en_reproceso' ? 'Re-descargar PDF con cambios' : 'Descargar PDF solicitud'}
-                style={{display:'flex',alignItems:'center',gap:'7px',
-                  padding: poliza.estado === 'solicitud' ? '9px 18px' : '8px 14px',
-                  background: poliza.estado === 'solicitud' ? '#C4A96B' : 'white',
-                  color: poliza.estado === 'solicitud' ? '#111111' : '#374151',
-                  border: poliza.estado === 'solicitud' ? 'none' : '1px solid #e2e8f0',
-                  borderRadius:'8px', fontSize:'13px',
-                  fontWeight: poliza.estado === 'solicitud' ? 700 : 500,
-                  cursor:'pointer'}}>
+              <button onClick={handleGenerarPdf}
+                title={poliza.estado === 'en_reproceso' ? 'Re-descargar PDF con cambios' : 'Descargar PDF solicitud'}
+                style={{display:'flex',alignItems:'center',gap:'7px',padding:'8px 14px',
+                  background:'white',color:'#374151',border:'1px solid #e2e8f0',
+                  borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
                 <Download size={14}/>
-                {poliza.estado === 'solicitud' ? 'Descargar solicitud PDF' : poliza.estado === 'en_reproceso' ? 'Re-descargar PDF' : 'PDF solicitud'}
+                {poliza.estado === 'en_reproceso' ? 'Re-descargar PDF' : 'PDF solicitud'}
               </button>
             )}
 
-            {/* ── Cambiar estado: enviada o en_reproceso ── */}
-            {(poliza.estado === 'enviada' || poliza.estado === 'en_reproceso') && (
+            {/* ── Cambiar estado: solicitud / enviada / en_reproceso ── */}
+            {(poliza.estado === 'solicitud' || poliza.estado === 'enviada' || poliza.estado === 'en_reproceso') && (
               <button onClick={()=>{ setEstadoOpcion(null); setShowCambiarEstadoModal(true) }}
                 style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                 <RefreshCw size={13}/> Cambiar estado
@@ -1758,44 +1752,6 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         </div>
       )}
 
-      {/* ─ Modal: PDF descargado — ¿marcar como enviada? ─ */}
-      {showPdfEnviadoModal && (
-        <>
-          <div onClick={()=>setShowPdfEnviadoModal(false)}
-            style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:300}}/>
-          <div style={{
-            position:'fixed',top:'50%',left:'50%',
-            transform:'translate(-50%,-50%)',
-            background:'white',borderRadius:'16px',
-            padding:'28px 28px 24px',
-            width:'100%',maxWidth:'400px',
-            boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
-            zIndex:301,
-          }}>
-            {/* Icon */}
-            <div style={{width:'48px',height:'48px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'16px'}}>
-              <SendHorizonal size={22} color='#C4A96B'/>
-            </div>
-            <h2 style={{fontSize:'17px',fontWeight:700,color:'#111111',margin:'0 0 8px'}}>
-              ¿Ya enviaste la solicitud?
-            </h2>
-            <p style={{fontSize:'13px',color:'#6B6B62',lineHeight:'1.6',margin:'0 0 24px'}}>
-              PDF listo. Si ya lo enviaste a la aseguradora, márcalo como enviado para continuar el flujo de la póliza.
-            </p>
-            <div style={{display:'flex',gap:'10px'}}>
-              <button onClick={async()=>{ await avanzarEstado(); setShowPdfEnviadoModal(false) }}
-                style={{flex:1,padding:'10px',background:'#111111',color:'white',border:'none',borderRadius:'9px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-                Marcar como enviada
-              </button>
-              <button onClick={()=>setShowPdfEnviadoModal(false)}
-                style={{padding:'10px 16px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'9px',fontSize:'14px',cursor:'pointer'}}>
-                Ahora no
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* ─ Modal: Cambiar estado ─ */}
       {showCambiarEstadoModal && (
         <>
@@ -1811,12 +1767,33 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 Cambiar estado
               </p>
               <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',margin:'0 0 4px'}}>
-                {poliza.estado === 'enviada' ? '¿Qué ocurrió con la aseguradora?' : '¿Listo para re-enviar?'}
+                {poliza.estado === 'solicitud' ? '¿Listo para enviar a la aseguradora?' : poliza.estado === 'enviada' ? '¿Qué ocurrió con la aseguradora?' : '¿Listo para re-enviar?'}
               </h2>
               <p style={{fontSize:'13px',color:'#6B6B62',margin:0}}>
                 Estado actual: <span style={{fontWeight:600,color:pEst.color}}>{pEst.label}</span>
               </p>
             </div>
+
+            {/* ── Opción para estado "solicitud" ── */}
+            {poliza.estado === 'solicitud' && (
+              <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'20px'}}>
+                <div onClick={()=>setEstadoOpcion('enviar')}
+                  style={{border:`2px solid ${estadoOpcion==='enviar'?'#111111':'#e2e8f0'}`,borderRadius:'12px',
+                    padding:'16px',cursor:'pointer',background:estadoOpcion==='enviar'?'#f8fafc':'white',transition:'all 0.15s'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'4px'}}>
+                    <div style={{width:'28px',height:'28px',borderRadius:'50%',
+                      background:estadoOpcion==='enviar'?'#111111':'#f1f5f9',
+                      display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <SendHorizonal size={13} color={estadoOpcion==='enviar'?'white':'#94a3b8'}/>
+                    </div>
+                    <p style={{fontWeight:700,fontSize:'14px',color:'#111111',margin:0}}>Marcar como enviada</p>
+                  </div>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:'0 0 0 38px'}}>
+                    El PDF fue generado y enviado a la aseguradora. La solicitud quedará en espera de respuesta.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* ── Opciones para estado "enviada" ── */}
             {poliza.estado === 'enviada' && (
@@ -1925,7 +1902,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               <button
                 disabled={!estadoOpcion || (estadoOpcion==='emitir' && !emitirForm.numero_poliza) || uploadingPdf}
                 onClick={async()=>{
-                  if (estadoOpcion === 'emitir') {
+                  if (estadoOpcion === 'enviar') {
+                    await avanzarEstado()
+                    setShowCambiarEstadoModal(false)
+                  } else if (estadoOpcion === 'emitir') {
                     await handleEmitir({ preventDefault: ()=>{} })
                     setShowCambiarEstadoModal(false)
                   } else if (estadoOpcion === 'reproceso') {
@@ -1941,10 +1921,11 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     : estadoOpcion==='emitir' ? '#16a34a'
                     : estadoOpcion==='reproceso' ? '#dc2626'
                     : '#111111',
-                  color: !estadoOpcion ? '#94a3b8' : 'white',
+                  color: (!estadoOpcion||uploadingPdf) ? '#94a3b8' : 'white',
                   border:'none',borderRadius:'9px',fontSize:'14px',fontWeight:700,
                   cursor: !estadoOpcion||uploadingPdf ? 'not-allowed' : 'pointer',transition:'all 0.15s'}}>
                 {uploadingPdf ? 'Procesando...'
+                  : estadoOpcion==='enviar' ? 'Confirmar envío'
                   : estadoOpcion==='emitir' ? '✓ Confirmar emisión'
                   : estadoOpcion==='reproceso' ? 'Confirmar reproceso'
                   : estadoOpcion==='reenviar' ? 'Confirmar re-envío'
