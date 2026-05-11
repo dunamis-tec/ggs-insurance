@@ -31,12 +31,29 @@ const fracLabel = {
   semestral:  'Semestral',
 }
 
+/* ── Load image as base64 data URL ── */
+async function loadDataUrl(src) {
+  try {
+    const res = await fetch(src)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(blob)
+    })
+  } catch { return null }
+}
+
 /* ─────────────────────────────────────────────────── */
 export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturable, usuario }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()   // 210
   const margin = 14
   let y = 0
+
+  // Pre-load logo (PNG icon — symbol only, white background friendly)
+  const logoDataUrl = await loadDataUrl('/icon-192.png')
 
   /* ── Helper: section table ── */
   function sectionTable(title, rows, startY) {
@@ -66,50 +83,48 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
   }
 
   /* ══════════════ PAGE HEADER ══════════════ */
+  const HEADER_H = 30
+
   // Black top bar
   doc.setFillColor(...BLACK)
-  doc.rect(0, 0, W, 26, 'F')
+  doc.rect(0, 0, W, HEADER_H, 'F')
 
   // Gold left accent stripe
   doc.setFillColor(...GOLD)
-  doc.rect(0, 0, 4, 26, 'F')
+  doc.rect(0, 0, 4, HEADER_H, 'F')
 
-  // GGS monogram — three squares
-  const gx = 10, gy = 5, gs = 5.5, gp = 1.2
-  ;[0, 1, 2].forEach(i => {
-    doc.setDrawColor(...GOLD)
-    doc.setLineWidth(0.8)
-    doc.rect(gx + i * (gs + gp), gy, gs, gs)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
-    doc.setTextColor(...GOLD)
-    doc.text(['G', 'G', 'S'][i], gx + i * (gs + gp) + gs / 2, gy + gs / 2 + 1.5, { align: 'center' })
-  })
+  // GGS logo image — PNG icon (symbol: two circles + square)
+  // icon-192.png is 368×178px → ratio ≈ 2.068
+  const logoW = 22, logoH = logoW / (368 / 178)   // 22 × 10.6 mm
+  const logoX = 8
+  const logoY = (HEADER_H - logoH) / 2             // vertically centred
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH)
+  }
 
-  // Company name
+  // Company name + tagline (right of logo)
+  const textX = logoX + logoW + 3
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
+  doc.setFontSize(8.5)
   doc.setTextColor(...WHITE)
-  doc.text('GRUPO GLOBAL EN SEGUROS', 10, 18)
+  doc.text('GRUPO GLOBAL EN SEGUROS', textX, HEADER_H / 2 + 0.5)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7)
+  doc.setFontSize(6.5)
   doc.setTextColor(...GOLD)
-  doc.text('TÚ CREA, NOSOTROS TE CUIDAMOS', 10, 22.5)
+  doc.text('TÚ CREA, NOSOTROS TE CUIDAMOS', textX, HEADER_H / 2 + 5.5)
 
-  // Document title
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(...WHITE)
-  doc.text('SOLICITUD SEGURO DE VEHÍCULOS', W - margin, 12, { align: 'right' })
-
-  // Poliza number + date
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(...GOLD)
+  // Document title (right-aligned)
   const solNum = poliza.numero_poliza || `SOL-${poliza.numero_solicitud || '?'}`
-  doc.text(`${solNum}  ·  ${fmtDate(new Date())}`, W - margin, 20.5, { align: 'right' })
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(...WHITE)
+  doc.text('SOLICITUD SEGURO DE VEHÍCULOS', W - margin, HEADER_H / 2 - 0.5, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...GOLD)
+  doc.text(`${solNum}  ·  ${fmtDate(new Date())}`, W - margin, HEADER_H / 2 + 5, { align: 'right' })
 
-  y = 32
+  y = HEADER_H + 6
 
   /* ══════════════ DATOS DE AGENTE ══════════════ */
   y = sectionTable('DATOS DE AGENTE', [
