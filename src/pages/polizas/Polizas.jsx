@@ -1056,7 +1056,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             ['Inicio', poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—','#64748b'],
             ['Vencimiento', vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#64748b'],
           ].map(([label,val,color])=>(
-            <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'12px'}}>
+            <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px 16px',border:'1px solid #e2e8f0'}}>
               <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{label}</p>
               <p style={{fontSize:'14px',fontWeight:700,color,margin:'4px 0 0'}}>{val}</p>
             </div>
@@ -1108,7 +1108,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               ['Teléfono', poliza.clientes?.telefono||'—'],
               ['DPI', poliza.clientes?.dpi||'—'],
             ].map(([label,val])=>(
-              <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'12px'}}>
+              <div key={label} style={{background:'white',borderRadius:'10px',padding:'14px 16px',border:'1px solid #e2e8f0'}}>
                 <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{label}</p>
                 <p style={{fontSize:'14px',fontWeight:600,color:'#1e293b',margin:'4px 0 0'}}>{val}</p>
               </div>
