@@ -132,7 +132,7 @@ export default function Polizas() {
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: polizasData }, { data: clientesData }, { data: aseguradorasData }] = await Promise.all([
-      supabase.from('polizas').select('*, clientes(nombre,apellido,nit,email,telefono,dpi,fecha_nacimiento,direccion), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+      supabase.from('polizas').select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
         .eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('clientes').select('id,nombre,apellido,tipo,nit,email,telefono,dpi').eq('activo', true).order('nombre'),
       supabase.from('aseguradoras').select('id,nombre,logo_url,productos(id,nombre,activo)').eq('activa', true).order('nombre')
@@ -221,7 +221,7 @@ export default function Polizas() {
       // Return to detail view if we came from there
       if (returnToPolizaId) {
         const { data: updatedPoliza } = await supabase.from('polizas')
-          .select('*, clientes(nombre,apellido,nit,email,telefono,dpi,fecha_nacimiento,direccion), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+          .select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
           .eq('id', returnToPolizaId).single()
         if (updatedPoliza) setSelected(updatedPoliza)
         setView('detalle')
@@ -671,7 +671,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const reloadPoliza = async () => {
     const { data } = await supabase.from('polizas')
-      .select('*, clientes(nombre,apellido,nit,email,telefono,dpi,fecha_nacimiento,direccion), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+      .select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
       .eq('id', poliza.id).single()
     if (data) setPoliza(data)
   }
@@ -994,12 +994,16 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                   const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
                   const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
 
+                  // Fetch full client (fecha_nacimiento, direccion not in the poliza join)
+                  const { data: clienteFull } = await supabase.from('clientes')
+                    .select('*').eq('id', poliza.cliente_id).single()
+
                   const { data: pfsData } = await supabase.from('personas_facturables')
                     .select('*').eq('cliente_id', poliza.cliente_id).eq('activa', true).limit(1)
                   const personaFacturable = pfsData?.[0] || null
 
                   await generateSolicitudPdf({
-                    poliza,
+                    poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
                     vehiculos: solicitudVehiculos,
                     personaFacturable,
                     usuario: usuarioNombre,
