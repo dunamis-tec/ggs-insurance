@@ -1,31 +1,48 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
-import { Building2, Plus, ChevronDown, ChevronUp, Trash2, Edit2, X, Upload, Search } from 'lucide-react'
+import { Building2, Plus, Trash2, Edit2, X, Upload, Search, Settings, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'', logo_url:'', porcentaje_gasto_emision: 5 }
 
+/* ─────────────────────────────────────────
+   Main page
+───────────────────────────────────────── */
 export default function Aseguradoras() {
-  const [aseguradoras, setAseguradoras] = useState([])
-  const [expanded, setExpanded] = useState(null)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState(emptyForm)
-  const [editing, setEditing] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [logoPreview, setLogoPreview] = useState(null)
-  const [search, setSearch] = useState('')
+  const [aseguradoras, setAseguradoras]     = useState([])
+  const [loading, setLoading]               = useState(true)
+  const [search, setSearch]                 = useState('')
+
+  // Modal 1 – create / edit
+  const [showFormModal, setShowFormModal]   = useState(false)
+  const [form, setForm]                     = useState(emptyForm)
+  const [editing, setEditing]               = useState(null)
+  const [uploading, setUploading]           = useState(false)
+  const [logoPreview, setLogoPreview]       = useState(null)
+
+  // Modal 2 – configure
+  const [configTarget, setConfigTarget]     = useState(null) // aseguradora object
 
   useEffect(() => { fetchAseguradoras() }, [])
 
   const fetchAseguradoras = async () => {
     setLoading(true)
-    const { data } = await supabase.from('aseguradoras').select('*, recargo_fraccionamiento(*), productos(*, coberturas(*), producto_comisiones(*))').eq('activa', true).order('nombre')
+    const { data } = await supabase
+      .from('aseguradoras')
+      .select('*, recargo_fraccionamiento(*), productos(*, coberturas(*), producto_comisiones(*))')
+      .eq('activa', true)
+      .order('nombre')
     setAseguradoras(data || [])
     setLoading(false)
+    // refresh config modal target if open
+    if (configTarget) {
+      const updated = (data || []).find(a => a.id === configTarget.id)
+      if (updated) setConfigTarget(updated)
+    }
   }
 
+  /* ── logo upload ── */
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -43,30 +60,35 @@ export default function Aseguradoras() {
     toast.success('Logo subido')
   }
 
+  /* ── create / edit submit ── */
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (editing) {
       const { error } = await supabase.from('aseguradoras').update(form).eq('id', editing)
       if (error) { toast.error('Error al actualizar'); return }
       toast.success('Aseguradora actualizada')
-      setEditing(null)
     } else {
       const { error } = await supabase.from('aseguradoras').insert(form)
       if (error) { toast.error('Error al crear'); return }
       toast.success('Aseguradora creada')
     }
-    setForm(emptyForm)
-    setLogoPreview(null)
-    setShowForm(false)
+    closeFormModal()
     fetchAseguradoras()
   }
 
-  const handleEdit = (a) => {
+  const openEditModal = (a) => {
     setForm({ nombre:a.nombre, nit:a.nit||'', direccion:a.direccion||'', telefono:a.telefono||'', email:a.email||'', contacto_nombre:a.contacto_nombre||'', logo_url:a.logo_url||'', porcentaje_gasto_emision: a.porcentaje_gasto_emision ?? 5 })
     setLogoPreview(a.logo_url || null)
     setEditing(a.id)
-    setShowForm(true)
-    window.scrollTo(0,0)
+    setShowFormModal(true)
+  }
+
+  const openNewModal = () => {
+    setForm(emptyForm); setLogoPreview(null); setEditing(null); setShowFormModal(true)
+  }
+
+  const closeFormModal = () => {
+    setShowFormModal(false); setEditing(null); setForm(emptyForm); setLogoPreview(null)
   }
 
   const handleDelete = async (id) => {
@@ -76,8 +98,11 @@ export default function Aseguradoras() {
     fetchAseguradoras()
   }
 
+  const filtered = aseguradoras.filter(a => a.nombre.toLowerCase().includes(search.toLowerCase()))
+
   return (
     <div>
+      {/* ── Header ── */}
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
@@ -86,61 +111,14 @@ export default function Aseguradoras() {
               {aseguradoras.length} aseguradoras registradas
             </p>
           </div>
-          <button onClick={()=>{setShowForm(!showForm);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
+          <button onClick={openNewModal}
             style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
             <Plus size={16}/> Nueva aseguradora
           </button>
         </div>
       </div>
 
-      {showForm && (
-        <div style={{background:'white',borderRadius:'12px',padding:'24px',border:'1px solid #e2e8f0',marginBottom:'24px'}}>
-          <h2 style={{fontSize:'16px',fontWeight:600,color:'#111111',marginBottom:'16px'}}>{editing?'Editar aseguradora':'Nueva aseguradora'}</h2>
-          <form onSubmit={handleSubmit}>
-            <div style={{marginBottom:'20px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'16px'}}>
-                <div style={{width:'80px',height:'80px',borderRadius:'10px',border:'2px dashed #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc'}}>
-                  {logoPreview ? <img src={logoPreview} alt="logo" style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={28} color="#cbd5e1"/>}
-                </div>
-                <div>
-                  <label style={{display:'inline-flex',alignItems:'center',gap:'8px',padding:'8px 16px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',cursor:'pointer',fontSize:'13px',color:'#374151',fontWeight:500}}>
-                    <Upload size={14}/> {uploading ? 'Subiendo...' : 'Subir logo'}
-                    <input type="file" accept="image/*" onChange={handleLogoUpload} style={{display:'none'}} disabled={uploading}/>
-                  </label>
-                  <p style={{fontSize:'12px',color:'#94a3b8',marginTop:'4px'}}>PNG, JPG, SVG · Máx. 2MB</p>
-                  {logoPreview && <button type="button" onClick={()=>{setLogoPreview(null);setForm(f=>({...f,logo_url:''}))}} style={{fontSize:'12px',color:'#ef4444',background:'none',border:'none',cursor:'pointer',marginTop:'4px'}}>Eliminar logo</button>}
-                </div>
-              </div>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
-              {[['nombre','Nombre *','text',true],['nit','NIT','text',false],['telefono','Teléfono','text',false],['email','Email','email',false],['contacto_nombre','Contacto principal','text',false],['direccion','Dirección','text',false]].map(([key,label,type,req])=>(
-                <div key={key}>
-                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>
-                  <input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} required={req}
-                    style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
-                </div>
-              ))}
-              <div>
-                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>% Gastos de emisión</label>
-                <input type="number" step="0.01" min="0" max="100"
-                  value={form.porcentaje_gasto_emision}
-                  onChange={e=>setForm({...form, porcentaje_gasto_emision: e.target.value})}
-                  style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
-              </div>
-            </div>
-            <div style={{display:'flex',gap:'8px'}}>
-              <button type="submit" style={{padding:'10px 20px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-                {editing?'Actualizar':'Crear aseguradora'}
-              </button>
-              <button type="button" onClick={()=>{setShowForm(false);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
-                style={{padding:'10px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
+      {/* ── Search ── */}
       <div style={{background:'white',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e2e8f0',marginBottom:'16px'}}>
         <div style={{position:'relative'}}>
           <Search size={16} color='#94a3b8' style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)'}}/>
@@ -149,114 +127,216 @@ export default function Aseguradoras() {
         </div>
       </div>
 
+      {/* ── List ── */}
       {loading ? <p style={{color:'#64748b'}}>Cargando...</p> : (
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-          {aseguradoras.filter(a=>a.nombre.toLowerCase().includes(search.toLowerCase())).length===0 && <div style={{background:'white',borderRadius:'12px',padding:'48px',textAlign:'center',border:'1px solid #e2e8f0'}}><Building2 size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/><p style={{color:'#94a3b8'}}>No hay aseguradoras registradas</p></div>}
-          {aseguradoras.filter(a=>a.nombre.toLowerCase().includes(search.toLowerCase())).map(a=>(
-            <div key={a.id} style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-              <div style={{display:'flex',alignItems:'center',padding:'16px 20px',cursor:'pointer'}} onClick={()=>setExpanded(expanded===a.id?null:a.id)}>
-                <div style={{width:'44px',height:'44px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc'}}>
-                  {a.logo_url ? <img src={a.logo_url} alt={a.nombre} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={18} color="#C4A96B"/>}
-                </div>
-                <div style={{flex:1}}>
-                  <p style={{fontWeight:600,color:'#111111',fontSize:'15px'}}>{a.nombre}</p>
-                  <p style={{fontSize:'13px',color:'#64748b'}}>{a.productos?.length||0} productos · {a.contacto_nombre||'Sin contacto'}</p>
-                </div>
-                <div style={{display:'flex',gap:'8px',marginRight:'12px'}}>
-                  <button onClick={e=>{e.stopPropagation();handleEdit(a)}} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color="#64748b"/></button>
-                  <button onClick={e=>{e.stopPropagation();handleDelete(a.id)}} style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}><Trash2 size={14} color="#ef4444"/></button>
-                </div>
-                {expanded===a.id?<ChevronUp size={18} color="#64748b"/>:<ChevronDown size={18} color="#64748b"/>}
+          {filtered.length === 0 && (
+            <div style={{background:'white',borderRadius:'12px',padding:'48px',textAlign:'center',border:'1px solid #e2e8f0'}}>
+              <Building2 size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/>
+              <p style={{color:'#94a3b8'}}>No hay aseguradoras registradas</p>
+            </div>
+          )}
+          {filtered.map(a => (
+            <div key={a.id} style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'16px 20px',display:'flex',alignItems:'center',gap:'12px'}}>
+              {/* Logo */}
+              <div style={{width:'48px',height:'48px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
+                {a.logo_url ? <img src={a.logo_url} alt={a.nombre} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={20} color="#C4A96B"/>}
               </div>
-              {expanded===a.id && (
-                <>
-                  <RecargosSection aseguradora={a} onRefresh={fetchAseguradoras}/>
-                  <ProductosSection aseguradora={a} onRefresh={fetchAseguradoras}/>
-                </>
-              )}
+              {/* Info */}
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontWeight:600,color:'#111111',fontSize:'15px',margin:0}}>{a.nombre}</p>
+                <p style={{fontSize:'13px',color:'#64748b',margin:0}}>
+                  {a.productos?.filter(p=>p.activo).length||0} productos
+                  {a.contacto_nombre ? ` · ${a.contacto_nombre}` : ''}
+                  {a.porcentaje_gasto_emision ? ` · ${a.porcentaje_gasto_emision}% gastos` : ''}
+                </p>
+              </div>
+              {/* Actions */}
+              <div style={{display:'flex',gap:'8px',flexShrink:0}}>
+                <button onClick={()=>setConfigTarget(a)}
+                  style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#f1f5f9',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+                  <Settings size={14}/> Configurar
+                </button>
+                <button onClick={()=>openEditModal(a)}
+                  style={{padding:'7px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',cursor:'pointer',display:'flex',alignItems:'center'}}>
+                  <Edit2 size={14} color="#64748b"/>
+                </button>
+                <button onClick={()=>handleDelete(a.id)}
+                  style={{padding:'7px',background:'#fef2f2',border:'1px solid #fecaca',borderRadius:'8px',cursor:'pointer',display:'flex',alignItems:'center'}}>
+                  <Trash2 size={14} color="#ef4444"/>
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* ── Modal 1: Create / Edit ── */}
+      {showFormModal && (
+        <ModalOverlay onClose={closeFormModal}>
+          <div style={{background:'white',borderRadius:'16px',width:'100%',maxWidth:'540px',padding:'28px',position:'relative'}}>
+            <button onClick={closeFormModal} style={{position:'absolute',top:'16px',right:'16px',background:'none',border:'none',cursor:'pointer',padding:'4px',borderRadius:'6px'}}>
+              <X size={18} color="#64748b"/>
+            </button>
+            <h2 style={{fontSize:'18px',fontWeight:700,color:'#111111',marginBottom:'24px'}}>
+              {editing ? 'Editar aseguradora' : 'Nueva aseguradora'}
+            </h2>
+
+            <form onSubmit={handleSubmit}>
+              {/* Logo */}
+              <div style={{display:'flex',alignItems:'center',gap:'16px',marginBottom:'24px'}}>
+                <div style={{width:'72px',height:'72px',borderRadius:'10px',border:'2px dashed #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
+                  {logoPreview ? <img src={logoPreview} alt="logo" style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={26} color="#cbd5e1"/>}
+                </div>
+                <div>
+                  <label style={{display:'inline-flex',alignItems:'center',gap:'8px',padding:'8px 14px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',cursor:'pointer',fontSize:'13px',color:'#374151',fontWeight:500}}>
+                    <Upload size={14}/> {uploading ? 'Subiendo...' : 'Subir logo'}
+                    <input type="file" accept="image/*" onChange={handleLogoUpload} style={{display:'none'}} disabled={uploading}/>
+                  </label>
+                  <p style={{fontSize:'12px',color:'#94a3b8',marginTop:'4px',marginBottom:0}}>PNG, JPG, SVG · Máx. 2MB</p>
+                  {logoPreview && (
+                    <button type="button" onClick={()=>{setLogoPreview(null);setForm(f=>({...f,logo_url:''}))}}
+                      style={{fontSize:'12px',color:'#ef4444',background:'none',border:'none',cursor:'pointer',marginTop:'4px',padding:0}}>
+                      Eliminar logo
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Fields grid */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px',marginBottom:'14px'}}>
+                {[['nombre','Nombre *','text',true],['nit','NIT','text',false],['telefono','Teléfono','text',false],['email','Email','email',false],['contacto_nombre','Contacto principal','text',false],['direccion','Dirección','text',false]].map(([key,label,type,req])=>(
+                  <div key={key} style={key==='direccion'?{gridColumn:'1/-1'}:{}}>
+                    <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>
+                    <input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} required={req}
+                      style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
+                  </div>
+                ))}
+                <div>
+                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>% Gastos de emisión</label>
+                  <input type="number" step="0.01" min="0" max="100"
+                    value={form.porcentaje_gasto_emision}
+                    onChange={e=>setForm({...form, porcentaje_gasto_emision: e.target.value})}
+                    style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
+                </div>
+              </div>
+
+              <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
+                <button type="submit" style={{flex:1,padding:'11px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+                  {editing ? 'Guardar cambios' : 'Crear aseguradora'}
+                </button>
+                <button type="button" onClick={closeFormModal}
+                  style={{padding:'11px 20px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* ── Modal 2: Configure ── */}
+      {configTarget && (
+        <ConfigModal
+          aseguradora={configTarget}
+          onClose={()=>setConfigTarget(null)}
+          onRefresh={fetchAseguradoras}
+        />
+      )}
     </div>
   )
 }
 
-function RecargosSection({ aseguradora, onRefresh }) {
-  const recargos = [...(aseguradora.recargo_fraccionamiento || [])].sort((a, b) => a.numero_cuotas - b.numero_cuotas)
-  const [showForm, setShowForm] = useState(false)
-  const [cuotas, setCuotas] = useState('')
-  const [porcentaje, setPorcentaje] = useState('')
+/* ─────────────────────────────────────────
+   Shared overlay
+───────────────────────────────────────── */
+function ModalOverlay({ onClose, children }) {
+  return (
+    <div onClick={onClose}
+      style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:'16px'}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:'720px',maxHeight:'90vh',overflowY:'auto',borderRadius:'16px'}}>
+        {children}
+      </div>
+    </div>
+  )
+}
 
-  const addRecargo = async (e) => {
-    e.preventDefault()
-    const nc = parseInt(cuotas)
-    if (isNaN(nc) || nc < 2) { toast.error('Las cuotas deben ser al menos 2'); return }
-    const eid = await getMyEmpresaId()
-    const { error } = await supabase.from('recargo_fraccionamiento').upsert(
-      { empresa_id: eid, aseguradora_id: aseguradora.id, numero_cuotas: nc, porcentaje: parseFloat(porcentaje) || 0 },
-      { onConflict: 'empresa_id,aseguradora_id,numero_cuotas' }
-    )
-    if (error) { toast.error('Error al guardar recargo'); return }
-    toast.success('Recargo guardado')
-    setCuotas(''); setPorcentaje(''); setShowForm(false); onRefresh()
-  }
+/* ─────────────────────────────────────────
+   Modal 2 – Configure (Productos + Recargos)
+───────────────────────────────────────── */
+function ConfigModal({ aseguradora, onClose, onRefresh }) {
+  const [tab, setTab] = useState('productos')
 
-  const deleteRecargo = async (id) => {
-    await supabase.from('recargo_fraccionamiento').delete().eq('id', id)
-    toast.success('Recargo eliminado'); onRefresh()
-  }
+  const tabStyle = (t) => ({
+    padding:'8px 20px',
+    background: tab===t ? '#111111' : 'transparent',
+    color: tab===t ? 'white' : '#64748b',
+    border: 'none',
+    borderRadius:'8px',
+    fontSize:'14px',
+    fontWeight: tab===t ? 600 : 400,
+    cursor:'pointer',
+  })
 
   return (
-    <div style={{borderTop:'1px solid #f1f5f9',padding:'12px 20px',background:'#f8fafc'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
-        <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>Recargos por fraccionamiento</p>
-        <button onClick={()=>setShowForm(!showForm)} style={{fontSize:'11px',padding:'3px 10px',background:'#111111',color:'white',border:'none',borderRadius:'4px',cursor:'pointer'}}>+ Recargo</button>
-      </div>
-      {showForm && (
-        <form onSubmit={addRecargo} style={{display:'flex',gap:'6px',marginBottom:'8px',alignItems:'flex-end'}}>
-          <div>
-            <label style={{display:'block',fontSize:'11px',color:'#64748b',marginBottom:'2px'}}>Cuotas (≥2)</label>
-            <input type="number" min="2" value={cuotas} onChange={e=>setCuotas(e.target.value)} placeholder="Ej: 6" required
-              style={{width:'80px',padding:'6px 8px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
+    <ModalOverlay onClose={onClose}>
+      <div style={{background:'white',borderRadius:'16px',width:'100%',overflow:'hidden'}}>
+        {/* Header */}
+        <div style={{padding:'20px 24px',borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:'14px'}}>
+          <div style={{width:'44px',height:'44px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
+            {aseguradora.logo_url ? <img src={aseguradora.logo_url} alt={aseguradora.nombre} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={18} color="#C4A96B"/>}
           </div>
-          <div>
-            <label style={{display:'block',fontSize:'11px',color:'#64748b',marginBottom:'2px'}}>% Recargo</label>
-            <input type="number" step="0.01" min="0" value={porcentaje} onChange={e=>setPorcentaje(e.target.value)} placeholder="Ej: 3" required
-              style={{width:'90px',padding:'6px 8px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
+          <div style={{flex:1}}>
+            <h2 style={{fontSize:'17px',fontWeight:700,color:'#111111',margin:0}}>{aseguradora.nombre}</h2>
+            <p style={{fontSize:'13px',color:'#64748b',margin:0}}>Configuración de catálogos</p>
           </div>
-          <button type="submit" style={{padding:'6px 12px',background:'#C4A96B',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'12px'}}>Guardar</button>
-          <button type="button" onClick={()=>setShowForm(false)} style={{padding:'6px',background:'white',border:'1px solid #e2e8f0',borderRadius:'4px',cursor:'pointer'}}><X size={12}/></button>
-        </form>
-      )}
-      <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-        {recargos.length === 0 && <span style={{fontSize:'12px',color:'#94a3b8'}}>Sin recargos configurados</span>}
-        {recargos.map(rec => (
-          <span key={rec.id} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#fff7ed',color:'#c2410c',borderRadius:'20px',fontSize:'12px',border:'1px solid #fed7aa'}}>
-            {rec.numero_cuotas} cuotas · {rec.porcentaje}%
-            <button onClick={()=>deleteRecargo(rec.id)} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex'}}><X size={10} color="#c2410c"/></button>
-          </span>
-        ))}
+          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',padding:'6px',borderRadius:'8px'}}>
+            <X size={18} color="#64748b"/>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{padding:'12px 24px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc',display:'flex',gap:'4px'}}>
+          <button style={tabStyle('productos')} onClick={()=>setTab('productos')}>Productos y coberturas</button>
+          <button style={tabStyle('recargos')} onClick={()=>setTab('recargos')}>Recargos por fraccionamiento</button>
+        </div>
+
+        {/* Body */}
+        <div style={{padding:'24px',maxHeight:'60vh',overflowY:'auto'}}>
+          {tab==='productos' && (
+            <ProductosTab aseguradora={aseguradora} onRefresh={onRefresh}/>
+          )}
+          {tab==='recargos' && (
+            <RecargosTab aseguradora={aseguradora} onRefresh={onRefresh}/>
+          )}
+        </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
-function ProductosSection({ aseguradora, onRefresh }) {
-  const [showForm, setShowForm] = useState(false)
-  const [nombre, setNombre] = useState('')
-  const [expandedProd, setExpandedProd] = useState(null)
+/* ─────────────────────────────────────────
+   Productos tab
+───────────────────────────────────────── */
+function ProductosTab({ aseguradora, onRefresh }) {
+  const [showForm, setShowForm]           = useState(false)
+  const [nombre, setNombre]               = useState('')
+  const [expandedProd, setExpandedProd]   = useState(null)
   const [editingComProd, setEditingComProd] = useState(null)
-  const [comPct, setComPct] = useState('')
+  const [comPct, setComPct]               = useState('')
+
+  const productos = aseguradora.productos?.filter(p => p.activo) || []
 
   const addProducto = async (e) => {
     e.preventDefault()
-    await supabase.from('productos').insert({ aseguradora_id: aseguradora.id, nombre })
+    const { error } = await supabase.from('productos').insert({ aseguradora_id: aseguradora.id, nombre })
+    if (error) { toast.error('Error al agregar producto'); return }
     toast.success('Producto agregado')
     setNombre(''); setShowForm(false); onRefresh()
   }
 
   const deleteProducto = async (id) => {
+    if (!confirm('¿Eliminar producto?')) return
     await supabase.from('productos').update({ activo: false }).eq('id', id)
     toast.success('Producto eliminado'); onRefresh()
   }
@@ -273,58 +353,106 @@ function ProductosSection({ aseguradora, onRefresh }) {
   }
 
   return (
-    <div style={{borderTop:'1px solid #f1f5f9',padding:'16px 20px',background:'#fafafa'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
-        <p style={{fontSize:'13px',fontWeight:600,color:'#374151'}}>Productos y coberturas</p>
-        <button onClick={()=>setShowForm(!showForm)} style={{fontSize:'12px',padding:'4px 10px',background:'#111111',color:'white',border:'none',borderRadius:'6px',cursor:'pointer'}}>+ Producto</button>
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+        <p style={{fontSize:'14px',color:'#64748b',margin:0}}>{productos.length} productos activos</p>
+        <button onClick={()=>setShowForm(!showForm)}
+          style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
+          <Plus size={14}/> Nuevo producto
+        </button>
       </div>
+
       {showForm && (
-        <form onSubmit={addProducto} style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre del producto" required
-            style={{flex:1,padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px'}}/>
-          <button type="submit" style={{padding:'8px 12px',background:'#C4A96B',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',fontSize:'13px'}}>Agregar</button>
-          <button type="button" onClick={()=>setShowForm(false)} style={{padding:'8px',background:'white',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer'}}><X size={14}/></button>
+        <form onSubmit={addProducto} style={{display:'flex',gap:'8px',marginBottom:'16px',background:'#f8fafc',padding:'12px',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
+          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre del producto" required autoFocus
+            style={{flex:1,padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white'}}/>
+          <button type="submit" style={{padding:'9px 16px',background:'#C4A96B',color:'white',border:'none',borderRadius:'8px',cursor:'pointer',fontSize:'14px',fontWeight:500}}>
+            Agregar
+          </button>
+          <button type="button" onClick={()=>{setShowForm(false);setNombre('')}}
+            style={{padding:'9px',background:'white',border:'1px solid #e2e8f0',borderRadius:'8px',cursor:'pointer',display:'flex',alignItems:'center'}}>
+            <X size={14} color="#64748b"/>
+          </button>
         </form>
       )}
-      {aseguradora.productos?.filter(p=>p.activo).map(prod=>{
-        const currentPct = prod.producto_comisiones?.[0]?.porcentaje ?? null
-        const isEditingCom = editingComProd === prod.id
-        return (
-          <div key={prod.id} style={{marginBottom:'8px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-            <div style={{display:'flex',alignItems:'center',padding:'10px 14px',cursor:'pointer'}} onClick={()=>setExpandedProd(expandedProd===prod.id?null:prod.id)}>
-              <span style={{flex:1,fontSize:'14px',color:'#1e293b',fontWeight:500}}>{prod.nombre}</span>
-              {/* Commission badge */}
-              {isEditingCom ? (
-                <div style={{display:'flex',alignItems:'center',gap:'4px',marginRight:'8px'}} onClick={e=>e.stopPropagation()}>
-                  <input type="number" step="0.01" min="0" max="100" autoFocus
-                    value={comPct} onChange={e=>setComPct(e.target.value)}
-                    placeholder="%" style={{width:'60px',padding:'3px 6px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
-                  <button onClick={()=>saveComision(prod)} style={{padding:'3px 8px',background:'#C4A96B',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px',fontWeight:600}}>OK</button>
-                  <button onClick={()=>{setEditingComProd(null);setComPct('')}} style={{padding:'3px',background:'none',border:'none',cursor:'pointer'}}><X size={11} color="#94a3b8"/></button>
-                </div>
-              ) : (
-                <button onClick={e=>{e.stopPropagation();setEditingComProd(prod.id);setComPct(currentPct !== null ? String(currentPct) : '')}}
-                  style={{marginRight:'8px',padding:'2px 8px',borderRadius:'12px',fontSize:'11px',fontWeight:600,cursor:'pointer',border:'none',
-                    background: currentPct !== null ? '#fef9c3' : '#f1f5f9',
-                    color: currentPct !== null ? '#a16207' : '#94a3b8'}}>
-                  {currentPct !== null ? `% ${currentPct}` : 'Sin %'}
+
+      {productos.length === 0 && (
+        <div style={{textAlign:'center',padding:'32px',color:'#94a3b8',fontSize:'14px'}}>
+          No hay productos. Agrega el primero.
+        </div>
+      )}
+
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+        {productos.map(prod => {
+          const currentPct = prod.producto_comisiones?.[0]?.porcentaje ?? null
+          const isEditingCom = editingComProd === prod.id
+          const isExpanded = expandedProd === prod.id
+          return (
+            <div key={prod.id} style={{border:'1px solid #e2e8f0',borderRadius:'10px',overflow:'hidden',background:'white'}}>
+              {/* Product row */}
+              <div style={{display:'flex',alignItems:'center',padding:'12px 16px',gap:'10px'}}>
+                <span style={{flex:1,fontSize:'14px',color:'#1e293b',fontWeight:500}}>{prod.nombre}</span>
+
+                {/* Commission */}
+                {isEditingCom ? (
+                  <div style={{display:'flex',alignItems:'center',gap:'6px'}} onClick={e=>e.stopPropagation()}>
+                    <span style={{fontSize:'12px',color:'#64748b'}}>% comisión:</span>
+                    <input type="number" step="0.01" min="0" max="100" autoFocus
+                      value={comPct} onChange={e=>setComPct(e.target.value)}
+                      placeholder="0"
+                      style={{width:'64px',padding:'4px 8px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px'}}/>
+                    <button onClick={()=>saveComision(prod)}
+                      style={{padding:'4px 10px',background:'#C4A96B',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',fontSize:'12px',fontWeight:600}}>
+                      OK
+                    </button>
+                    <button onClick={()=>{setEditingComProd(null);setComPct('')}}
+                      style={{padding:'4px',background:'none',border:'none',cursor:'pointer',display:'flex'}}>
+                      <X size={13} color="#94a3b8"/>
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={()=>{setEditingComProd(prod.id);setComPct(currentPct !== null ? String(currentPct) : '')}}
+                    style={{padding:'3px 10px',borderRadius:'20px',fontSize:'12px',fontWeight:600,cursor:'pointer',border:'1px solid',
+                      background: currentPct !== null ? '#fef9c3' : '#f1f5f9',
+                      borderColor: currentPct !== null ? '#fde68a' : '#e2e8f0',
+                      color: currentPct !== null ? '#a16207' : '#94a3b8'}}>
+                    {currentPct !== null ? `${currentPct}% comisión` : 'Sin comisión'}
+                  </button>
+                )}
+
+                {/* Coberturas toggle */}
+                <button onClick={()=>setExpandedProd(isExpanded?null:prod.id)}
+                  style={{display:'flex',alignItems:'center',gap:'4px',padding:'4px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer',fontSize:'12px',color:'#64748b'}}>
+                  {prod.coberturas?.filter(c=>c.activa).length||0} coberturas
+                  {isExpanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
                 </button>
+
+                <button onClick={()=>deleteProducto(prod.id)}
+                  style={{padding:'6px',background:'#fef2f2',border:'1px solid #fecaca',borderRadius:'6px',cursor:'pointer',display:'flex',alignItems:'center'}}>
+                  <Trash2 size={13} color="#ef4444"/>
+                </button>
+              </div>
+
+              {/* Coberturas section */}
+              {isExpanded && (
+                <CoberturasSection producto={prod} onRefresh={onRefresh}/>
               )}
-              <span style={{fontSize:'12px',color:'#64748b',marginRight:'8px'}}>{prod.coberturas?.length||0} coberturas</span>
-              <button onClick={e=>{e.stopPropagation();deleteProducto(prod.id)}} style={{padding:'4px',background:'none',border:'none',cursor:'pointer',marginRight:'4px'}}><Trash2 size={12} color="#ef4444"/></button>
-              {expandedProd===prod.id?<ChevronUp size={14} color="#64748b"/>:<ChevronDown size={14} color="#64748b"/>}
             </div>
-            {expandedProd===prod.id && <CoberturasSection producto={prod} onRefresh={onRefresh}/>}
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
 
+/* ─────────────────────────────────────────
+   Coberturas section (inside product)
+───────────────────────────────────────── */
 function CoberturasSection({ producto, onRefresh }) {
   const [showForm, setShowForm] = useState(false)
-  const [nombre, setNombre] = useState('')
+  const [nombre, setNombre]     = useState('')
+
+  const activas = producto.coberturas?.filter(c => c.activa) || []
 
   const addCobertura = async (e) => {
     e.preventDefault()
@@ -334,30 +462,148 @@ function CoberturasSection({ producto, onRefresh }) {
   }
 
   const deleteCobertura = async (id) => {
-    await supabase.from('coberturas').update({ activa: false }).eq('id', id); onRefresh()
+    await supabase.from('coberturas').update({ activa: false }).eq('id', id)
+    onRefresh()
   }
 
   return (
-    <div style={{borderTop:'1px solid #f1f5f9',padding:'10px 14px',background:'#f8fafc'}}>
-      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'8px'}}>
-        <span style={{fontSize:'12px',color:'#64748b',fontWeight:600}}>Coberturas</span>
-        <button onClick={()=>setShowForm(!showForm)} style={{fontSize:'11px',padding:'2px 8px',background:'#C4A96B',color:'white',border:'none',borderRadius:'4px',cursor:'pointer'}}>+ Cobertura</button>
+    <div style={{borderTop:'1px solid #f1f5f9',padding:'12px 16px',background:'#f8fafc'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
+        <span style={{fontSize:'12px',fontWeight:600,color:'#374151'}}>Coberturas</span>
+        <button onClick={()=>setShowForm(!showForm)}
+          style={{fontSize:'12px',padding:'3px 10px',background:'#C4A96B',color:'white',border:'none',borderRadius:'6px',cursor:'pointer'}}>
+          + Cobertura
+        </button>
       </div>
+
       {showForm && (
-        <form onSubmit={addCobertura} style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de cobertura" required
-            style={{flex:1,padding:'6px 10px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
-          <button type="submit" style={{padding:'6px 10px',background:'#111111',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'12px'}}>OK</button>
+        <form onSubmit={addCobertura} style={{display:'flex',gap:'6px',marginBottom:'10px'}}>
+          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de cobertura" required autoFocus
+            style={{flex:1,padding:'7px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',background:'white'}}/>
+          <button type="submit" style={{padding:'7px 12px',background:'#111111',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',fontSize:'12px'}}>
+            OK
+          </button>
+          <button type="button" onClick={()=>{setShowForm(false);setNombre('')}}
+            style={{padding:'7px',background:'white',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer',display:'flex',alignItems:'center'}}>
+            <X size={12} color="#64748b"/>
+          </button>
         </form>
       )}
+
       <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-        {producto.coberturas?.filter(c=>c.activa).map(c=>(
-          <span key={c.id} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#dbeafe',color:'#1d4ed8',borderRadius:'20px',fontSize:'12px'}}>
+        {activas.length === 0 && <span style={{fontSize:'12px',color:'#94a3b8'}}>Sin coberturas</span>}
+        {activas.map(c => (
+          <span key={c.id} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#dbeafe',color:'#1d4ed8',borderRadius:'20px',fontSize:'12px',border:'1px solid #bfdbfe'}}>
             {c.nombre}
-            <button onClick={()=>deleteCobertura(c.id)} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex'}}><X size={10} color="#1d4ed8"/></button>
+            <button onClick={()=>deleteCobertura(c.id)} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex',lineHeight:1}}>
+              <X size={10} color="#1d4ed8"/>
+            </button>
           </span>
         ))}
-        {(!producto.coberturas||producto.coberturas.filter(c=>c.activa).length===0) && <span style={{fontSize:'12px',color:'#94a3b8'}}>Sin coberturas</span>}
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────
+   Recargos tab
+───────────────────────────────────────── */
+function RecargosTab({ aseguradora, onRefresh }) {
+  const recargos = [...(aseguradora.recargo_fraccionamiento || [])].sort((a, b) => a.numero_cuotas - b.numero_cuotas)
+  const [cuotas, setCuotas]       = useState('')
+  const [porcentaje, setPorcentaje] = useState('')
+  const [saving, setSaving]       = useState(false)
+
+  const addRecargo = async (e) => {
+    e.preventDefault()
+    const nc = parseInt(cuotas)
+    if (isNaN(nc) || nc < 2) { toast.error('Las cuotas deben ser al menos 2'); return }
+    setSaving(true)
+    const eid = await getMyEmpresaId()
+    const { error } = await supabase.from('recargo_fraccionamiento').upsert(
+      { empresa_id: eid, aseguradora_id: aseguradora.id, numero_cuotas: nc, porcentaje: parseFloat(porcentaje) || 0 },
+      { onConflict: 'empresa_id,aseguradora_id,numero_cuotas' }
+    )
+    setSaving(false)
+    if (error) { toast.error('Error al guardar recargo'); return }
+    toast.success('Recargo guardado')
+    setCuotas(''); setPorcentaje(''); onRefresh()
+  }
+
+  const deleteRecargo = async (id) => {
+    await supabase.from('recargo_fraccionamiento').delete().eq('id', id)
+    toast.success('Recargo eliminado'); onRefresh()
+  }
+
+  return (
+    <div>
+      <p style={{fontSize:'14px',color:'#64748b',marginBottom:'20px',marginTop:0}}>
+        Define el porcentaje de recargo que aplica cuando el cliente paga en cuotas.
+      </p>
+
+      {/* Table */}
+      {recargos.length > 0 && (
+        <div style={{border:'1px solid #e2e8f0',borderRadius:'10px',overflow:'hidden',marginBottom:'20px'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:'#f8fafc'}}>
+                <th style={{padding:'10px 16px',textAlign:'left',fontSize:'12px',fontWeight:600,color:'#374151',borderBottom:'1px solid #e2e8f0'}}>Número de cuotas</th>
+                <th style={{padding:'10px 16px',textAlign:'left',fontSize:'12px',fontWeight:600,color:'#374151',borderBottom:'1px solid #e2e8f0'}}>% Recargo</th>
+                <th style={{padding:'10px 16px',textAlign:'right',fontSize:'12px',fontWeight:600,color:'#374151',borderBottom:'1px solid #e2e8f0'}}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {recargos.map((rec, i) => (
+                <tr key={rec.id} style={{borderTop: i>0 ? '1px solid #f1f5f9' : 'none'}}>
+                  <td style={{padding:'12px 16px',fontSize:'14px',color:'#1e293b'}}>
+                    <span style={{display:'inline-flex',alignItems:'center',gap:'6px'}}>
+                      <span style={{fontWeight:600}}>{rec.numero_cuotas}</span>
+                      <span style={{color:'#94a3b8',fontSize:'13px'}}>cuotas</span>
+                    </span>
+                  </td>
+                  <td style={{padding:'12px 16px'}}>
+                    <span style={{display:'inline-block',padding:'3px 10px',background:'#fff7ed',color:'#c2410c',borderRadius:'20px',fontSize:'13px',fontWeight:600,border:'1px solid #fed7aa'}}>
+                      {rec.porcentaje}%
+                    </span>
+                  </td>
+                  <td style={{padding:'12px 16px',textAlign:'right'}}>
+                    <button onClick={()=>deleteRecargo(rec.id)}
+                      style={{padding:'5px',background:'#fef2f2',border:'1px solid #fecaca',borderRadius:'6px',cursor:'pointer',display:'inline-flex',alignItems:'center'}}>
+                      <Trash2 size={13} color="#ef4444"/>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {recargos.length === 0 && (
+        <div style={{textAlign:'center',padding:'32px',color:'#94a3b8',fontSize:'14px',border:'1px dashed #e2e8f0',borderRadius:'10px',marginBottom:'20px'}}>
+          No hay recargos configurados.
+        </div>
+      )}
+
+      {/* Add row */}
+      <div style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'16px'}}>
+        <p style={{fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'12px',marginTop:0}}>Agregar recargo</p>
+        <form onSubmit={addRecargo} style={{display:'flex',gap:'10px',alignItems:'flex-end',flexWrap:'wrap'}}>
+          <div>
+            <label style={{display:'block',fontSize:'12px',color:'#64748b',marginBottom:'4px'}}>Número de cuotas (mín. 2)</label>
+            <input type="number" min="2" value={cuotas} onChange={e=>setCuotas(e.target.value)} placeholder="Ej: 6" required
+              style={{width:'120px',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white'}}/>
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:'12px',color:'#64748b',marginBottom:'4px'}}>% Recargo</label>
+            <input type="number" step="0.01" min="0" value={porcentaje} onChange={e=>setPorcentaje(e.target.value)} placeholder="Ej: 3.5" required
+              style={{width:'120px',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white'}}/>
+          </div>
+          <button type="submit" disabled={saving}
+            style={{padding:'9px 20px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+            {saving ? 'Guardando...' : 'Agregar'}
+          </button>
+        </form>
       </div>
     </div>
   )
