@@ -64,10 +64,15 @@ export default function App() {
       if (session?.user) fetchUserRow(session.user.id)
       else { setUserRow(undefined) }
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
-      if (session?.user) fetchUserRow(session.user.id)
-      else { setUserRow(undefined) }
+      if (event === 'SIGNED_OUT') {
+        setUserRow(undefined)
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        fetchUserRow(session.user.id)
+      }
+      // TOKEN_REFRESHED, USER_UPDATED, etc: only update session token,
+      // do NOT re-fetch userRow or set checkingUser — avoids wiping component state
     })
     return () => subscription.unsubscribe()
   }, [fetchUserRow])
