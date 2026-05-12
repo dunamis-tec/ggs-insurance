@@ -31,7 +31,29 @@ export default function App() {
 
   const fetchUserRow = useCallback(async (uid) => {
     setCheckingUser(true)
-    const { data } = await supabase.from('users').select('id, empresa_id, rol, role, nombre').eq('id', uid).maybeSingle()
+    let { data } = await supabase.from('users').select('id, empresa_id, rol, role, nombre, email').eq('id', uid).maybeSingle()
+
+    // Invited users: admin pre-creates their row by email but without the auth id.
+    // On first login, find that row by email and update the id so it matches auth.uid().
+    if (!data) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.email) {
+        const { data: byEmail } = await supabase
+          .from('users').select('id, empresa_id, rol, role, nombre, email')
+          .eq('email', user.email).maybeSingle()
+        if (byEmail && byEmail.id !== uid) {
+          // Migrate the row: insert with correct id, delete old one
+          const { data: migrated } = await supabase
+            .from('users')
+            .upsert({ ...byEmail, id: uid }, { onConflict: 'id' })
+            .select('id, empresa_id, rol, role, nombre, email').maybeSingle()
+          // Remove stale row with wrong id (best-effort)
+          await supabase.from('users').delete().eq('id', byEmail.id).neq('id', uid)
+          data = migrated ?? byEmail
+        }
+      }
+    }
+
     setUserRow(data ?? null)
     setCheckingUser(false)
   }, [])
@@ -50,14 +72,14 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [fetchUserRow])
 
-  // Loading states
-  if (session === undefined || checkingUser) return (
+  // Loading: session unknown, or session exists but we haven't resolved the user row yet
+  if (session === undefined || checkingUser || (session && userRow === undefined)) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <p>Cargando...</p>
     </div>
   )
 
-  // Authenticated but needs onboarding (no empresa_id)
+  // Authenticated but no empresa → onboarding
   if (session && (userRow === null || !userRow?.empresa_id)) {
     return <Onboarding session={session} onComplete={() => fetchUserRow(session.user.id)} />
   }
