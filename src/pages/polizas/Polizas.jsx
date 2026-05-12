@@ -617,14 +617,23 @@ export default function Polizas() {
                 {form.tipo_pago === 'financiado' && (
                   <div>
                     <label style={lbl}>Número de cuotas * <span style={{fontWeight:400,color:'#94a3b8'}}>(pagos mensuales)</span></label>
-                    <input
-                      type="number" min="2" max="60"
-                      value={form.numero_cuotas}
-                      onChange={e=>setForm({...form,numero_cuotas:e.target.value})}
-                      onBlur={e=>setForm(f=>({...f,numero_cuotas:Math.max(2,parseInt(e.target.value)||2)}))}
-                      style={inp}
-                      placeholder="Ej: 12"
-                    />
+                    {aseguradoraConfig?.recargos?.length > 0 ? (
+                      <select
+                        value={form.numero_cuotas}
+                        onChange={e=>setForm({...form,numero_cuotas:parseInt(e.target.value)})}
+                        required
+                        style={inp}>
+                        {aseguradoraConfig.recargos.map(r=>(
+                          <option key={r.numero_cuotas} value={r.numero_cuotas}>
+                            {r.numero_cuotas} cuotas{r.porcentaje > 0 ? ` (${r.porcentaje}% recargo)` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p style={{fontSize:'13px',color:'#f59e0b',margin:'4px 0 0',padding:'9px 12px',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:'8px'}}>
+                        ⚠ Esta aseguradora no tiene cuotas configuradas. Configúralas en el módulo de Aseguradoras.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -2842,22 +2851,30 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                           ))}
                         </div>
                       </div>
-                      <div>
-                        <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
-                          Número de cuotas <span style={{fontWeight:400,color:'#94a3b8'}}>(pagos mensuales)</span>
-                        </label>
-                        <input
-                          type="number" min="1" max="36"
-                          value={emisionForm.numero_cuotas}
-                          onChange={e=>setEmisionForm({...emisionForm,numero_cuotas:e.target.value})}
-                          onBlur={e=>setEmisionForm(f=>({...f,numero_cuotas:Math.max(1,parseInt(e.target.value)||1)}))}
-                          disabled={emisionForm.tipo_pago==='contado'}
-                          style={{...inputStyle,background:emisionForm.tipo_pago==='contado'?'#f1f5f9':'white',color:emisionForm.tipo_pago==='contado'?'#94a3b8':'#1e293b'}}
-                        />
-                        {emisionForm.tipo_pago==='contado' && (
-                          <p style={{fontSize:'12px',color:'#94a3b8',margin:'4px 0 0'}}>Contado = 1 pago</p>
-                        )}
-                      </div>
+                      {emisionForm.tipo_pago === 'financiado' && (
+                        <div>
+                          <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
+                            Número de cuotas <span style={{fontWeight:400,color:'#94a3b8'}}>(pagos mensuales)</span>
+                          </label>
+                          {polizaAsegConfig?.recargos?.length > 0 ? (
+                            <select
+                              value={emisionForm.numero_cuotas}
+                              onChange={e=>setEmisionForm({...emisionForm,numero_cuotas:parseInt(e.target.value)})}
+                              required
+                              style={inputStyle}>
+                              {polizaAsegConfig.recargos.map(r=>(
+                                <option key={r.numero_cuotas} value={r.numero_cuotas}>
+                                  {r.numero_cuotas} cuotas{r.porcentaje > 0 ? ` (${r.porcentaje}% recargo)` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <p style={{fontSize:'13px',color:'#f59e0b',margin:'4px 0 0',padding:'9px 12px',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:'8px'}}>
+                              ⚠ Sin cuotas configuradas para esta aseguradora.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
 
