@@ -2258,6 +2258,38 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
                   <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'20px'}}>
 
+                    {/* ── Desglose de prima ── */}
+                    {parseFloat(r.prima_neta) > 0 && (() => {
+                      const pn  = parseFloat(r.prima_neta             || 0)
+                      const ge  = parseFloat(r.monto_gasto_emision    || 0)
+                      const rec = parseFloat(r.monto_recargo          || 0)
+                      const iva = parseFloat(r.monto_iva              || 0)
+                      const tot = parseFloat(r.monto                  || 0)
+                      const com = parseFloat(r.monto_comision         || 0)
+                      const pct = r.porcentaje_comision
+                      const fmt = v => `Q ${parseFloat(v).toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+                      const DRow = ({label, value, bold, gold, border}) => (
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',
+                          padding: border ? '7px 0 0' : '3px 0',
+                          marginTop: border ? '4px' : 0,
+                          borderTop: border ? '1px solid #e2e8f0' : 'none'}}>
+                          <span style={{fontSize:'12px',color: gold?'#C4A96B': bold?'#111111':'#64748b',fontWeight:bold||gold?600:400}}>{label}</span>
+                          <span style={{fontSize:'12px',color: gold?'#C4A96B': bold?'#111111':'#374151',fontWeight:bold||gold?700:400,fontVariantNumeric:'tabular-nums'}}>{value}</span>
+                        </div>
+                      )
+                      return (
+                        <div style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'12px 14px'}}>
+                          <p style={{fontSize:'10px',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.5px',margin:'0 0 8px'}}>Desglose</p>
+                          <DRow label='Prima neta' value={fmt(pn)}/>
+                          {ge  > 0 && <DRow label={`+ Gastos de emisión`} value={fmt(ge)}/>}
+                          {rec > 0 && <DRow label={`+ Recargo fracc.`}    value={fmt(rec)}/>}
+                          {iva > 0 && <DRow label={`+ IVA 12%`}           value={fmt(iva)}/>}
+                          <DRow label='Total cuota' value={fmt(tot)} bold border/>
+                          {com > 0 && <DRow label={`Comisión${pct ? ` (${pct}%)` : ''}`} value={fmt(com)} gold/>}
+                        </div>
+                      )
+                    })()}
+
                     {isPagado ? (
                       /* ── PAID: show info + comprobante ── */
                       <>
