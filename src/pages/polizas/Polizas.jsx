@@ -1641,6 +1641,46 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 </div>
               </div>
 
+              {/* Desglose de prima */}
+              {parseFloat(poliza.prima_neta) > 0 && (() => {
+                const pn   = parseFloat(poliza.prima_neta        || 0)
+                const ge   = parseFloat(poliza.monto_gasto_emision|| 0)
+                const rec  = parseFloat(poliza.monto_recargo      || 0)
+                const iva  = parseFloat(poliza.monto_iva          || 0)
+                const pt   = parseFloat(poliza.prima_total        || 0)
+                const com  = polizaComPct > 0 ? Math.round(pn * polizaComPct) / 100 : 0
+                const pctGasto = polizaAsegConfig?.porcentaje_gasto_emision ?? null
+                const pctRec   = poliza.tipo_pago === 'financiado' && polizaAsegConfig?.recargos
+                  ? (polizaAsegConfig.recargos.find(r => r.numero_cuotas === (poliza.numero_cuotas || 1))?.porcentaje ?? null)
+                  : null
+                const fmt = v => `Q ${parseFloat(v).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}`
+                const Row = ({label, value, color, bold, border}) => (
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',
+                    padding: border ? '10px 0 0' : '5px 0',
+                    borderTop: border ? '1px solid #e2e8f0' : 'none',
+                    marginTop: border ? '6px' : 0}}>
+                    <span style={{fontSize:'13px',color: color||'#64748b',fontWeight:bold?700:400}}>{label}</span>
+                    <span style={{fontSize:'13px',color: color||'#374151',fontWeight:bold?700:500,fontVariantNumeric:'tabular-nums'}}>{value}</span>
+                  </div>
+                )
+                return (
+                  <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
+                    <SectionLabel>Desglose de prima</SectionLabel>
+                    <Row label='Prima neta' value={fmt(pn)}/>
+                    {ge > 0 && <Row label={`+ Gastos de emisión${pctGasto !== null ? ` (${pctGasto}%)` : ''}`} value={fmt(ge)}/>}
+                    {rec > 0 && <Row label={`+ Recargo fraccionamiento${pctRec !== null ? ` (${pctRec}%)` : ''}`} value={fmt(rec)}/>}
+                    {iva > 0 && <Row label='+ IVA (12%)' value={fmt(iva)}/>}
+                    <Row label='Prima total' value={fmt(pt)} bold border color='#111111'/>
+                    {com > 0 && (
+                      <div style={{marginTop:'10px',paddingTop:'10px',borderTop:'1px dashed #e2e8f0',display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                        <span style={{fontSize:'13px',color:'#C4A96B',fontWeight:500}}>Comisión ({polizaComPct}%)</span>
+                        <span style={{fontSize:'13px',color:'#C4A96B',fontWeight:700,fontVariantNumeric:'tabular-nums'}}>{fmt(com)}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               {/* Vigencia card */}
               <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
                 <SectionLabel>Vigencia</SectionLabel>
