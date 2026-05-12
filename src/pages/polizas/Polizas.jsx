@@ -7,6 +7,7 @@ import { generateInclusionPdf } from '../../lib/generateInclusionPdf'
 import { FileText, Plus, Minus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
   CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge,
   AlertTriangle, Download, History, CheckSquare, Square, Upload, Lock, Check } from 'lucide-react'
+import { calcularPrima } from '../../lib/calcularPrima'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 
@@ -43,8 +44,8 @@ const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Excl
 const emisionEstadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const emisionEstadoIcons  = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
 
-const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_total:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
-const emptyEmision = { tipo:'emision', prima_emision:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_fin:'', notas:'', persona_facturable_id:'' }
+const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_neta:'', prima_total:0, monto_gasto_emision:0, monto_recargo:0, monto_iva:0, tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
+const emptyEmision = { tipo:'emision', prima_neta:'', tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_fin:'', notas:'', persona_facturable_id:'' }
 const emptyReq     = { monto:'', fecha_vencimiento:'', total_cuotas:1, emision_id:'', numero_req_matriz:'' }
 
 /* ─── SearchSelect ───────────────────────────────────────────────────────── */
@@ -112,6 +113,8 @@ export default function Polizas() {
   const [vehiculosSeleccionados, setVehiculosSeleccionados] = useState([])
   const [clienteValidation, setClienteValidation]   = useState([])
   const [personasFacturables, setPersonasFacturables] = useState([])
+  const [aseguradoraConfig, setAseguradoraConfig] = useState(null)
+  const [productoComPct, setProductoComPct] = useState(0)
   const location  = useLocation()
   const navigate  = useNavigate()
   const fromClienteId = location.state?.fromClienteId || null
@@ -152,7 +155,7 @@ export default function Polizas() {
       supabase.from('polizas').select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), emisiones(tipo,estado,prima_emision)')
         .eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('clientes').select('id,nombre,apellido,tipo,nit,email,telefono,dpi').eq('activo', true).order('nombre'),
-      supabase.from('aseguradoras').select('id,nombre,logo_url,productos(id,nombre,activo)').eq('activa', true).order('nombre')
+      supabase.from('aseguradoras').select('id,nombre,logo_url,porcentaje_gasto_emision,productos(id,nombre,activo,producto_comisiones(porcentaje))').eq('activa', true).order('nombre')
     ])
     setPolizas(polizasData || [])
     setClientes(clientesData || [])
@@ -160,10 +163,18 @@ export default function Polizas() {
     setLoading(false)
   }
 
-  const handleAseguradoraChange = (id) => {
+  const handleAseguradoraChange = async (id) => {
     const aseg = aseguradoras.find(a => a.id === id)
     setProductosFiltered(aseg?.productos?.filter(p=>p.activo) || [])
     setForm(f => ({ ...f, aseguradora_id: id, producto_id: '' }))
+    // Load recargo_fraccionamiento rates for this aseguradora
+    if (id) {
+      const { data: recargos } = await supabase.from('recargo_fraccionamiento').select('numero_cuotas, porcentaje').eq('aseguradora_id', id).order('numero_cuotas')
+      setAseguradoraConfig({ porcentaje_gasto_emision: aseg?.porcentaje_gasto_emision ?? 5, recargos: recargos || [] })
+      setProductoComPct(0)
+    } else {
+      setAseguradoraConfig(null); setProductoComPct(0)
+    }
   }
 
   const handleClienteChange = async (id) => {
@@ -239,9 +250,19 @@ export default function Polizas() {
 
     if (editing) {
       /* ── EDIT mode ── */
+      const _primaCalc = (() => {
+        if (!aseguradoraConfig || !(parseFloat(form.prima_neta) > 0)) return { prima_neta: 0, prima_total: parseFloat(form.prima_total)||0, monto_gasto_emision:0, monto_recargo:0, monto_iva:0 }
+        const pct_rec = form.tipo_pago==='contado'?0:(aseguradoraConfig.recargos.find(r=>r.numero_cuotas===parseInt(form.numero_cuotas))?.porcentaje||0)
+        return calcularPrima(form.prima_neta, aseguradoraConfig.porcentaje_gasto_emision, pct_rec)
+      })()
       const payload = {
         aseguradora_id: form.aseguradora_id, producto_id: form.producto_id,
-        prima_total: parseFloat(form.prima_total) || 0, tipo_pago: form.tipo_pago,
+        prima_neta: _primaCalc.prima_neta,
+        prima_total: _primaCalc.prima_total,
+        monto_gasto_emision: _primaCalc.monto_gasto_emision,
+        monto_recargo: _primaCalc.monto_recargo,
+        monto_iva: _primaCalc.monto_iva,
+        tipo_pago: form.tipo_pago,
         fraccionamiento: 'mensual',
         numero_cuotas: form.tipo_pago === 'contado' ? 1 : (parseInt(form.numero_cuotas) || 1),
         fecha_inicio: form.fecha_inicio, fecha_vencimiento: form.fecha_vencimiento,
@@ -275,10 +296,20 @@ export default function Polizas() {
       /* ── CREATE mode ── */
       const { data: numData } = await supabase.rpc('generate_numero_solicitud')
       const numero_solicitud = numData
+      const _primaCalcCreate = (() => {
+        if (!aseguradoraConfig || !(parseFloat(form.prima_neta) > 0)) return { prima_neta: 0, prima_total: 0, monto_gasto_emision:0, monto_recargo:0, monto_iva:0 }
+        const pct_rec = form.tipo_pago==='contado'?0:(aseguradoraConfig.recargos.find(r=>r.numero_cuotas===parseInt(form.numero_cuotas))?.porcentaje||0)
+        return calcularPrima(form.prima_neta, aseguradoraConfig.porcentaje_gasto_emision, pct_rec)
+      })()
       const payload = {
         numero_solicitud, estado: 'solicitud',
         cliente_id: form.cliente_id, aseguradora_id: form.aseguradora_id, producto_id: form.producto_id,
-        prima_total: parseFloat(form.prima_total) || 0, tipo_pago: form.tipo_pago,
+        prima_neta: _primaCalcCreate.prima_neta,
+        prima_total: _primaCalcCreate.prima_total,
+        monto_gasto_emision: _primaCalcCreate.monto_gasto_emision,
+        monto_recargo: _primaCalcCreate.monto_recargo,
+        monto_iva: _primaCalcCreate.monto_iva,
+        tipo_pago: form.tipo_pago,
         fraccionamiento: 'mensual',
         numero_cuotas: form.tipo_pago === 'contado' ? 1 : (parseInt(form.numero_cuotas) || 1),
         fecha_inicio: form.fecha_inicio, fecha_vencimiento: form.fecha_vencimiento,
@@ -319,7 +350,8 @@ export default function Polizas() {
     await handleClienteChange(p.cliente_id)
     setForm({
       cliente_id: p.cliente_id, aseguradora_id: p.aseguradora_id, producto_id: p.producto_id,
-      prima_total: p.prima_total, tipo_pago: p.tipo_pago||'contado',
+      prima_neta: p.prima_neta || '', prima_total: p.prima_total, tipo_pago: p.tipo_pago||'contado',
+      monto_gasto_emision: p.monto_gasto_emision || 0, monto_recargo: p.monto_recargo || 0, monto_iva: p.monto_iva || 0,
       numero_cuotas: p.tipo_pago === 'contado' ? 1 : (p.numero_cuotas || 1),
       fecha_inicio: p.fecha_inicio, fecha_vencimiento: p.fecha_vencimiento, vigencia:'manual',
       persona_facturable_id: p.persona_facturable_id || ''
@@ -487,7 +519,14 @@ export default function Polizas() {
                 </div>
                 <div>
                   <label style={lbl}>Producto *</label>
-                  <SearchSelect value={form.producto_id} onChange={val=>setForm({...form,producto_id:val})}
+                  <SearchSelect value={form.producto_id} onChange={async val => {
+                    setForm(f => ({...f, producto_id: val}))
+                    if (val) {
+                      const aseg = aseguradoras.find(a => a.id === form.aseguradora_id)
+                      const prod = aseg?.productos?.find(p => p.id === val)
+                      setProductoComPct(prod?.producto_comisiones?.[0]?.porcentaje ?? 0)
+                    } else { setProductoComPct(0) }
+                  }}
                     options={productosFiltered} placeholder={form.aseguradora_id?"Seleccionar producto...":"Primero selecciona aseguradora"} labelKey="nombre"/>
                 </div>
               </div>
@@ -540,8 +579,27 @@ export default function Polizas() {
               <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>5 · Pago y prima</p>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px'}}>
                 <div>
-                  <label style={lbl}>Prima total (Q)</label>
-                  <input type="number" step="0.01" value={form.prima_total} onChange={e=>setForm({...form,prima_total:e.target.value})} style={inp} placeholder="0.00"/>
+                  <label style={lbl}>Prima neta (Q) *</label>
+                  <input type="number" step="0.01" min="0"
+                    value={form.prima_neta}
+                    onChange={e => setForm(f => ({...f, prima_neta: e.target.value}))}
+                    style={inp} placeholder="0.00"/>
+                  {(() => {
+                    if (!aseguradoraConfig || !(parseFloat(form.prima_neta) > 0)) return null
+                    const pct_recargo = form.tipo_pago === 'contado' ? 0 :
+                      (aseguradoraConfig.recargos.find(r => r.numero_cuotas === parseInt(form.numero_cuotas))?.porcentaje || 0)
+                    const calc = calcularPrima(form.prima_neta, aseguradoraConfig.porcentaje_gasto_emision, pct_recargo)
+                    const fmt = n => 'Q ' + parseFloat(n).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})
+                    return (
+                      <div style={{marginTop:'10px', background:'#f8fafc', borderRadius:'8px', padding:'12px 14px', border:'1px solid #e2e8f0', fontSize:'13px'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'4px'}}><span>+ Gastos de emisión ({aseguradoraConfig.porcentaje_gasto_emision}%)</span><span>{fmt(calc.monto_gasto_emision)}</span></div>
+                        {calc.monto_recargo > 0 && <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'4px'}}><span>+ Recargo fraccionamiento ({pct_recargo}%)</span><span>{fmt(calc.monto_recargo)}</span></div>}
+                        <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'8px'}}><span>+ IVA 12%</span><span>{fmt(calc.monto_iva)}</span></div>
+                        <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, color:'#111111', borderTop:'1px solid #e2e8f0', paddingTop:'8px'}}><span>Prima total</span><span>{fmt(calc.prima_total)}</span></div>
+                        {productoComPct > 0 && <div style={{marginTop:'6px', display:'flex', justifyContent:'space-between', color:'#C4A96B', fontWeight:500}}><span>Comisión ({productoComPct}%)</span><span>{fmt(calc.prima_neta * productoComPct / 100)}</span></div>}
+                      </div>
+                    )
+                  })()}
                 </div>
                 <div>
                   <label style={lbl}>Tipo de pago *</label>
@@ -817,6 +875,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [showEmisionModal, setShowEmisionModal] = useState(false)
   const [editingEmision, setEditingEmision] = useState(null)
   const [emisionPdfFile, setEmisionPdfFile] = useState(null)
+  const [polizaComPct, setPolizaComPct] = useState(0)
+  const [polizaAsegConfig, setPolizaAsegConfig] = useState(null)
 
   useEffect(() => { fetchData() }, [poliza.id])
 
@@ -846,6 +906,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     setBitacora(bitacoraData || [])
     setSolicitudVehiculos(svData || [])
     setAllClientVehiculos(allVData || [])
+
+    // Load commission % for poliza product
+    if (poliza?.producto_id) {
+      const { data: comData } = await supabase.from('producto_comisiones').select('porcentaje').eq('producto_id', poliza.producto_id).maybeSingle()
+      setPolizaComPct(comData?.porcentaje || 0)
+    }
+    // Load aseguradora rates
+    if (poliza?.aseguradora_id) {
+      const { data: asegData } = await supabase.from('aseguradoras').select('porcentaje_gasto_emision').eq('id', poliza.aseguradora_id).single()
+      const { data: recargos } = await supabase.from('recargo_fraccionamiento').select('numero_cuotas, porcentaje').eq('aseguradora_id', poliza.aseguradora_id).order('numero_cuotas')
+      setPolizaAsegConfig({ porcentaje_gasto_emision: asegData?.porcentaje_gasto_emision ?? 5, recargos: recargos || [] })
+    }
+
     setLoading(false)
   }
 
@@ -903,6 +976,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       poliza_id: poliza.id, tipo: 'emision',
       numero_emision: `${emitirForm.numero_poliza}-E01`,
       prima_emision: poliza.prima_total,
+      prima_neta: poliza.prima_neta || 0,
+      monto_gasto_emision: poliza.monto_gasto_emision || 0,
+      monto_recargo: poliza.monto_recargo || 0,
+      monto_iva: poliza.monto_iva || 0,
       fecha_inicio: poliza.fecha_inicio, fecha_fin: poliza.fecha_vencimiento,
       estado: 'emitida', created_by: user?.id
     }).select().single()
@@ -968,7 +1045,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const editarEmision = async (em) => {
     setEmisionForm({
       tipo: em.tipo,
-      prima_emision: em.prima_emision ?? '',
+      prima_neta: em.prima_neta ?? '',
       tipo_pago: em.tipo_pago || 'contado',
       numero_cuotas: em.numero_cuotas ?? 1,
       fecha_inicio: em.fecha_inicio || '',
@@ -991,8 +1068,17 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
     // ── EDIT mode ──
     if (editingEmision) {
+      const emCalcEdit = (() => {
+        if (!polizaAsegConfig || !(parseFloat(emisionForm.prima_neta) > 0)) return { prima_neta:0, prima_total:0, monto_gasto_emision:0, monto_recargo:0, monto_iva:0 }
+        const pct_rec = emisionForm.tipo_pago==='contado'?0:(polizaAsegConfig.recargos.find(r=>r.numero_cuotas===parseInt(emisionForm.numero_cuotas))?.porcentaje||0)
+        return calcularPrima(emisionForm.prima_neta, polizaAsegConfig.porcentaje_gasto_emision, pct_rec)
+      })()
       const { error } = await supabase.from('emisiones').update({
-        prima_emision: parseFloat(emisionForm.prima_emision) || 0,
+        prima_emision: emCalcEdit.prima_total,
+        prima_neta: emCalcEdit.prima_neta,
+        monto_gasto_emision: emCalcEdit.monto_gasto_emision,
+        monto_recargo: emCalcEdit.monto_recargo,
+        monto_iva: emCalcEdit.monto_iva,
         fecha_inicio: emisionForm.fecha_inicio,
         fecha_fin: isExclusion ? emisionForm.fecha_inicio : poliza.fecha_vencimiento,
         notas: emisionForm.notas || null,
@@ -1020,10 +1106,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     const tipoFilter = isExclusion ? 'exclusion' : 'inclusion'
     const count = emisiones.filter(em=>em.tipo===tipoFilter).length + 1
     const numEmision = `${poliza.numero_poliza||'SOL'}-${tipoCode}${count.toString().padStart(2,'0')}`
+    const emCalcCreate = (() => {
+      if (!polizaAsegConfig || !(parseFloat(emisionForm.prima_neta) > 0)) return { prima_neta:0, prima_total:0, monto_gasto_emision:0, monto_recargo:0, monto_iva:0 }
+      const pct_rec = emisionForm.tipo_pago==='contado'?0:(polizaAsegConfig.recargos.find(r=>r.numero_cuotas===parseInt(emisionForm.numero_cuotas))?.porcentaje||0)
+      return calcularPrima(emisionForm.prima_neta, polizaAsegConfig.porcentaje_gasto_emision, pct_rec)
+    })()
     const { data: emData, error } = await supabase.from('emisiones').insert({
       poliza_id: poliza.id, tipo: emisionForm.tipo, estado: 'solicitud',
       numero_emision: numEmision,
-      prima_emision: parseFloat(emisionForm.prima_emision) || 0,
+      prima_emision: emCalcCreate.prima_total,
+      prima_neta: emCalcCreate.prima_neta,
+      monto_gasto_emision: emCalcCreate.monto_gasto_emision,
+      monto_recargo: emCalcCreate.monto_recargo,
+      monto_iva: emCalcCreate.monto_iva,
       fecha_inicio: emisionForm.fecha_inicio,
       fecha_fin: isExclusion ? emisionForm.fecha_inicio : poliza.fecha_vencimiento,
       notas: emisionForm.notas || null,
@@ -1091,6 +1186,18 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     if (isNaN(baseNum)) { toast.error('El número de requerimiento debe ser numérico'); return }
     const monto = parseFloat(reqForm.monto)
     const totalCuotas = parseInt(reqForm.total_cuotas)
+    // Get prima breakdown from the selected emision
+    const emisionSel = emisiones.find(em => em.id === reqForm.emision_id)
+    const emPN  = emisionSel?.prima_neta || 0
+    const emGE  = emisionSel?.monto_gasto_emision || 0
+    const emRec = emisionSel?.monto_recargo || 0
+    const emIva = emisionSel?.monto_iva || 0
+    const r2 = n => Math.round(n * 100) / 100
+    const pnCuota  = r2(emPN  / totalCuotas)
+    const geCuota  = r2(emGE  / totalCuotas)
+    const recCuota = r2(emRec / totalCuotas)
+    const ivaCuota = r2(emIva / totalCuotas)
+    const comCuota = r2(pnCuota * (polizaComPct || 0) / 100)
     const requerimientos = Array.from({ length: totalCuotas }, (_, i) => {
       const fecha = new Date(reqForm.fecha_vencimiento + 'T12:00:00')
       fecha.setMonth(fecha.getMonth() + i)
@@ -1100,6 +1207,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         codigo_matriz: i === 0 ? null : String(baseNum),
         numero_cuota: i+1, total_cuotas: totalCuotas, monto,
         fecha_vencimiento: fecha.toISOString().split('T')[0], created_by: user?.id,
+        prima_neta: pnCuota,
+        monto_gasto_emision: geCuota,
+        monto_recargo: recCuota,
+        monto_iva: ivaCuota,
+        porcentaje_comision: polizaComPct || 0,
+        monto_comision: comCuota,
       }
     })
     const { error } = await supabase.from('requerimientos_pago').insert(requerimientos)
@@ -2290,13 +2403,21 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                         style={inputStyle}/>
                     </div>
 
-                    {!editingReq && reqForm.monto && reqForm.total_cuotas > 0 && (
+                    {!editingReq && reqForm.monto && reqForm.total_cuotas > 0 && (() => {
+                      const emSel = emisiones.find(em => em.id === reqForm.emision_id)
+                      const showComision = emSel?.prima_neta > 0 && polizaComPct > 0
+                      const r2c = n => Math.round(n * 100) / 100
+                      const pnCuotaReq = emSel?.prima_neta > 0 ? r2c(emSel.prima_neta / parseInt(reqForm.total_cuotas)) : 0
+                      const comCuotaReq = r2c(pnCuotaReq * polizaComPct / 100)
+                      return (
                       <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'8px',padding:'10px 14px'}}>
-                        <p style={{fontSize:'12px',color:'#15803d',margin:0,fontWeight:500}}>
-                          Se generarán <strong>{reqForm.total_cuotas}</strong> cuota(s) de <strong>Q {parseFloat(reqForm.monto||0).toLocaleString()}</strong> cada una
-                          &nbsp;·&nbsp; Total: <strong>Q {(parseFloat(reqForm.monto||0)*parseInt(reqForm.total_cuotas||0)).toLocaleString()}</strong>
+                        <p style={{fontSize:'12px',color:'#15803d',margin:'0 0 4px',fontWeight:500}}>
+                          {reqForm.total_cuotas} cuota(s) de Q {parseFloat(reqForm.monto||0).toLocaleString()} · Total: Q {(parseFloat(reqForm.monto||0)*parseInt(reqForm.total_cuotas||0)).toLocaleString()}
                         </p>
+                        {showComision && <p style={{fontSize:'11px',color:'#C4A96B',margin:0}}>Comisión estimada por cuota: Q {comCuotaReq.toLocaleString()} ({polizaComPct}%)</p>}
                       </div>
+                      )
+                    })()
                     )}
                   </div>
 
@@ -2629,14 +2750,29 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               <form onSubmit={handleEmisionSubmit}>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'14px',marginBottom:'16px'}}>
 
-                  {/* Prima */}
+                  {/* Prima neta con live breakdown */}
                   <div>
                     <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
-                      Prima {isExclusion?'de exclusión':'de inclusión'} (Q) *
+                      Prima neta {isExclusion?'de exclusión':'de inclusión'} (Q) *
                     </label>
-                    <input type="number" step="0.01" value={emisionForm.prima_emision}
-                      onChange={e=>setEmisionForm({...emisionForm,prima_emision:e.target.value})}
+                    <input type="number" step="0.01" min="0" value={emisionForm.prima_neta}
+                      onChange={e=>setEmisionForm({...emisionForm,prima_neta:e.target.value})}
                       required style={inputStyle} placeholder="0.00"/>
+                    {(() => {
+                      if (!polizaAsegConfig || !(parseFloat(emisionForm.prima_neta) > 0)) return null
+                      const pct_rec = emisionForm.tipo_pago === 'contado' ? 0 :
+                        (polizaAsegConfig.recargos.find(r => r.numero_cuotas === parseInt(emisionForm.numero_cuotas))?.porcentaje || 0)
+                      const calc = calcularPrima(emisionForm.prima_neta, polizaAsegConfig.porcentaje_gasto_emision, pct_rec)
+                      const fmt = n => 'Q ' + parseFloat(n).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})
+                      return (
+                        <div style={{marginTop:'8px', background:'#f8fafc', borderRadius:'8px', padding:'10px 12px', border:'1px solid #e2e8f0', fontSize:'12px'}}>
+                          <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'3px'}}><span>+ Gastos ({polizaAsegConfig.porcentaje_gasto_emision}%)</span><span>{fmt(calc.monto_gasto_emision)}</span></div>
+                          {calc.monto_recargo > 0 && <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'3px'}}><span>+ Recargo ({pct_rec}%)</span><span>{fmt(calc.monto_recargo)}</span></div>}
+                          <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'6px'}}><span>+ IVA 12%</span><span>{fmt(calc.monto_iva)}</span></div>
+                          <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, color:'#111111', borderTop:'1px solid #e2e8f0', paddingTop:'6px'}}><span>Prima total</span><span>{fmt(calc.prima_total)}</span></div>
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   {/* Fecha */}

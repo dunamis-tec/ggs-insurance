@@ -4,7 +4,7 @@ import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
 import { Building2, Plus, ChevronDown, ChevronUp, Trash2, Edit2, X, Upload, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'', logo_url:'' }
+const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'', logo_url:'', porcentaje_gasto_emision: 5 }
 
 export default function Aseguradoras() {
   const [aseguradoras, setAseguradoras] = useState([])
@@ -21,7 +21,7 @@ export default function Aseguradoras() {
 
   const fetchAseguradoras = async () => {
     setLoading(true)
-    const { data } = await supabase.from('aseguradoras').select('*, productos(*, coberturas(*))').eq('activa', true).order('nombre')
+    const { data } = await supabase.from('aseguradoras').select('*, recargo_fraccionamiento(*), productos(*, coberturas(*), producto_comisiones(*))').eq('activa', true).order('nombre')
     setAseguradoras(data || [])
     setLoading(false)
   }
@@ -62,7 +62,7 @@ export default function Aseguradoras() {
   }
 
   const handleEdit = (a) => {
-    setForm({ nombre:a.nombre, nit:a.nit||'', direccion:a.direccion||'', telefono:a.telefono||'', email:a.email||'', contacto_nombre:a.contacto_nombre||'', logo_url:a.logo_url||'' })
+    setForm({ nombre:a.nombre, nit:a.nit||'', direccion:a.direccion||'', telefono:a.telefono||'', email:a.email||'', contacto_nombre:a.contacto_nombre||'', logo_url:a.logo_url||'', porcentaje_gasto_emision: a.porcentaje_gasto_emision ?? 5 })
     setLogoPreview(a.logo_url || null)
     setEditing(a.id)
     setShowForm(true)
@@ -120,6 +120,13 @@ export default function Aseguradoras() {
                     style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
                 </div>
               ))}
+              <div>
+                <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>% Gastos de emisión</label>
+                <input type="number" step="0.01" min="0" max="100"
+                  value={form.porcentaje_gasto_emision}
+                  onChange={e=>setForm({...form, porcentaje_gasto_emision: e.target.value})}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
+              </div>
             </div>
             <div style={{display:'flex',gap:'8px'}}>
               <button type="submit" style={{padding:'10px 20px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
@@ -161,7 +168,12 @@ export default function Aseguradoras() {
                 </div>
                 {expanded===a.id?<ChevronUp size={18} color="#64748b"/>:<ChevronDown size={18} color="#64748b"/>}
               </div>
-              {expanded===a.id && <ProductosSection aseguradora={a} onRefresh={fetchAseguradoras}/>}
+              {expanded===a.id && (
+                <>
+                  <RecargosSection aseguradora={a} onRefresh={fetchAseguradoras}/>
+                  <ProductosSection aseguradora={a} onRefresh={fetchAseguradoras}/>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -170,10 +182,72 @@ export default function Aseguradoras() {
   )
 }
 
+function RecargosSection({ aseguradora, onRefresh }) {
+  const recargos = [...(aseguradora.recargo_fraccionamiento || [])].sort((a, b) => a.numero_cuotas - b.numero_cuotas)
+  const [showForm, setShowForm] = useState(false)
+  const [cuotas, setCuotas] = useState('')
+  const [porcentaje, setPorcentaje] = useState('')
+
+  const addRecargo = async (e) => {
+    e.preventDefault()
+    const nc = parseInt(cuotas)
+    if (isNaN(nc) || nc < 2) { toast.error('Las cuotas deben ser al menos 2'); return }
+    const eid = await getMyEmpresaId()
+    const { error } = await supabase.from('recargo_fraccionamiento').upsert(
+      { empresa_id: eid, aseguradora_id: aseguradora.id, numero_cuotas: nc, porcentaje: parseFloat(porcentaje) || 0 },
+      { onConflict: 'empresa_id,aseguradora_id,numero_cuotas' }
+    )
+    if (error) { toast.error('Error al guardar recargo'); return }
+    toast.success('Recargo guardado')
+    setCuotas(''); setPorcentaje(''); setShowForm(false); onRefresh()
+  }
+
+  const deleteRecargo = async (id) => {
+    await supabase.from('recargo_fraccionamiento').delete().eq('id', id)
+    toast.success('Recargo eliminado'); onRefresh()
+  }
+
+  return (
+    <div style={{borderTop:'1px solid #f1f5f9',padding:'12px 20px',background:'#f8fafc'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
+        <p style={{fontSize:'12px',fontWeight:600,color:'#374151',margin:0}}>Recargos por fraccionamiento</p>
+        <button onClick={()=>setShowForm(!showForm)} style={{fontSize:'11px',padding:'3px 10px',background:'#111111',color:'white',border:'none',borderRadius:'4px',cursor:'pointer'}}>+ Recargo</button>
+      </div>
+      {showForm && (
+        <form onSubmit={addRecargo} style={{display:'flex',gap:'6px',marginBottom:'8px',alignItems:'flex-end'}}>
+          <div>
+            <label style={{display:'block',fontSize:'11px',color:'#64748b',marginBottom:'2px'}}>Cuotas (≥2)</label>
+            <input type="number" min="2" value={cuotas} onChange={e=>setCuotas(e.target.value)} placeholder="Ej: 6" required
+              style={{width:'80px',padding:'6px 8px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:'11px',color:'#64748b',marginBottom:'2px'}}>% Recargo</label>
+            <input type="number" step="0.01" min="0" value={porcentaje} onChange={e=>setPorcentaje(e.target.value)} placeholder="Ej: 3" required
+              style={{width:'90px',padding:'6px 8px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
+          </div>
+          <button type="submit" style={{padding:'6px 12px',background:'#C4A96B',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'12px'}}>Guardar</button>
+          <button type="button" onClick={()=>setShowForm(false)} style={{padding:'6px',background:'white',border:'1px solid #e2e8f0',borderRadius:'4px',cursor:'pointer'}}><X size={12}/></button>
+        </form>
+      )}
+      <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+        {recargos.length === 0 && <span style={{fontSize:'12px',color:'#94a3b8'}}>Sin recargos configurados</span>}
+        {recargos.map(rec => (
+          <span key={rec.id} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#fff7ed',color:'#c2410c',borderRadius:'20px',fontSize:'12px',border:'1px solid #fed7aa'}}>
+            {rec.numero_cuotas} cuotas · {rec.porcentaje}%
+            <button onClick={()=>deleteRecargo(rec.id)} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex'}}><X size={10} color="#c2410c"/></button>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ProductosSection({ aseguradora, onRefresh }) {
   const [showForm, setShowForm] = useState(false)
   const [nombre, setNombre] = useState('')
   const [expandedProd, setExpandedProd] = useState(null)
+  const [editingComProd, setEditingComProd] = useState(null)
+  const [comPct, setComPct] = useState('')
 
   const addProducto = async (e) => {
     e.preventDefault()
@@ -185,6 +259,17 @@ function ProductosSection({ aseguradora, onRefresh }) {
   const deleteProducto = async (id) => {
     await supabase.from('productos').update({ activo: false }).eq('id', id)
     toast.success('Producto eliminado'); onRefresh()
+  }
+
+  const saveComision = async (prod) => {
+    const eid = await getMyEmpresaId()
+    const { error } = await supabase.from('producto_comisiones').upsert(
+      { empresa_id: eid, producto_id: prod.id, porcentaje: parseFloat(comPct) || 0 },
+      { onConflict: 'empresa_id,producto_id' }
+    )
+    if (error) { toast.error('Error al guardar comisión'); return }
+    toast.success('Comisión guardada')
+    setEditingComProd(null); setComPct(''); onRefresh()
   }
 
   return (
@@ -201,17 +286,38 @@ function ProductosSection({ aseguradora, onRefresh }) {
           <button type="button" onClick={()=>setShowForm(false)} style={{padding:'8px',background:'white',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer'}}><X size={14}/></button>
         </form>
       )}
-      {aseguradora.productos?.filter(p=>p.activo).map(prod=>(
-        <div key={prod.id} style={{marginBottom:'8px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-          <div style={{display:'flex',alignItems:'center',padding:'10px 14px',cursor:'pointer'}} onClick={()=>setExpandedProd(expandedProd===prod.id?null:prod.id)}>
-            <span style={{flex:1,fontSize:'14px',color:'#1e293b',fontWeight:500}}>{prod.nombre}</span>
-            <span style={{fontSize:'12px',color:'#64748b',marginRight:'8px'}}>{prod.coberturas?.length||0} coberturas</span>
-            <button onClick={e=>{e.stopPropagation();deleteProducto(prod.id)}} style={{padding:'4px',background:'none',border:'none',cursor:'pointer',marginRight:'4px'}}><Trash2 size={12} color="#ef4444"/></button>
-            {expandedProd===prod.id?<ChevronUp size={14} color="#64748b"/>:<ChevronDown size={14} color="#64748b"/>}
+      {aseguradora.productos?.filter(p=>p.activo).map(prod=>{
+        const currentPct = prod.producto_comisiones?.[0]?.porcentaje ?? null
+        const isEditingCom = editingComProd === prod.id
+        return (
+          <div key={prod.id} style={{marginBottom:'8px',background:'white',borderRadius:'8px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',padding:'10px 14px',cursor:'pointer'}} onClick={()=>setExpandedProd(expandedProd===prod.id?null:prod.id)}>
+              <span style={{flex:1,fontSize:'14px',color:'#1e293b',fontWeight:500}}>{prod.nombre}</span>
+              {/* Commission badge */}
+              {isEditingCom ? (
+                <div style={{display:'flex',alignItems:'center',gap:'4px',marginRight:'8px'}} onClick={e=>e.stopPropagation()}>
+                  <input type="number" step="0.01" min="0" max="100" autoFocus
+                    value={comPct} onChange={e=>setComPct(e.target.value)}
+                    placeholder="%" style={{width:'60px',padding:'3px 6px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
+                  <button onClick={()=>saveComision(prod)} style={{padding:'3px 8px',background:'#C4A96B',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'11px',fontWeight:600}}>OK</button>
+                  <button onClick={()=>{setEditingComProd(null);setComPct('')}} style={{padding:'3px',background:'none',border:'none',cursor:'pointer'}}><X size={11} color="#94a3b8"/></button>
+                </div>
+              ) : (
+                <button onClick={e=>{e.stopPropagation();setEditingComProd(prod.id);setComPct(currentPct !== null ? String(currentPct) : '')}}
+                  style={{marginRight:'8px',padding:'2px 8px',borderRadius:'12px',fontSize:'11px',fontWeight:600,cursor:'pointer',border:'none',
+                    background: currentPct !== null ? '#fef9c3' : '#f1f5f9',
+                    color: currentPct !== null ? '#a16207' : '#94a3b8'}}>
+                  {currentPct !== null ? `% ${currentPct}` : 'Sin %'}
+                </button>
+              )}
+              <span style={{fontSize:'12px',color:'#64748b',marginRight:'8px'}}>{prod.coberturas?.length||0} coberturas</span>
+              <button onClick={e=>{e.stopPropagation();deleteProducto(prod.id)}} style={{padding:'4px',background:'none',border:'none',cursor:'pointer',marginRight:'4px'}}><Trash2 size={12} color="#ef4444"/></button>
+              {expandedProd===prod.id?<ChevronUp size={14} color="#64748b"/>:<ChevronDown size={14} color="#64748b"/>}
+            </div>
+            {expandedProd===prod.id && <CoberturasSection producto={prod} onRefresh={onRefresh}/>}
           </div>
-          {expandedProd===prod.id && <CoberturasSection producto={prod} onRefresh={onRefresh}/>}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

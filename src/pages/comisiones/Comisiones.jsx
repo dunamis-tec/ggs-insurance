@@ -36,7 +36,7 @@ export default function Comisiones() {
     setLoading(true)
     const [{ data: r }, { data: a }, { data: inf }, { data: allInformeReqsData }] = await Promise.all([
       supabase.from('requerimientos_pago')
-        .select('*, polizas(numero_poliza, producto_id, aseguradoras(id, nombre), productos(id, nombre), clientes(nombre, apellido))')
+        .select('*, prima_neta, porcentaje_comision, monto_comision, polizas(numero_poliza, producto_id, aseguradoras(id, nombre), productos(id, nombre), clientes(nombre, apellido))')
         .eq('estado', 'pagado').eq('informe_comision_enviado', false)
         .order('fecha_pago', { ascending: false }),
       supabase.from('aseguradoras').select('id, nombre, productos(id, nombre)').eq('activa', true).order('nombre'),
@@ -115,13 +115,14 @@ export default function Comisiones() {
   }
 
   const total = filtered.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
+  const totalComision = filtered.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + parseFloat(r.monto_comision || 0), 0)
 
   const copiar = () => {
     const sel = filtered.filter(r => selectedIds.includes(r.id))
     if (!sel.length) { toast.error('Selecciona requerimientos'); return }
     let t = 'COMISIONES - ' + (sel[0]?.polizas?.aseguradoras?.nombre || '') + '\nFecha: ' + new Date().toLocaleDateString('es-GT') + '\n\n'
-    sel.forEach(r => { t += r.codigo + ' | ' + (r.polizas?.numero_poliza || '') + ' | ' + (r.polizas?.clientes?.nombre || '') + ' | Q ' + parseFloat(r.monto || 0).toLocaleString() + '\n' })
-    t += '\nTOTAL: Q ' + total.toLocaleString()
+    sel.forEach(r => { t += r.codigo + ' | ' + (r.polizas?.numero_poliza || '') + ' | ' + (r.polizas?.clientes?.nombre || '') + ' | Prima neta: Q ' + parseFloat(r.prima_neta||0).toLocaleString() + ' | Com: Q ' + parseFloat(r.monto_comision||0).toLocaleString() + '\n' })
+    t += '\nTOTAL COMISIONES: Q ' + totalComision.toLocaleString()
     navigator.clipboard.writeText(t)
     toast.success('Resumen copiado')
   }
@@ -136,7 +137,7 @@ export default function Comisiones() {
       tipo: 'comision', aseguradora_id: asegId,
       fecha_desde: filtroDesde || sel[sel.length - 1]?.fecha_pago,
       fecha_hasta: filtroHasta || sel[0]?.fecha_pago,
-      total_requerimientos: selectedIds.length, total_monto: total, created_by: user?.id
+      total_requerimientos: selectedIds.length, total_monto: totalComision, created_by: user?.id
     }).select().single()
     if (error) { toast.error('Error al crear informe'); return }
     await supabase.from('requerimientos_pago')
@@ -211,7 +212,7 @@ export default function Comisiones() {
           {selectedIds.length > 0 && (
             <div style={{ background: '#111111', borderRadius: '12px', padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <p style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>{selectedIds.length} seleccionados · Q {total.toLocaleString()}</p>
+                <p style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>{selectedIds.length} seleccionados · Total primas netas: Q {filtered.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + parseFloat(r.prima_neta || 0), 0).toLocaleString()} · Comisión: Q {totalComision.toLocaleString()}</p>
                 <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>Listos para generar informe</p>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -234,7 +235,9 @@ export default function Comisiones() {
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', flex: 1 }}>Requerimiento</span>
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '160px' }}>Aseguradora / Producto</span>
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '100px' }}>Fecha pago</span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '100px', textAlign: 'right' }}>Monto</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '90px' }}>Prima neta</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '90px' }}>Comisión</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '90px', textAlign: 'right' }}>Total req</span>
             </div>
             {loading ? <p style={{ padding: '24px', color: '#64748b' }}>Cargando...</p> :
               filtered.length === 0 ? (
@@ -261,13 +264,21 @@ export default function Comisiones() {
                       <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.polizas?.productos?.nombre}</p>
                     </div>
                     <p style={{ width: '100px', fontSize: '12px', color: '#64748b', margin: 0, flexShrink: 0 }}>{r.fecha_pago ? new Date(r.fecha_pago + 'T12:00:00').toLocaleDateString('es-GT') : '-'}</p>
-                    <p style={{ width: '100px', fontSize: '14px', fontWeight: 700, color: '#1e293b', textAlign: 'right', margin: 0, flexShrink: 0 }}>Q {parseFloat(r.monto || 0).toLocaleString()}</p>
+                    <p style={{ width: '90px', fontSize: '12px', color: '#64748b', margin: 0, flexShrink: 0 }}>
+                      {r.prima_neta > 0 ? `Q ${parseFloat(r.prima_neta).toLocaleString()}` : '—'}
+                    </p>
+                    <p style={{ width: '90px', fontSize: '13px', fontWeight: 600, color: '#C4A96B', margin: 0, flexShrink: 0 }}>
+                      {r.monto_comision > 0 ? `Q ${parseFloat(r.monto_comision).toLocaleString()}` : '—'}
+                      {r.porcentaje_comision > 0 && <span style={{ fontSize: '11px', fontWeight: 400, display: 'block', color: '#94a3b8' }}>{r.porcentaje_comision}%</span>}
+                    </p>
+                    <p style={{ width: '90px', fontSize: '14px', fontWeight: 700, color: '#1e293b', textAlign: 'right', margin: 0, flexShrink: 0 }}>Q {parseFloat(r.monto || 0).toLocaleString()}</p>
                   </div>
                 )
               })}
             {filtered.length > 0 && (
               <div style={{ padding: '12px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '24px' }}>
                 <span style={{ fontSize: '13px', color: '#64748b' }}>{filtered.length} requerimientos</span>
+                <span style={{ fontSize: '13px', color: '#C4A96B', fontWeight: 600 }}>Comisiones: Q {filtered.reduce((s, r) => s + parseFloat(r.monto_comision || 0), 0).toLocaleString()}</span>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#111111' }}>Total: Q {filtered.reduce((s, r) => s + parseFloat(r.monto || 0), 0).toLocaleString()}</span>
               </div>
             )}
