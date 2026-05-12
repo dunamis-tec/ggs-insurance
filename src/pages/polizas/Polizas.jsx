@@ -505,7 +505,7 @@ export default function Polizas() {
             {/* ─ Aseguradora + Producto ─ */}
             <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
               <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>3 · Aseguradora y producto</p>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'16px'}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fit,minmax(220px,1fr))',gap:'16px'}}>
                 <div>
                   <label style={lbl}>Aseguradora *</label>
                   <SearchSelect value={form.aseguradora_id} onChange={handleAseguradoraChange} options={aseguradoras}
@@ -577,7 +577,7 @@ export default function Polizas() {
             {/* ─ Pago + Prima ─ */}
             <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
               <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>5 · Pago y prima</p>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px'}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fit,minmax(200px,1fr))',gap:'16px'}}>
                 <div>
                   <label style={lbl}>Prima neta (Q) *</label>
                   <input type="number" step="0.01" min="0"
@@ -592,11 +592,11 @@ export default function Polizas() {
                     const fmt = n => 'Q ' + parseFloat(n).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})
                     return (
                       <div style={{marginTop:'10px', background:'#f8fafc', borderRadius:'8px', padding:'12px 14px', border:'1px solid #e2e8f0', fontSize:'13px'}}>
-                        <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'4px'}}><span>+ Gastos de emisión ({aseguradoraConfig.porcentaje_gasto_emision}%)</span><span>{fmt(calc.monto_gasto_emision)}</span></div>
-                        {calc.monto_recargo > 0 && <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'4px'}}><span>+ Recargo fraccionamiento ({pct_recargo}%)</span><span>{fmt(calc.monto_recargo)}</span></div>}
-                        <div style={{display:'flex', justifyContent:'space-between', color:'#64748b', marginBottom:'8px'}}><span>+ IVA 12%</span><span>{fmt(calc.monto_iva)}</span></div>
-                        <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, color:'#111111', borderTop:'1px solid #e2e8f0', paddingTop:'8px'}}><span>Prima total</span><span>{fmt(calc.prima_total)}</span></div>
-                        {productoComPct > 0 && <div style={{marginTop:'6px', display:'flex', justifyContent:'space-between', color:'#C4A96B', fontWeight:500}}><span>Comisión ({productoComPct}%)</span><span>{fmt(calc.prima_neta * productoComPct / 100)}</span></div>}
+                        <div style={{display:'flex', gap:'8px', alignItems:'baseline', justifyContent:'space-between', color:'#64748b', marginBottom:'4px'}}><span style={{flex:1, minWidth:0}}>+ Gastos de emisión ({aseguradoraConfig.porcentaje_gasto_emision}%)</span><span style={{flexShrink:0, whiteSpace:'nowrap'}}>{fmt(calc.monto_gasto_emision)}</span></div>
+                        {calc.monto_recargo > 0 && <div style={{display:'flex', gap:'8px', alignItems:'baseline', justifyContent:'space-between', color:'#64748b', marginBottom:'4px'}}><span style={{flex:1, minWidth:0}}>+ Recargo fraccionamiento ({pct_recargo}%)</span><span style={{flexShrink:0, whiteSpace:'nowrap'}}>{fmt(calc.monto_recargo)}</span></div>}
+                        <div style={{display:'flex', gap:'8px', alignItems:'baseline', justifyContent:'space-between', color:'#64748b', marginBottom:'8px'}}><span style={{flex:1, minWidth:0}}>+ IVA 12%</span><span style={{flexShrink:0, whiteSpace:'nowrap'}}>{fmt(calc.monto_iva)}</span></div>
+                        <div style={{display:'flex', gap:'8px', alignItems:'baseline', justifyContent:'space-between', fontWeight:700, color:'#111111', borderTop:'1px solid #e2e8f0', paddingTop:'8px'}}><span style={{flex:1, minWidth:0}}>Prima total</span><span style={{flexShrink:0, whiteSpace:'nowrap'}}>{fmt(calc.prima_total)}</span></div>
+                        {productoComPct > 0 && <div style={{marginTop:'6px', display:'flex', gap:'8px', alignItems:'baseline', justifyContent:'space-between', color:'#C4A96B', fontWeight:500}}><span style={{flex:1, minWidth:0}}>Comisión ({productoComPct}%)</span><span style={{flexShrink:0, whiteSpace:'nowrap'}}>{fmt(calc.prima_neta * productoComPct / 100)}</span></div>}
                       </div>
                     )
                   })()}
@@ -642,7 +642,7 @@ export default function Polizas() {
             {/* ─ Vigencia ─ */}
             <div style={{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid #f1f5f9'}}>
               <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>6 · Vigencia</p>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px'}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fit,minmax(200px,1fr))',gap:'16px'}}>
                 <div>
                   <label style={lbl}>Fecha de inicio *</label>
                   <input type="date" value={form.fecha_inicio} onChange={e=>handleFechaInicioChange(e.target.value)} required style={inp}/>
@@ -2451,7 +2451,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                       </div>
                     )}
 
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+                    <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:'12px'}}>
                       <div>
                         <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
                           Monto por cuota (Q) *
@@ -2829,7 +2829,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
               </div>
 
               <form onSubmit={handleEmisionSubmit}>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'14px',marginBottom:'16px'}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fit,minmax(200px,1fr))',gap:'14px',marginBottom:'16px'}}>
 
                   {/* Prima neta con live breakdown */}
                   <div>
