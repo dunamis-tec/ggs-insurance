@@ -224,21 +224,27 @@ function TabUsuarios({ isAdmin, currentUser }) {
   const handleInvite = async (e) => {
     e.preventDefault()
     setInviting(true)
-    // Get current user's empresa_id to assign to the invited user
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: meRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
-    const empresa_id = meRow?.empresa_id
+    const empresa_id = await getMyEmpresaId()
     if (!empresa_id) { toast.error('No se pudo obtener empresa'); setInviting(false); return }
 
-    const { error: authError } = await supabase.auth.signInWithOtp({
-      email: inviteEmail,
-      options: { shouldCreateUser: true, emailRedirectTo: window.location.origin }
-    })
-    if (authError) { toast.error('Error al invitar: ' + authError.message); setInviting(false); return }
-    await supabase.from('users').upsert(
-      { email: inviteEmail, nombre: inviteNombre, rol: inviteRol, empresa_id },
-      { onConflict: 'email' }
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email: inviteEmail, nombre: inviteNombre, rol: inviteRol, empresa_id })
+      }
     )
+    const json = await res.json()
+    if (!res.ok || json.error) {
+      toast.error('Error al invitar: ' + (json.error || 'Error desconocido'))
+      setInviting(false); return
+    }
     toast.success('Invitación enviada a ' + inviteEmail)
     setInviteEmail(''); setInviteNombre(''); setInviteRol('agente')
     setShowInvite(false); setInviting(false)

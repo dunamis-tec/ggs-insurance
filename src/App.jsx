@@ -7,6 +7,7 @@ import MainLayout from './components/layout/MainLayout'
 
 // Pages
 import Login from './pages/auth/Login'
+import ResetPassword from './pages/auth/ResetPassword'
 import Dashboard from './pages/dashboard/Dashboard'
 import Clientes from './pages/clientes/Clientes'
 import Polizas from './pages/polizas/Polizas'
@@ -94,6 +95,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={
         <ProtectedRoute session={session}>
           <MainLayout session={session} />
