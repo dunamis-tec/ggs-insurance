@@ -2418,7 +2418,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                       </div>
                       )
                     })()
-                    )}
+                    }
                   </div>
 
                   <div style={{display:'flex',gap:'8px'}}>
