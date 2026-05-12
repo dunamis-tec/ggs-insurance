@@ -77,8 +77,10 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [fetchUserRow])
 
-  // Loading: session unknown, or session exists but we haven't resolved the user row yet
-  if (session === undefined || checkingUser || (session && userRow === undefined)) return (
+  // Loading: only block on initial load — when session or userRow are not yet known.
+  // Do NOT block when checkingUser=true but userRow is already populated; that would
+  // unmount all child components and wipe in-progress work on every token refresh.
+  if (session === undefined || (session && userRow === undefined)) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <p>Cargando...</p>
     </div>
