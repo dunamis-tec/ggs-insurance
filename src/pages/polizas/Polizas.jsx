@@ -562,7 +562,8 @@ export default function Polizas() {
                     <input
                       type="number" min="2" max="60"
                       value={form.numero_cuotas}
-                      onChange={e=>setForm({...form,numero_cuotas:parseInt(e.target.value)||2})}
+                      onChange={e=>setForm({...form,numero_cuotas:e.target.value})}
+                      onBlur={e=>setForm(f=>({...f,numero_cuotas:Math.max(2,parseInt(e.target.value)||2)}))}
                       style={inp}
                       placeholder="Ej: 12"
                     />
@@ -2712,7 +2713,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                         <input
                           type="number" min="1" max="36"
                           value={emisionForm.numero_cuotas}
-                          onChange={e=>setEmisionForm({...emisionForm,numero_cuotas:parseInt(e.target.value)||1})}
+                          onChange={e=>setEmisionForm({...emisionForm,numero_cuotas:e.target.value})}
+                          onBlur={e=>setEmisionForm(f=>({...f,numero_cuotas:Math.max(1,parseInt(e.target.value)||1)}))}
                           disabled={emisionForm.tipo_pago==='contado'}
                           style={{...inputStyle,background:emisionForm.tipo_pago==='contado'?'#f1f5f9':'white',color:emisionForm.tipo_pago==='contado'?'#94a3b8':'#1e293b'}}
                         />
