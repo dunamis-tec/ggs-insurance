@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { clearEmpresaIdCache } from '../../lib/getMyEmpresaId'
 import {
   LayoutDashboard, Users, FileText, Building2, CreditCard,
   BookOpen, DollarSign, CheckSquare, Car, LogOut, Settings,
@@ -85,6 +86,7 @@ export default function MainLayout({ session }) {
   }, [desktopMenuOpen])
 
   const handleLogout = async () => {
+    clearEmpresaIdCache()
     await supabase.auth.signOut()
     navigate('/login')
   }

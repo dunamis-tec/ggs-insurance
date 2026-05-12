@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
 import { CreditCard, Search, CheckCircle, Clock, AlertCircle, Upload, ArrowLeft, ExternalLink, FileText, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -69,7 +70,8 @@ export default function Requerimientos() {
     const file = e.target.files[0]
     if (!file) return
     setUploading(req.id)
-    const fileName = `comprobantes/${req.id}_${Date.now()}.${file.name.split('.').pop()}`
+    const eid = await getMyEmpresaId()
+    const fileName = `${eid}/comprobantes/${req.id}_${Date.now()}.${file.name.split('.').pop()}`
     const { error } = await supabase.storage.from('logos').upload(fileName, file, { upsert: true })
     if (error) { toast.error('Error al subir comprobante'); setUploading(null); return }
     const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName)

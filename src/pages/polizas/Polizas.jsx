@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
 import { useIsMobile } from '../../lib/useIsMobile'
 import { generateSolicitudPdf } from '../../lib/generateSolicitudPdf'
 import { generateInclusionPdf } from '../../lib/generateInclusionPdf'
@@ -880,7 +881,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     if (emitirPdfFile) {
       setUploadingPdf(true)
       const ext = emitirPdfFile.name.split('.').pop()
-      const path = `${poliza.id}/poliza.${ext}`
+      const eid = await getMyEmpresaId()
+      const path = `${eid}/${poliza.id}/poliza.${ext}`
       const { data: uploadData, error: uploadErr } = await supabase.storage
         .from('polizas-pdfs').upload(path, emitirPdfFile, { upsert: true })
       setUploadingPdf(false)
@@ -1125,7 +1127,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     let comprobante_url = reqGestionTarget.comprobante_url || null
     if (reqComprobanteFile) {
       const ext = reqComprobanteFile.name.split('.').pop()
-      const path = `comprobantes/${poliza.id}/${reqGestionTarget.id}.${ext}`
+      const eid = await getMyEmpresaId()
+      const path = `${eid}/comprobantes/${poliza.id}/${reqGestionTarget.id}.${ext}`
       const { error: upErr } = await supabase.storage.from('polizas-pdfs').upload(path, reqComprobanteFile, { upsert: true })
       if (upErr) { toast.dismiss(toastId); toast.error('Error subiendo comprobante: ' + upErr.message); return }
       const { data: { publicUrl } } = supabase.storage.from('polizas-pdfs').getPublicUrl(path)
@@ -1145,7 +1148,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     if (!reqComprobanteFile || !reqGestionTarget) return
     const toastId = toast.loading('Subiendo comprobante…')
     const ext = reqComprobanteFile.name.split('.').pop()
-    const path = `comprobantes/${poliza.id}/${reqGestionTarget.id}.${ext}`
+    const eid = await getMyEmpresaId()
+    const path = `${eid}/comprobantes/${poliza.id}/${reqGestionTarget.id}.${ext}`
     const { error: upErr } = await supabase.storage.from('polizas-pdfs').upload(path, reqComprobanteFile, { upsert: true })
     if (upErr) { toast.dismiss(toastId); toast.error('Error: ' + upErr.message); return }
     const { data: { publicUrl } } = supabase.storage.from('polizas-pdfs').getPublicUrl(path)

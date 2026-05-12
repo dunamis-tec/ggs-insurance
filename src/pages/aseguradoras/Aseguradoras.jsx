@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
 import { Building2, Plus, ChevronDown, ChevronUp, Trash2, Edit2, X, Upload, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -31,7 +32,8 @@ export default function Aseguradoras() {
     if (file.size > 2 * 1024 * 1024) { toast.error('El logo debe ser menor a 2MB'); return }
     setUploading(true)
     const ext = file.name.split('.').pop()
-    const fileName = `logo_${Date.now()}.${ext}`
+    const eid = await getMyEmpresaId()
+    const fileName = `${eid}/aseguradoras/logo_${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('logos').upload(fileName, file, { upsert: true })
     if (error) { toast.error('Error al subir logo'); setUploading(false); return }
     const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName)
