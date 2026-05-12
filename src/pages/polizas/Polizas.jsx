@@ -605,7 +605,7 @@ export default function Polizas() {
                   <label style={lbl}>Tipo de pago *</label>
                   <div style={{display:'flex',gap:'8px'}}>
                     {['contado','financiado'].map(t=>(
-                      <button key={t} type="button" onClick={()=>setForm({...form,tipo_pago:t,numero_cuotas:t==='contado'?1:form.numero_cuotas})}
+                      <button key={t} type="button" onClick={()=>setForm({...form,tipo_pago:t,numero_cuotas:t==='contado'?1:(aseguradoraConfig?.recargos?.[0]?.numero_cuotas||form.numero_cuotas)})}
                         style={{flex:1,padding:'10px',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer',
                           background:form.tipo_pago===t?'#111111':'white', color:form.tipo_pago===t?'white':'#64748b',
                           border:`1px solid ${form.tipo_pago===t?'#111111':'#e2e8f0'}`}}>
@@ -2841,7 +2841,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                         <div style={{display:'flex',gap:'8px'}}>
                           {[['contado','Contado'],['financiado','Financiado']].map(([val,lbl])=>(
                             <button key={val} type="button"
-                              onClick={()=>setEmisionForm({...emisionForm,tipo_pago:val,numero_cuotas:val==='contado'?1:emisionForm.numero_cuotas})}
+                              onClick={()=>setEmisionForm({...emisionForm,tipo_pago:val,numero_cuotas:val==='contado'?1:(polizaAsegConfig?.recargos?.[0]?.numero_cuotas||emisionForm.numero_cuotas)})}
                               style={{flex:1,padding:'8px 10px',border:`1.5px solid ${emisionForm.tipo_pago===val?'#111111':'#e2e8f0'}`,
                                 borderRadius:'6px',fontSize:'13px',fontWeight:600,cursor:'pointer',
                                 background:emisionForm.tipo_pago===val?'#111111':'white',
