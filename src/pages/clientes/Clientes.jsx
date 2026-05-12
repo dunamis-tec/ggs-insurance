@@ -8,7 +8,7 @@ const tiposCliente = ['prospecto', 'individual', 'empresa']
 const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', fecha_nacimiento:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
 const emptyPF = { nombre:'', apellido:'', nit:'', email:'', telefono:'', direccion:'' }
 
-const tipoColors = { prospecto:{ bg:'#fef9c3', color:'#a16207' }, individual:{ bg:'#dbeafe', color:'#1d4ed8' }, empresa:{ bg:'#fef3c7', color:'#d97706' } }
+const tipoColors = { prospecto:{ bg:'#FDF8EE', color:'#C4A96B' }, individual:{ bg:'#f1f5f9', color:'#64748b' }, empresa:{ bg:'#111111', color:'white' } }
 const tipoIcons = { prospecto: User, individual: User, empresa: Building2 }
 
 const emptyCong = { nombre: '' }
@@ -496,8 +496,8 @@ export default function Clientes() {
                       onClick={() => setExpandedCong(prev => prev === cg.id ? null : cg.id)}
                       onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                       onMouseLeave={e => e.currentTarget.style.background='white'}>
-                      <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                        <Building2 size={18} color='#1d4ed8' />
+                      <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                        <Building2 size={18} color='#C4A96B' />
                       </div>
                       <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
                         <p style={{ fontWeight:700, color:'#111111', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
@@ -651,13 +651,13 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'16px' }}>
         <div style={{ padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-            <div style={{ width:'52px', height:'52px', borderRadius:'12px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <Icon size={24} color='#C4A96B' />
+            <div style={{ width:'52px', height:'52px', borderRadius:'12px', background: colors.bg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Icon size={24} color={colors.color} />
             </div>
             <div>
               <h1 style={{ fontSize:'20px', fontWeight:700, color:'#111111', margin:0 }}>{getNombreDisplay()}</h1>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', marginTop:'4px' }}>
-                <span style={{ fontSize:'12px', padding:'2px 8px', borderRadius:'20px', background:'#FDF8EE', color:'#111111', fontWeight:500 }}>
+                <span style={{ fontSize:'12px', padding:'2px 8px', borderRadius:'20px', background: tipoColors[cliente.tipo]?.bg || '#FDF8EE', color: tipoColors[cliente.tipo]?.color || '#C4A96B', fontWeight:500 }}>
                   {cliente.tipo.charAt(0).toUpperCase() + cliente.tipo.slice(1)}
                 </span>
                 {cliente.conglomerados && <span style={{ fontSize:'12px', color:'#6B6B62' }}>· {cliente.conglomerados.nombre}</span>}
@@ -747,7 +747,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                 onClick={() => navigate('/vehiculos', { state: { openVehiculoId: v.id, fromClienteId: cliente.id } })}
                 onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                 onMouseLeave={e => e.currentTarget.style.background='white'}>
-                <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
                   <Car size={18} color='#C4A96B' />
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
@@ -877,8 +877,8 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
               </div>
             ) : personas.map((pf, i) => (
               <div key={pf.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<personas.length-1 ? '1px solid #f1f5f9' : 'none' }}>
-                <div style={{ width:'36px', height:'36px', borderRadius:'8px', background:'#f0fdf4', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                  <CreditCard size={16} color='#15803d' />
+                <div style={{ width:'36px', height:'36px', borderRadius:'8px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                  <CreditCard size={16} color='#C4A96B' />
                 </div>
                 <div style={{ flex:1 }}>
                   <p style={{ fontWeight:600, color:'#111111', fontSize:'14px', margin:0 }}>{pf.nombre} {pf.apellido||''}</p>
