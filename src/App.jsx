@@ -19,6 +19,7 @@ import Tareas from './pages/tareas/Tareas'
 import Vehiculos from './pages/vehiculos/Vehiculos'
 import Configuracion from './pages/configuracion/Configuracion'
 import Onboarding from './pages/onboarding/Onboarding'
+import InstallBanner from './components/InstallBanner'
 
 function ProtectedRoute({ children, session }) {
   if (!session) return <Navigate to="/login" replace />
@@ -97,6 +98,8 @@ export default function App() {
   }
 
   return (
+    <>
+    <InstallBanner />
     <Routes>
       <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -117,5 +120,6 @@ export default function App() {
         <Route path="configuracion/*" element={<Configuracion />} />
       </Route>
     </Routes>
+    </>
   )
 }
