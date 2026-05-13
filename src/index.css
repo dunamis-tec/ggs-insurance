@@ -32,6 +32,20 @@ body {
   min-height: 100vh;
 }
 
+/* Mobile: lock the document so only <main> scrolls, not the whole page.
+   Without this, the body/root grow beyond 100dvh and the nav floats away. */
+@media (max-width: 768px) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  #root {
+    height: 100dvh;
+    min-height: unset;
+    overflow: hidden;
+  }
+}
+
 h1, h2, h3, h4, h5, h6 {
   margin: 0;
 }
