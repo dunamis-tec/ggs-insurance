@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 /* ── Brand panel — left side ─────────────────────────────────────── */
 function BrandPanel() {
   return (
-    <div style={{
+    <div className="ggs-brand-panel" style={{
       flex: '0 0 50%',
       background: '#111111',
       display: 'flex',
@@ -14,6 +14,7 @@ function BrandPanel() {
       padding: '48px 40px',
       position: 'relative',
       overflow: 'hidden',
+      minHeight: '100vh',
     }}>
 
       {/* Decorative ghost circles — echo of the GGS logo mark */}
@@ -287,9 +288,7 @@ export default function Login() {
         }
       `}</style>
 
-      <div className="ggs-brand-panel" style={{ flex: '0 0 50%', display: 'flex' }}>
-        <BrandPanel />
-      </div>
+      <BrandPanel />
 
       {/* Right form panel */}
       <div className="ggs-form-panel" style={formPanel}>
@@ -300,19 +299,6 @@ export default function Login() {
         </div>
 
         <div style={{ ...formBox, paddingTop: '0' }}>
-
-          {/* Top logo row — desktop only */}
-          <div className="ggs-brand-panel" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '44px' }}>
-            <svg viewBox="0 0 260 160" width="36" height="22">
-              <circle cx="68"  cy="80" r="55" fill="none" stroke="#C4A96B" strokeWidth="12"/>
-              <circle cx="148" cy="80" r="55" fill="none" stroke="#C4A96B" strokeWidth="12"/>
-              <rect   x="183"  y="25" width="72" height="110" rx="2" fill="none" stroke="#C4A96B" strokeWidth="12"/>
-            </svg>
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#111111', lineHeight: 1.2 }}>Grupo Global en Seguros</div>
-              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Sistema de gestión</div>
-            </div>
-          </div>
 
           {/* Heading */}
           <div style={{ marginBottom: '32px' }}>
