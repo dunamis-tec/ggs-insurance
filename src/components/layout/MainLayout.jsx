@@ -103,16 +103,24 @@ export default function MainLayout({ session }) {
     )?.label || 'GGS'
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#F7F5F2' }}>
+      // Root ocupa exactamente el viewport — sin scroll de página
+      // Header + Nav son flex items fijos; solo <main> scrollea internamente
+      <div style={{
+        display: 'flex', flexDirection: 'column',
+        height: '100vh',          // fallback
+        height: '100dvh',         // se adapta al mostrar/ocultar barra del navegador
+        overflow: 'hidden',
+        background: '#F7F5F2',
+      }}>
 
-        {/* Top header */}
+        {/* Top header — flex item, no fixed */}
         <header style={{
           background: '#111111',
           height: '52px',
           display: 'flex', alignItems: 'center',
           padding: '0 16px', gap: '12px',
-          position: 'fixed', top: 0, left: 0, right: 0,
-          zIndex: 150, flexShrink: 0,
+          flexShrink: 0,
+          zIndex: 150,
         }}>
           {companyLogo
             ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
@@ -124,8 +132,15 @@ export default function MainLayout({ session }) {
           </span>
         </header>
 
-        {/* Main content */}
-        <main style={{ marginTop: '52px', marginBottom: '60px', flex: 1, padding: '12px', background: '#F7F5F2', boxSizing: 'border-box', minHeight: 'calc(100vh - 112px)' }}>
+        {/* Main content — este es el único elemento que scrollea */}
+        <main style={{
+          flex: 1,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          padding: '12px',
+          background: '#F7F5F2',
+          boxSizing: 'border-box',
+        }}>
           <Outlet />
         </main>
 
@@ -135,7 +150,7 @@ export default function MainLayout({ session }) {
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200 }} />
         )}
 
-        {/* Menu sheet */}
+        {/* Menu sheet — sube desde encima del nav */}
         <div style={{
           position: 'fixed',
           bottom: menuOpen ? '60px' : '-100%',
@@ -176,27 +191,30 @@ export default function MainLayout({ session }) {
           </div>
         </div>
 
-        {/* Bottom tab bar */}
+        {/* Bottom tab bar — flex item, no fixed */}
         <nav style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          height: '60px', background: 'white',
+          flexShrink: 0,
+          height: `calc(60px + env(safe-area-inset-bottom))`,
+          background: 'white',
           borderTop: '1px solid #e2e8f0',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-around',
-          zIndex: 190, paddingBottom: 'env(safe-area-inset-bottom)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-around',
+          paddingTop: '0',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          zIndex: 190,
           boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
         }}>
           {tabItems.map(({ to, icon: Icon, label, end }) => {
             const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
             return (
               <NavLink key={to} to={to} end={end}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', textDecoration: 'none', padding: '6px 0', color: isActive ? '#C4A96B' : '#94a3b8' }}>
+                style={{ flex: 1, height: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', textDecoration: 'none', padding: '6px 0', color: isActive ? '#C4A96B' : '#94a3b8' }}>
                 <Icon size={22} color={isActive ? '#C4A96B' : '#94a3b8'} strokeWidth={isActive ? 2.5 : 1.8} />
                 <span style={{ fontSize: '10px', fontWeight: isActive ? 700 : 500 }}>{label}</span>
               </NavLink>
             )
           })}
           <button onClick={() => setMenuOpen(o => !o)}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', color: menuOpen ? '#C4A96B' : '#94a3b8' }}>
+            style={{ flex: 1, height: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', color: menuOpen ? '#C4A96B' : '#94a3b8' }}>
             <Grid3x3 size={22} color={menuOpen ? '#C4A96B' : '#94a3b8'} strokeWidth={menuOpen ? 2.5 : 1.8} />
             <span style={{ fontSize: '10px', fontWeight: menuOpen ? 700 : 500 }}>Menú</span>
           </button>
