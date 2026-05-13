@@ -169,17 +169,7 @@ export default function Login() {
     e.preventDefault()
     setLoading(true); setError('')
 
-    // Step 1: Supabase auth
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) {
-      setError(authError.message === 'Invalid login credentials'
-        ? 'Correo o contraseña incorrectos'
-        : authError.message)
-      setLoading(false)
-      return
-    }
-
-    // Step 2: Verify user exists in our users table and is active
+    // Step 1: Check user status BEFORE attempting auth
     const { data: userRow } = await supabase
       .from('users')
       .select('activo, active')
@@ -187,17 +177,23 @@ export default function Login() {
       .maybeSingle()
 
     if (!userRow) {
-      // Auth succeeded but no users row — not provisioned
-      await supabase.auth.signOut()
       setError('No tenés acceso al sistema. Contactá al administrador.')
       setLoading(false)
       return
     }
 
     if (userRow.activo === false || userRow.active === false) {
-      // Account deactivated
-      await supabase.auth.signOut()
       setError('Tu cuenta está desactivada. Contactá al administrador.')
+      setLoading(false)
+      return
+    }
+
+    // Step 2: Only auth if account is active
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) {
+      setError(authError.message === 'Invalid login credentials'
+        ? 'Correo o contraseña incorrectos'
+        : authError.message)
       setLoading(false)
       return
     }
