@@ -11,11 +11,21 @@ export default function ResetPassword() {
   const [validSession, setValidSession] = useState(false)
   const navigate = useNavigate()
 
-  // Supabase redirects here with the recovery token in the URL hash.
-  // onAuthStateChange fires PASSWORD_RECOVERY when it detects the token.
+  // Supabase redirects here with the recovery token in the URL.
+  // Two scenarios:
+  // 1. Normal: PASSWORD_RECOVERY event fires after component mounts → catch with listener
+  // 2. Race condition: token was processed before this component mounted →
+  //    getSession() already returns a valid session, catch it immediately
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    // Catch race condition: recovery session already established before mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setValidSession(true)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') setValidSession(true)
+      // PKCE flow may fire SIGNED_IN instead of PASSWORD_RECOVERY
+      if (event === 'SIGNED_IN' && session) setValidSession(true)
     })
     return () => subscription.unsubscribe()
   }, [])

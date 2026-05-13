@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 
@@ -29,6 +29,7 @@ export default function App() {
   const [session, setSession]           = useState(undefined)
   const [userRow, setUserRow]           = useState(undefined) // null = not found, obj = found
   const [checkingUser, setCheckingUser] = useState(false)
+  const navigate = useNavigate()
 
   const fetchUserRow = useCallback(async (uid) => {
     setCheckingUser(true)
@@ -69,6 +70,9 @@ export default function App() {
       setSession(session)
       if (event === 'SIGNED_OUT') {
         setUserRow(undefined)
+      } else if (event === 'PASSWORD_RECOVERY') {
+        // Recovery link clicked: ensure user lands on the reset-password form
+        navigate('/reset-password')
       } else if (event === 'SIGNED_IN' && session?.user) {
         fetchUserRow(session.user.id)
       }
