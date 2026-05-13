@@ -155,51 +155,67 @@ export default function Tareas() {
         </div>
       </div>
 
-      {/* ── New task form ── */}
+      {/* ── New task modal ── */}
       {showForm && (
-        <div style={{ background: 'white', borderRadius: '12px', padding: '20px 24px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111111', margin: 0 }}>Nueva tarea</h3>
-            <button onClick={() => setShowForm(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <X size={14} color='#64748b' />
-            </button>
+        <div onClick={() => setShowForm(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'white', borderRadius: '16px', width: '100%', maxWidth: '480px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
+          }}>
+            {/* Modal header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid #f1f5f9' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111111', margin: 0 }}>Nueva tarea</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={14} color='#64748b' />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <form onSubmit={handleSubmit}>
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={lbl}>Título *</label>
+                  <input value={titulo} onChange={e => setTitulo(e.target.value)} required placeholder='Ej: Llamar al cliente para renovación' style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>Descripción</label>
+                  <textarea value={descripcion} onChange={e => setDesc(e.target.value)} placeholder='Detalles adicionales...' rows={3}
+                    style={{ ...inp, resize: 'vertical', minHeight: '72px', fontFamily: 'inherit' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={lbl}>Asignado a *</label>
+                    <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)} style={inp}>
+                      {usuarios.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.nombre || u.email}{u.id === currentUser?.id ? ' (vos)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Fecha límite</label>
+                    <input type='date' value={fechaVenc} onChange={e => setFechaVenc(e.target.value)} style={inp} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal footer */}
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '8px' }}>
+                <button type='submit' disabled={submitting}
+                  style={{ flex: 1, padding: '11px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+                  {submitting ? 'Creando...' : 'Crear tarea'}
+                </button>
+                <button type='button' onClick={() => setShowForm(false)}
+                  style={{ padding: '11px 18px', background: 'white', color: '#64748b', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={lbl}>Título *</label>
-                <input value={titulo} onChange={e => setTitulo(e.target.value)} required placeholder='Ej: Llamar al cliente para renovación' style={inp} />
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={lbl}>Descripción</label>
-                <input value={descripcion} onChange={e => setDesc(e.target.value)} placeholder='Detalles adicionales...' style={inp} />
-              </div>
-              <div>
-                <label style={lbl}>Asignado a *</label>
-                <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)} style={inp}>
-                  {usuarios.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.nombre || u.email}{u.id === currentUser?.id ? ' (vos)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Fecha límite</label>
-                <input type='date' value={fechaVenc} onChange={e => setFechaVenc(e.target.value)} style={inp} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button type='submit' disabled={submitting}
-                style={{ padding: '10px 20px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
-                {submitting ? 'Creando...' : 'Crear tarea'}
-              </button>
-              <button type='button' onClick={() => setShowForm(false)}
-                style={{ padding: '10px 20px', background: 'white', color: '#64748b', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>
-                Cancelar
-              </button>
-            </div>
-          </form>
         </div>
       )}
 
