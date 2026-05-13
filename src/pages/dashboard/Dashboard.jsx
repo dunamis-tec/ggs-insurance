@@ -255,16 +255,16 @@ export default function Dashboard() {
       </div>
 
       {/* ── Main 2-col: Pipeline | Alertas + Tareas ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr', gap: '16px', marginBottom: '16px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr', gap: '16px', marginBottom: '16px', alignItems: 'stretch' }}>
 
         {/* Pipeline — columna dominante */}
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <SectionHeader
             icon={Activity} label="Pipeline de solicitudes"
             color="#C4A96B" badge={pipeline.length}
             action="Ver pólizas" onAction={() => navigate('/polizas')}
           />
-          <div style={{ padding: '4px 16px 16px' }}>
+          <div style={{ padding: '4px 16px 16px', flex: 1, overflowY: 'auto' }}>
             {pipeline.length === 0 ? (
               <div style={{ padding: '32px', textAlign: 'center' }}>
                 <FileText size={28} color='#cbd5e1' style={{ marginBottom: '8px' }} />
@@ -299,7 +299,7 @@ export default function Dashboard() {
         </div>
 
         {/* Columna derecha: Alertas + Tareas apiladas */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
 
           {/* Alertas críticas */}
           <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${totalAlertas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
@@ -364,18 +364,18 @@ export default function Dashboard() {
           </div>
 
           {/* Tareas */}
-          <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${tareasVencidas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden' }}>
+          <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${tareasVencidas > 0 ? '#fecaca' : '#e2e8f0'}`, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}>
             <SectionHeader
               icon={CheckSquare} label="Tareas pendientes"
               color="#111111" badge={tareas.length}
               action="Ver todas" onAction={() => navigate('/tareas')}
             />
-            <div style={{ padding: '4px 16px 0' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 0' }}>
               {tareas.length === 0 ? (
                 <div style={{ padding: '16px', textAlign: 'center' }}>
                   <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>¡Sin tareas pendientes! 🎉</p>
                 </div>
-              ) : tareas.slice(0, 6).map(t => {
+              ) : tareas.map(t => {
                 const dias = t.fecha_vencimiento ? diasHasta(t.fecha_vencimiento) : null
                 const vencida = dias != null && dias < 0
                 return (
@@ -394,14 +394,15 @@ export default function Dashboard() {
                   </div>
                 )
               })}
-              <form onSubmit={agregarTarea} style={{ display: 'flex', gap: '6px', padding: '10px 0 14px' }}>
-                <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea rápida..."
-                  style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', outline: 'none', background: 'white', color: '#1e293b' }} />
-                <button type="submit" style={{ padding: '7px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
-                  <Plus size={13} />
-                </button>
-              </form>
             </div>
+            {/* Quick-add pinned at bottom */}
+            <form onSubmit={agregarTarea} style={{ display: 'flex', gap: '6px', padding: '10px 16px 14px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
+              <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea rápida..."
+                style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', outline: 'none', background: 'white', color: '#1e293b' }} />
+              <button type="submit" style={{ padding: '7px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
+                <Plus size={13} />
+              </button>
+            </form>
           </div>
 
         </div>
