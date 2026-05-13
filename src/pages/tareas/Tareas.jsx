@@ -34,6 +34,14 @@ export default function Tareas() {
   const [asignadoA, setAsignadoA] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Poliza selector
+  const [polizaId, setPolizaId]           = useState(null)
+  const [polizaSelected, setPolizaSelected] = useState(null)   // { id, numero_poliza, cliente }
+  const [polizaSearch, setPolizaSearch]   = useState('')
+  const [polizaResults, setPolizaResults] = useState([])
+  const [polizaLoading, setPolizaLoading] = useState(false)
+  const [showPolizaDrop, setShowPolizaDrop] = useState(false)
+
   const isAdmin = currentUser?.rol === 'admin'
 
   /* ── Load current user + team ── */
@@ -104,6 +112,36 @@ export default function Tareas() {
     fetchTareas()
   }
 
+  const searchPolizas = async (q) => {
+    setPolizaSearch(q)
+    if (!q.trim()) { setPolizaResults([]); setShowPolizaDrop(false); return }
+    setPolizaLoading(true)
+    setShowPolizaDrop(true)
+    const { data } = await supabase
+      .from('polizas')
+      .select('id, numero_poliza, clientes(nombre, apellido)')
+      .ilike('numero_poliza', `%${q}%`)
+      .limit(8)
+    setPolizaResults(data || [])
+    setPolizaLoading(false)
+  }
+
+  const selectPoliza = (p) => {
+    setPolizaId(p.id)
+    setPolizaSelected(p)
+    setPolizaSearch('')
+    setPolizaResults([])
+    setShowPolizaDrop(false)
+  }
+
+  const clearPoliza = () => {
+    setPolizaId(null)
+    setPolizaSelected(null)
+    setPolizaSearch('')
+    setPolizaResults([])
+    setShowPolizaDrop(false)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
@@ -122,9 +160,11 @@ export default function Tareas() {
       asignado_a: asignadoA || user.id,
       created_by: user.id,
       empresa_id: myRow?.empresa_id || null,
+      poliza_id: polizaId || null,
     })
     toast.success('Tarea creada')
     setTitulo(''); setDesc(''); setFechaVenc(''); setAsignadoA(currentUser?.id || '')
+    clearPoliza()
     setShowForm(false)
     fetchTareas()
     setSubmitting(false)
@@ -200,6 +240,68 @@ export default function Tareas() {
                     <label style={lbl}>Fecha límite</label>
                     <input type='date' value={fechaVenc} onChange={e => setFechaVenc(e.target.value)} style={inp} />
                   </div>
+                </div>
+
+                {/* Poliza selector */}
+                <div style={{ position: 'relative' }}>
+                  <label style={lbl}>Póliza asociada <span style={{ color: '#94a3b8', fontWeight: 400 }}>(opcional)</span></label>
+
+                  {polizaSelected ? (
+                    /* Selected state */
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', border: '1.5px solid #C4A96B', borderRadius: '8px', background: '#FDF8EE' }}>
+                      <FileText size={14} color='#C4A96B' style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#111111', margin: 0 }}>
+                          Póliza {polizaSelected.numero_poliza}
+                        </p>
+                        {polizaSelected.clientes && (
+                          <p style={{ fontSize: '11px', color: '#6B6B62', margin: 0 }}>
+                            {polizaSelected.clientes.nombre} {polizaSelected.clientes.apellido || ''}
+                          </p>
+                        )}
+                      </div>
+                      <button type='button' onClick={clearPoliza}
+                        style={{ background: 'rgba(196,169,107,0.15)', border: 'none', borderRadius: '6px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                        <X size={12} color='#C4A96B' />
+                      </button>
+                    </div>
+                  ) : (
+                    /* Search input */
+                    <>
+                      <input
+                        value={polizaSearch}
+                        onChange={e => searchPolizas(e.target.value)}
+                        onFocus={() => polizaSearch && setShowPolizaDrop(true)}
+                        placeholder='Buscar por número de póliza...'
+                        style={inp}
+                        autoComplete='off'
+                      />
+                      {showPolizaDrop && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 50, overflow: 'hidden', maxHeight: '200px', overflowY: 'auto' }}>
+                          {polizaLoading ? (
+                            <p style={{ padding: '12px 14px', fontSize: '13px', color: '#94a3b8', margin: 0 }}>Buscando...</p>
+                          ) : polizaResults.length === 0 ? (
+                            <p style={{ padding: '12px 14px', fontSize: '13px', color: '#94a3b8', margin: 0 }}>Sin resultados</p>
+                          ) : polizaResults.map(p => (
+                            <button key={p.id} type='button' onClick={() => selectPoliza(p)}
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'none', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', textAlign: 'left' }}
+                              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                              <FileText size={13} color='#C4A96B' style={{ flexShrink: 0 }} />
+                              <div>
+                                <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0 }}>Póliza {p.numero_poliza}</p>
+                                {p.clientes && (
+                                  <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>
+                                    {p.clientes.nombre} {p.clientes.apellido || ''}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 
