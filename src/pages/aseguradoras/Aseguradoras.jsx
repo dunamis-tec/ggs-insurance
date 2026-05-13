@@ -449,16 +449,40 @@ function ProductosTab({ aseguradora, onRefresh }) {
    Coberturas section (inside product)
 ───────────────────────────────────────── */
 function CoberturasSection({ producto, onRefresh }) {
-  const [showForm, setShowForm] = useState(false)
-  const [nombre, setNombre]     = useState('')
+  const [showForm, setShowForm]   = useState(false)
+  const [nombre, setNombre]       = useState('')
+  const [monto, setMonto]         = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editMonto, setEditMonto]   = useState('')
 
   const activas = producto.coberturas?.filter(c => c.activa) || []
 
   const addCobertura = async (e) => {
     e.preventDefault()
-    await supabase.from('coberturas').insert({ producto_id: producto.id, nombre })
+    await supabase.from('coberturas').insert({
+      producto_id: producto.id,
+      nombre,
+      monto: monto !== '' ? parseFloat(monto) : null,
+    })
     toast.success('Cobertura agregada')
-    setNombre(''); setShowForm(false); onRefresh()
+    setNombre(''); setMonto(''); setShowForm(false); onRefresh()
+  }
+
+  const startEdit = (c) => {
+    setEditingId(c.id)
+    setEditNombre(c.nombre)
+    setEditMonto(c.monto != null ? String(c.monto) : '')
+  }
+
+  const saveEdit = async (e) => {
+    e.preventDefault()
+    await supabase.from('coberturas').update({
+      nombre: editNombre,
+      monto: editMonto !== '' ? parseFloat(editMonto) : null,
+    }).eq('id', editingId)
+    toast.success('Cobertura actualizada')
+    setEditingId(null); onRefresh()
   }
 
   const deleteCobertura = async (id) => {
@@ -466,39 +490,79 @@ function CoberturasSection({ producto, onRefresh }) {
     onRefresh()
   }
 
+  const inpStyle = { padding:'6px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', background:'white' }
+
   return (
-    <div style={{borderTop:'1px solid #f1f5f9',padding:'12px 16px',background:'#f8fafc'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
-        <span style={{fontSize:'12px',fontWeight:600,color:'#374151'}}>Coberturas</span>
-        <button onClick={()=>setShowForm(!showForm)}
-          style={{fontSize:'12px',padding:'3px 10px',background:'#C4A96B',color:'white',border:'none',borderRadius:'6px',cursor:'pointer'}}>
+    <div style={{borderTop:'1px solid #f1f5f9', padding:'12px 16px', background:'#f8fafc'}}>
+      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px'}}>
+        <span style={{fontSize:'12px', fontWeight:600, color:'#374151'}}>Coberturas</span>
+        <button onClick={()=>{ setShowForm(!showForm); setNombre(''); setMonto('') }}
+          style={{fontSize:'12px', padding:'3px 10px', background:'#C4A96B', color:'white', border:'none', borderRadius:'6px', cursor:'pointer'}}>
           + Cobertura
         </button>
       </div>
 
+      {/* ── Formulario nueva cobertura ── */}
       {showForm && (
-        <form onSubmit={addCobertura} style={{display:'flex',gap:'6px',marginBottom:'10px'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de cobertura" required autoFocus
-            style={{flex:1,padding:'7px 10px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',background:'white'}}/>
-          <button type="submit" style={{padding:'7px 12px',background:'#111111',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',fontSize:'12px'}}>
-            OK
+        <form onSubmit={addCobertura} style={{display:'grid', gridTemplateColumns:'1fr 120px auto auto', gap:'6px', marginBottom:'10px', alignItems:'center'}}>
+          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de cobertura" required autoFocus style={inpStyle}/>
+          <input value={monto} onChange={e=>setMonto(e.target.value)} placeholder="Monto (Q)" type="number" min="0" step="0.01"
+            style={inpStyle}/>
+          <button type="submit" style={{padding:'6px 12px', background:'#111111', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', fontSize:'12px', whiteSpace:'nowrap'}}>
+            Agregar
           </button>
-          <button type="button" onClick={()=>{setShowForm(false);setNombre('')}}
-            style={{padding:'7px',background:'white',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer',display:'flex',alignItems:'center'}}>
+          <button type="button" onClick={()=>{setShowForm(false); setNombre(''); setMonto('')}}
+            style={{padding:'6px', background:'white', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center'}}>
             <X size={12} color="#64748b"/>
           </button>
         </form>
       )}
 
-      <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-        {activas.length === 0 && <span style={{fontSize:'12px',color:'#94a3b8'}}>Sin coberturas</span>}
+      {/* ── Lista de coberturas ── */}
+      <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+        {activas.length === 0 && !showForm && (
+          <span style={{fontSize:'12px', color:'#94a3b8'}}>Sin coberturas</span>
+        )}
         {activas.map(c => (
-          <span key={c.id} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#dbeafe',color:'#1d4ed8',borderRadius:'20px',fontSize:'12px',border:'1px solid #bfdbfe'}}>
-            {c.nombre}
-            <button onClick={()=>deleteCobertura(c.id)} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex',lineHeight:1}}>
-              <X size={10} color="#1d4ed8"/>
-            </button>
-          </span>
+          <div key={c.id}>
+            {editingId === c.id ? (
+              /* ── Modo edición inline ── */
+              <form onSubmit={saveEdit} style={{display:'grid', gridTemplateColumns:'1fr 120px auto auto', gap:'6px', alignItems:'center'}}>
+                <input value={editNombre} onChange={e=>setEditNombre(e.target.value)} required autoFocus style={inpStyle}/>
+                <input value={editMonto} onChange={e=>setEditMonto(e.target.value)} placeholder="Monto (Q)" type="number" min="0" step="0.01"
+                  style={inpStyle}/>
+                <button type="submit" style={{padding:'6px 12px', background:'#111111', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', fontSize:'12px'}}>
+                  Guardar
+                </button>
+                <button type="button" onClick={()=>setEditingId(null)}
+                  style={{padding:'6px', background:'white', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center'}}>
+                  <X size={12} color="#64748b"/>
+                </button>
+              </form>
+            ) : (
+              /* ── Vista normal ── */
+              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 12px', background:'white', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'10px', minWidth:0}}>
+                  <span style={{fontSize:'13px', color:'#374151', fontWeight:500}}>{c.nombre}</span>
+                  {c.monto != null && (
+                    <span style={{fontSize:'12px', fontWeight:600, color:'#C4A96B', whiteSpace:'nowrap'}}>
+                      Q {parseFloat(c.monto).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                    </span>
+                  )}
+                </div>
+                <div style={{display:'flex', gap:'4px', flexShrink:0}}>
+                  <button onClick={()=>startEdit(c)}
+                    style={{padding:'4px', background:'#f1f5f9', border:'none', borderRadius:'5px', cursor:'pointer', display:'flex', alignItems:'center'}}>
+                    <Edit2 size={11} color="#64748b"/>
+                  </button>
+                  <button onClick={()=>deleteCobertura(c.id)}
+                    style={{padding:'4px', background:'#fef2f2', border:'none', borderRadius:'5px', cursor:'pointer', display:'flex', alignItems:'center'}}>
+                    <Trash2 size={11} color="#ef4444"/>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </div>
