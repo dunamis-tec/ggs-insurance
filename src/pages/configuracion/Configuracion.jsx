@@ -202,15 +202,35 @@ function TabEmpresa({ isAdmin }) {
   )
 }
 
+/* ─── MODAL BASE ───────────────────────────────────────────────── */
+function Modal({ title, onClose, children }) {
+  return (
+    <div onClick={onClose} style={{
+      position:'fixed', inset:0, background:'rgba(0,0,0,0.45)',
+      zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background:'white', borderRadius:'16px', width:'100%', maxWidth:'460px',
+        boxShadow:'0 20px 60px rgba(0,0,0,0.25)', overflow:'hidden',
+      }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 20px', borderBottom:'1px solid #f1f5f9' }}>
+          <h3 style={{ fontSize:'16px', fontWeight:700, color:'#111111', margin:0 }}>{title}</h3>
+          <button onClick={onClose} style={{ background:'#f1f5f9', border:'none', borderRadius:'8px', width:'30px', height:'30px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+            <X size={14} color='#64748b' />
+          </button>
+        </div>
+        <div style={{ padding:'20px' }}>{children}</div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── TAB USUARIOS ─────────────────────────────────────────────── */
 function TabUsuarios({ isAdmin, currentUser }) {
-  const [usuarios, setUsuarios]   = useState([])
-  const [loading, setLoading]     = useState(true)
+  const [usuarios, setUsuarios]     = useState([])
+  const [loading, setLoading]       = useState(true)
   const [showInvite, setShowInvite] = useState(false)
-  const [inviteEmail, setInviteEmail]   = useState('')
-  const [inviteNombre, setInviteNombre] = useState('')
-  const [inviteRol, setInviteRol]       = useState('agente')
-  const [inviting, setInviting]         = useState(false)
+  const [editUser, setEditUser]     = useState(null)   // user object being edited
 
   useEffect(() => { fetchUsuarios() }, [])
 
@@ -221,12 +241,116 @@ function TabUsuarios({ isAdmin, currentUser }) {
     setLoading(false)
   }
 
-  const handleInvite = async (e) => {
-    e.preventDefault()
-    setInviting(true)
-    const empresa_id = await getMyEmpresaId()
-    if (!empresa_id) { toast.error('No se pudo obtener empresa'); setInviting(false); return }
+  const rolLabel = (rol) => rol === 'admin' ? 'Admin' : 'Agente'
+  const rolColors = (rol) => rol === 'admin'
+    ? { background:'#FDF8EE', color:'#C4A96B' }
+    : { background:'#f1f5f9', color:'#64748b' }
 
+  return (
+    <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #f1f5f9', flexWrap:'wrap', gap:'10px' }}>
+        <div>
+          <h2 style={{ fontSize:'16px', fontWeight:700, color:'#111111' }}>Usuarios del sistema</h2>
+          <p style={{ fontSize:'12px', color:'#64748b', marginTop:'2px' }}>{usuarios.length} usuarios registrados</p>
+        </div>
+        {isAdmin && (
+          <button onClick={() => setShowInvite(true)}
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+            <Plus size={14} /> Invitar usuario
+          </button>
+        )}
+      </div>
+
+      {/* User list */}
+      {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
+        usuarios.map((u, i) => {
+          const isMe = u.id === currentUser?.id
+          const inactivo = u.activo === false
+          return (
+            <div key={u.id}
+              onClick={() => isAdmin && !isMe && setEditUser(u)}
+              style={{
+                display:'flex', alignItems:'center', padding:'14px 20px',
+                borderBottom: i < usuarios.length - 1 ? '1px solid #f1f5f9' : 'none',
+                opacity: inactivo ? 0.5 : 1,
+                cursor: isAdmin && !isMe ? 'pointer' : 'default',
+                transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { if (isAdmin && !isMe) e.currentTarget.style.background = '#f8fafc' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              {/* Avatar */}
+              <div style={{ width:'38px', height:'38px', borderRadius:'50%', background: rolColors(u.rol).background, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                <User size={16} color={rolColors(u.rol).color} />
+              </div>
+
+              {/* Info */}
+              <div style={{ flex:1, minWidth:0 }}>
+                <p style={{ fontWeight:600, color:'#111111', fontSize:'14px', margin:0 }}>
+                  {u.nombre || 'Sin nombre'}
+                  {isMe && <span style={{ fontSize:'11px', color:'#94a3b8', fontWeight:400, marginLeft:'6px' }}>(vos)</span>}
+                  {inactivo && <span style={{ fontSize:'11px', color:'#ef4444', fontWeight:500, marginLeft:'6px' }}>· Desactivado</span>}
+                </p>
+                <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{u.email}</p>
+              </div>
+
+              {/* Role badge + edit hint */}
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
+                <span style={{ fontSize:'12px', padding:'4px 10px', borderRadius:'20px', fontWeight:600, ...rolColors(u.rol) }}>
+                  {rolLabel(u.rol)}
+                </span>
+                {isAdmin && !isMe && (
+                  <div style={{ width:'28px', height:'28px', borderRadius:'6px', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <Edit2 size={12} color='#94a3b8' />
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })
+      }
+
+      {!isAdmin && (
+        <div style={{ padding:'12px 20px', background:'#fef9c3', display:'flex', alignItems:'center', gap:'8px' }}>
+          <Shield size={14} color='#a16207' />
+          <p style={{ fontSize:'12px', color:'#a16207' }}>Solo los administradores pueden gestionar usuarios</p>
+        </div>
+      )}
+
+      {/* Invite modal */}
+      {showInvite && (
+        <InviteModal onClose={() => setShowInvite(false)} onSuccess={() => { setShowInvite(false); fetchUsuarios() }} />
+      )}
+
+      {/* Edit modal */}
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSuccess={() => { setEditUser(null); fetchUsuarios() }}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ─── INVITE MODAL ─────────────────────────────────────────────── */
+function InviteModal({ onClose, onSuccess }) {
+  const [nombre, setNombre] = useState('')
+  const [email, setEmail]   = useState('')
+  const [rol, setRol]       = useState('agente')
+  const [loading, setLoading] = useState(false)
+
+  const inp = { width:'100%', padding:'10px 12px', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box', outline:'none' }
+  const lbl = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'5px' }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    const empresa_id = await getMyEmpresaId()
+    if (!empresa_id) { toast.error('No se pudo obtener empresa'); setLoading(false); return }
     const { data: { session } } = await supabase.auth.getSession()
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
@@ -237,123 +361,123 @@ function TabUsuarios({ isAdmin, currentUser }) {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ email: inviteEmail, nombre: inviteNombre, rol: inviteRol, empresa_id })
+        body: JSON.stringify({ email, nombre, rol, empresa_id }),
       }
     )
     const json = await res.json()
-    if (!res.ok || json.error) {
-      toast.error('Error al invitar: ' + (json.error || 'Error desconocido'))
-      setInviting(false); return
-    }
-    toast.success('Invitación enviada a ' + inviteEmail)
-    setInviteEmail(''); setInviteNombre(''); setInviteRol('agente')
-    setShowInvite(false); setInviting(false)
-    fetchUsuarios()
+    if (!res.ok || json.error) { toast.error('Error: ' + (json.error || 'Error desconocido')); setLoading(false); return }
+    toast.success('Invitación enviada a ' + email)
+    onSuccess()
   }
-
-  const cambiarRol = async (userId, nuevoRol) => {
-    if (userId === currentUser?.id) { toast.error('No podés cambiar tu propio rol'); return }
-    await supabase.from('users').update({ rol: nuevoRol }).eq('id', userId)
-    toast.success('Rol actualizado')
-    fetchUsuarios()
-  }
-
-  const toggleActivo = async (userId, activo) => {
-    if (userId === currentUser?.id) { toast.error('No podés desactivarte a vos mismo'); return }
-    await supabase.from('users').update({ activo: !activo }).eq('id', userId)
-    toast.success(!activo ? 'Usuario activado' : 'Usuario desactivado')
-    fetchUsuarios()
-  }
-
-  const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
 
   return (
-    <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #f1f5f9', flexWrap:'wrap', gap:'10px' }}>
-        <div>
-          <h2 style={{ fontSize:'16px', fontWeight:700, color:'#111111' }}>Usuarios del sistema</h2>
-          <p style={{ fontSize:'12px', color:'#64748b', marginTop:'2px' }}>{usuarios.length} usuarios registrados</p>
+    <Modal title='Invitar usuario' onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <div style={{ display:'flex', flexDirection:'column', gap:'14px', marginBottom:'20px' }}>
+          <div>
+            <label style={lbl}>Nombre completo</label>
+            <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder='Ej. María García' style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>Correo electrónico *</label>
+            <input type='email' value={email} onChange={e => setEmail(e.target.value)} required placeholder='correo@ejemplo.com' style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>Rol</label>
+            <select value={rol} onChange={e => setRol(e.target.value)} style={inp}>
+              <option value='agente'>Agente</option>
+              <option value='admin'>Administrador</option>
+            </select>
+          </div>
         </div>
-        {isAdmin && (
-          <button onClick={() => setShowInvite(!showInvite)}
-            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-            <Plus size={14} /> Invitar usuario
+        <div style={{ display:'flex', gap:'8px' }}>
+          <button type='submit' disabled={loading}
+            style={{ flex:1, padding:'11px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+            {loading ? 'Enviando...' : 'Enviar invitación'}
           </button>
-        )}
+          <button type='button' onClick={onClose}
+            style={{ padding:'11px 18px', background:'white', color:'#64748b', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', cursor:'pointer' }}>
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+/* ─── EDIT USER MODAL ──────────────────────────────────────────── */
+function EditUserModal({ user, onClose, onSuccess }) {
+  const [nombre, setNombre]   = useState(user.nombre || '')
+  const [email, setEmail]     = useState(user.email || '')
+  const [rol, setRol]         = useState(user.rol || 'agente')
+  const [activo, setActivo]   = useState(user.activo !== false)
+  const [loading, setLoading] = useState(false)
+
+  const inp = { width:'100%', padding:'10px 12px', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box', outline:'none' }
+  const lbl = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'5px' }
+
+  const handleSave = async () => {
+    setLoading(true)
+    const { error } = await supabase.from('users')
+      .update({ nombre, email, rol, activo })
+      .eq('id', user.id)
+    if (error) { toast.error('Error al guardar'); setLoading(false); return }
+    toast.success('Usuario actualizado')
+    onSuccess()
+  }
+
+  return (
+    <Modal title='Editar usuario' onClose={onClose}>
+      <div style={{ display:'flex', flexDirection:'column', gap:'14px', marginBottom:'20px' }}>
+        <div>
+          <label style={lbl}>Nombre completo</label>
+          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder='Nombre completo' style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Correo electrónico</label>
+          <input type='email' value={email} onChange={e => setEmail(e.target.value)} style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Rol</label>
+          <select value={rol} onChange={e => setRol(e.target.value)} style={inp}>
+            <option value='agente'>Agente</option>
+            <option value='admin'>Administrador</option>
+          </select>
+        </div>
+
+        {/* Active toggle */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', background:'#f8fafc', borderRadius:'10px', border:'1.5px solid #e2e8f0' }}>
+          <div>
+            <p style={{ fontSize:'14px', fontWeight:600, color:'#111111', margin:0 }}>Estado de la cuenta</p>
+            <p style={{ fontSize:'12px', color:'#64748b', margin:'2px 0 0' }}>{activo ? 'El usuario puede iniciar sesión' : 'El usuario no puede iniciar sesión'}</p>
+          </div>
+          <button type='button' onClick={() => setActivo(a => !a)}
+            style={{
+              width:'44px', height:'24px', borderRadius:'12px', border:'none', cursor:'pointer', flexShrink:0,
+              background: activo ? '#C4A96B' : '#e2e8f0',
+              position:'relative', transition:'background 0.2s',
+            }}>
+            <span style={{
+              position:'absolute', top:'2px', width:'20px', height:'20px',
+              background:'white', borderRadius:'50%', transition:'left 0.2s',
+              left: activo ? '22px' : '2px',
+              boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
+            }} />
+          </button>
+        </div>
       </div>
 
-      {showInvite && (
-        <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
-          <p style={{ fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'12px' }}>Invitar nuevo usuario</p>
-          <form onSubmit={handleInvite}>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:'12px', marginBottom:'12px' }}>
-              <div>
-                <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Nombre</label>
-                <input value={inviteNombre} onChange={e => setInviteNombre(e.target.value)} placeholder='Nombre completo' style={inp} />
-              </div>
-              <div>
-                <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Email *</label>
-                <input type='email' value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required placeholder='correo@ejemplo.com' style={inp} />
-              </div>
-              <div>
-                <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Rol</label>
-                <select value={inviteRol} onChange={e => setInviteRol(e.target.value)} style={inp}>
-                  <option value='agente'>Agente</option>
-                  <option value='admin'>Administrador</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:'8px' }}>
-              <button type='submit' disabled={inviting}
-                style={{ padding:'8px 18px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-                {inviting ? 'Enviando...' : 'Enviar invitación'}
-              </button>
-              <button type='button' onClick={() => setShowInvite(false)}
-                style={{ padding:'8px 14px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>Cancelar</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
-        usuarios.map((u, i) => (
-          <div key={u.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom:i<usuarios.length-1?'1px solid #f1f5f9':'none', opacity:u.activo===false?0.5:1, flexWrap:'wrap', gap:'10px' }}>
-            <div style={{ width:'38px', height:'38px', borderRadius:'50%', background:u.rol==='admin'?'#fef3c7':'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'4px', flexShrink:0 }}>
-              <User size={16} color={u.rol==='admin'?'#d97706':'#C4A96B'} />
-            </div>
-            <div style={{ flex:1, minWidth:'120px' }}>
-              <p style={{ fontWeight:600, color:'#111111', fontSize:'14px', margin:0 }}>{u.nombre || 'Sin nombre'} {u.id===currentUser?.id?<span style={{ fontSize:'11px', color:'#64748b', fontWeight:400 }}>(vos)</span>:''}</p>
-              <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{u.email}</p>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
-              {isAdmin && u.id !== currentUser?.id ? (
-                <select value={u.rol||'agente'} onChange={e => cambiarRol(u.id, e.target.value)}
-                  style={{ padding:'5px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'12px', background:'white', color:'#374151', cursor:'pointer' }}>
-                  <option value='agente'>Agente</option>
-                  <option value='admin'>Admin</option>
-                </select>
-              ) : (
-                <span style={{ fontSize:'12px', padding:'4px 10px', borderRadius:'20px', background:u.rol==='admin'?'#fef3c7':'#dbeafe', color:u.rol==='admin'?'#d97706':'#1d4ed8', fontWeight:500 }}>
-                  {u.rol==='admin'?'Admin':'Agente'}
-                </span>
-              )}
-              {isAdmin && u.id !== currentUser?.id && (
-                <button onClick={() => toggleActivo(u.id, u.activo!==false)}
-                  style={{ padding:'5px 10px', background:u.activo===false?'#dcfce7':'#fef2f2', color:u.activo===false?'#15803d':'#ef4444', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer', fontWeight:500 }}>
-                  {u.activo===false?'Activar':'Desactivar'}
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-
-      {!isAdmin && (
-        <div style={{ padding:'12px 20px', background:'#fef9c3', display:'flex', alignItems:'center', gap:'8px' }}>
-          <Shield size={14} color='#a16207' />
-          <p style={{ fontSize:'12px', color:'#a16207' }}>Solo los administradores pueden gestionar usuarios</p>
-        </div>
-      )}
-    </div>
+      <div style={{ display:'flex', gap:'8px' }}>
+        <button onClick={handleSave} disabled={loading}
+          style={{ flex:1, padding:'11px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+          {loading ? 'Guardando...' : 'Guardar cambios'}
+        </button>
+        <button onClick={onClose}
+          style={{ padding:'11px 18px', background:'white', color:'#64748b', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', cursor:'pointer' }}>
+          Cancelar
+        </button>
+      </div>
+    </Modal>
   )
 }
 
