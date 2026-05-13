@@ -869,6 +869,9 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [showCambiarEstadoModal, setShowCambiarEstadoModal] = useState(false)
   const [estadoOpcion, setEstadoOpcion] = useState(null)   // 'enviar' | 'emitir' | 'reproceso' | 'reenviar'
   const [showNuevaGestionModal, setShowNuevaGestionModal] = useState(false)
+  const [tareaModal, setTareaModal]           = useState(null)   // tarea being viewed/edited
+  const [showNuevaTareaModal, setShowNuevaTareaModal] = useState(false)
+  const [usuariosPoliza, setUsuariosPoliza]   = useState([])
   const [tipoGestion, setTipoGestion] = useState(null)    // 'renovacion' | 'inclusion' | 'exclusion'
   const [emitirForm, setEmitirForm]   = useState({ numero_poliza:'' })
   const [emitirPdfFile, setEmitirPdfFile] = useState(null)
@@ -899,18 +902,20 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const fetchData = async () => {
     setLoading(true)
     const [{ data: emisionesData }, { data: reqsData }, { data: tareasData }, { data: vDisp },
-           { data: bitacoraData }, { data: svData }, { data: allVData }] = await Promise.all([
+           { data: bitacoraData }, { data: svData }, { data: allVData }, { data: usuariosData }] = await Promise.all([
       supabase.from('emisiones').select('*, emision_vehiculos(id, vehiculos(*)), personas_facturables:persona_facturable_id(id,nombre,apellido,nit,direccion)').eq('poliza_id', poliza.id).order('created_at'),
       supabase.from('requerimientos_pago').select('*, emisiones(numero_emision,tipo)').eq('poliza_id', poliza.id).order('fecha_vencimiento'),
-      supabase.from('tareas').select('*').eq('poliza_id', poliza.id).eq('estado', 'pendiente'),
+      supabase.from('tareas').select('*, asignado_user:users!asignado_a(id, nombre)').eq('poliza_id', poliza.id).order('estado').order('fecha_vencimiento', { ascending: true, nullsFirst: false }),
       supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true).is('poliza_id', null),
       supabase.from('bitacora_polizas').select('*').eq('poliza_id', poliza.id).order('created_at'),
       supabase.from('solicitud_vehiculos').select('*, vehiculos(*)').eq('poliza_id', poliza.id),
       supabase.from('vehiculos').select('*').eq('cliente_id', poliza.cliente_id).eq('activo', true),
+      supabase.from('users').select('id, nombre, email').eq('activo', true).order('nombre'),
     ])
     setEmisiones(emisionesData || [])
     setReqs(reqsData || [])
     setTareas(tareasData || [])
+    setUsuariosPoliza(usuariosData || [])
     setVehiculosDisponibles(vDisp || [])
     setBitacora(bitacoraData || [])
     setSolicitudVehiculos(svData || [])
@@ -2641,18 +2646,71 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       {/* ─ TAB: Tareas ─ */}
       {activeTab === 'tareas' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-          <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9'}}>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Tareas pendientes</h3>
-          </div>
-          {tareas.length===0 ? <p style={{padding:'24px',color:'#94a3b8',textAlign:'center'}}>Sin tareas pendientes</p> :
-           tareas.map((t,i)=>(
-            <div key={t.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 20px',borderBottom:i<tareas.length-1?'1px solid #f1f5f9':'none'}}>
-              <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:t.tipo==='automatica'?'#dbeafe':'#f0fdf4',color:t.tipo==='automatica'?'#1d4ed8':'#15803d',flexShrink:0}}>{t.tipo}</span>
-              <p style={{flex:1,fontSize:'13px',color:'#1e293b',margin:0}}>{t.titulo}</p>
-              {t.fecha_vencimiento && <p style={{fontSize:'12px',color:new Date(t.fecha_vencimiento)<new Date()?'#ef4444':'#64748b',flexShrink:0,margin:0}}>{new Date(t.fecha_vencimiento).toLocaleDateString('es-GT')}</p>}
+          {/* Header */}
+          <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px'}}>
+            <div>
+              <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Tareas</h3>
+              <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>{tareas.filter(t=>t.estado==='pendiente').length} pendientes · {tareas.length} total</p>
             </div>
-          ))}
+            <button onClick={()=>setShowNuevaTareaModal(true)}
+              style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
+              + Nueva tarea
+            </button>
+          </div>
+
+          {/* List */}
+          {tareas.length===0
+            ? <p style={{padding:'32px',color:'#94a3b8',textAlign:'center',fontSize:'14px'}}>Sin tareas — creá la primera</p>
+            : tareas.map((t,i)=>{
+                const vencida = t.estado==='pendiente' && t.fecha_vencimiento && new Date(t.fecha_vencimiento+'T12:00:00') < new Date()
+                return (
+                  <div key={t.id} onClick={()=>setTareaModal(t)}
+                    style={{display:'flex',alignItems:'center',gap:'12px',padding:'13px 20px',borderBottom:i<tareas.length-1?'1px solid #f1f5f9':'none',cursor:'pointer',opacity:t.estado==='completada'?0.6:1,background:vencida?'#fff8f8':'white',transition:'background 0.12s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background=vencida?'#fff0f0':'#f8fafc'}
+                    onMouseLeave={e=>e.currentTarget.style.background=vencida?'#fff8f8':'white'}>
+                    {/* Estado indicator */}
+                    <div style={{width:'20px',height:'20px',borderRadius:'5px',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:t.estado==='completada'?'#22c55e':'white',border:'2px solid '+(t.estado==='completada'?'#22c55e':vencida?'#ef4444':'#e2e8f0')}}>
+                      {t.estado==='completada' && <span style={{color:'white',fontSize:'11px',fontWeight:700}}>✓</span>}
+                    </div>
+                    {/* Info */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{fontSize:'13px',fontWeight:600,color:'#111111',margin:0,textDecoration:t.estado==='completada'?'line-through':'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                        {t.titulo}
+                      </p>
+                      <div style={{display:'flex',gap:'8px',alignItems:'center',marginTop:'3px',flexWrap:'wrap'}}>
+                        {t.asignado_user && <span style={{fontSize:'11px',color:'#64748b'}}>👤 {t.asignado_user.nombre||'Sin nombre'}</span>}
+                        {t.fecha_vencimiento && <span style={{fontSize:'11px',color:vencida?'#ef4444':'#64748b',fontWeight:vencida?600:400}}>📅 {new Date(t.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'})}{vencida?' · Vencida':''}</span>}
+                      </div>
+                    </div>
+                    {/* Type badge */}
+                    <span style={{fontSize:'10px',padding:'2px 7px',borderRadius:'20px',background:t.tipo==='automatica'?'#dbeafe':'#f0fdf4',color:t.tipo==='automatica'?'#1d4ed8':'#15803d',flexShrink:0}}>
+                      {t.tipo==='automatica'?'Auto':'Manual'}
+                    </span>
+                  </div>
+                )
+              })
+          }
         </div>
+      )}
+
+      {/* ── Tarea detail / edit modal ── */}
+      {tareaModal && (
+        <TareaDetailModal
+          tarea={tareaModal}
+          usuarios={usuariosPoliza}
+          onClose={()=>setTareaModal(null)}
+          onSaved={()=>{ setTareaModal(null); fetchData() }}
+        />
+      )}
+
+      {/* ── Nueva tarea en póliza modal ── */}
+      {showNuevaTareaModal && (
+        <NuevaTareaPolizaModal
+          polizaId={poliza.id}
+          usuarios={usuariosPoliza}
+          onClose={()=>setShowNuevaTareaModal(false)}
+          onSaved={()=>{ setShowNuevaTareaModal(false); fetchData() }}
+        />
       )}
 
       {/* ─ Modal: Nueva gestión ─ */}
@@ -3451,6 +3509,208 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/* ─── Tarea detail / edit modal ──────────────────────────────────── */
+function TareaDetailModal({ tarea, usuarios, onClose, onSaved }) {
+  const [titulo, setTitulo]       = useState(tarea.titulo || '')
+  const [descripcion, setDesc]    = useState(tarea.descripcion || '')
+  const [fechaVenc, setFechaVenc] = useState(tarea.fecha_vencimiento || '')
+  const [asignadoA, setAsignadoA] = useState(tarea.asignado_a || '')
+  const [saving, setSaving]       = useState(false)
+
+  const inp = {width:'100%',padding:'10px 12px',border:'1.5px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box',outline:'none'}
+  const lbl = {display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}
+
+  const handleSave = async () => {
+    setSaving(true)
+    await supabase.from('tareas').update({ titulo, descripcion:descripcion||null, fecha_vencimiento:fechaVenc||null, asignado_a:asignadoA||null }).eq('id', tarea.id)
+    toast.success('Tarea actualizada')
+    onSaved()
+  }
+
+  const handleToggleEstado = async () => {
+    const nuevoEstado = tarea.estado === 'pendiente' ? 'completada' : 'pendiente'
+    await supabase.from('tareas').update({ estado: nuevoEstado, fecha_completada: nuevoEstado==='completada' ? new Date().toISOString() : null }).eq('id', tarea.id)
+    toast.success(nuevoEstado==='completada' ? 'Tarea completada ✓' : 'Tarea reabierta')
+    onSaved()
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('¿Eliminar esta tarea?')) return
+    await supabase.from('tareas').delete().eq('id', tarea.id)
+    toast.success('Tarea eliminada')
+    onSaved()
+  }
+
+  const vencida = tarea.estado==='pendiente' && tarea.fecha_vencimiento && new Date(tarea.fecha_vencimiento+'T12:00:00') < new Date()
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'white',borderRadius:'16px',width:'100%',maxWidth:'480px',boxShadow:'0 20px 60px rgba(0,0,0,0.25)',overflow:'hidden'}}>
+
+        {/* Header */}
+        <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+            <div style={{width:'22px',height:'22px',borderRadius:'6px',border:'2px solid '+(tarea.estado==='completada'?'#22c55e':vencida?'#ef4444':'#e2e8f0'),background:tarea.estado==='completada'?'#22c55e':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              {tarea.estado==='completada' && <Check size={12} color='white' />}
+            </div>
+            <h3 style={{fontSize:'16px',fontWeight:700,color:'#111111',margin:0}}>
+              {tarea.estado==='completada' ? 'Tarea completada' : vencida ? '⚠️ Tarea vencida' : 'Detalle de tarea'}
+            </h3>
+          </div>
+          <button onClick={onClose} style={{background:'#f1f5f9',border:'none',borderRadius:'8px',width:'30px',height:'30px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <X size={14} color='#64748b' />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:'14px'}}>
+          <div>
+            <label style={lbl}>Título</label>
+            <input value={titulo} onChange={e=>setTitulo(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>Descripción</label>
+            <textarea value={descripcion} onChange={e=>setDesc(e.target.value)} rows={3} placeholder='Sin descripción...'
+              style={{...inp,resize:'vertical',minHeight:'72px',fontFamily:'inherit'}} />
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+            <div>
+              <label style={lbl}>Asignado a</label>
+              <select value={asignadoA} onChange={e=>setAsignadoA(e.target.value)} style={inp}>
+                <option value=''>Sin asignar</option>
+                {usuarios.map(u=>(
+                  <option key={u.id} value={u.id}>{u.nombre||u.email}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>Fecha límite</label>
+              <input type='date' value={fechaVenc} onChange={e=>setFechaVenc(e.target.value)} style={inp} />
+            </div>
+          </div>
+
+          {/* Metadata */}
+          <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+            <span style={{fontSize:'11px',padding:'3px 9px',borderRadius:'20px',background:tarea.tipo==='automatica'?'#dbeafe':'#f0fdf4',color:tarea.tipo==='automatica'?'#1d4ed8':'#15803d'}}>
+              {tarea.tipo==='automatica'?'Automática':'Manual'}
+            </span>
+            <span style={{fontSize:'11px',padding:'3px 9px',borderRadius:'20px',background:tarea.estado==='completada'?'#dcfce7':'vencida'?'#fef2f2':'#f1f5f9',color:tarea.estado==='completada'?'#15803d':vencida?'#ef4444':'#64748b'}}>
+              {tarea.estado==='completada'?'Completada':vencida?'Vencida':'Pendiente'}
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{padding:'14px 20px',borderTop:'1px solid #f1f5f9',display:'flex',gap:'8px',justifyContent:'space-between'}}>
+          <button onClick={handleDelete}
+            style={{padding:'9px 14px',background:'#fef2f2',color:'#ef4444',border:'1px solid #fecaca',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500}}>
+            Eliminar
+          </button>
+          <div style={{display:'flex',gap:'8px'}}>
+            <button onClick={handleToggleEstado}
+              style={{padding:'9px 14px',background:tarea.estado==='completada'?'#f1f5f9':'#dcfce7',color:tarea.estado==='completada'?'#64748b':'#15803d',border:'none',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
+              {tarea.estado==='completada'?'Reabrir':'✓ Completar'}
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              style={{padding:'9px 18px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+              {saving?'Guardando...':'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Nueva tarea en póliza modal ────────────────────────────────── */
+function NuevaTareaPolizaModal({ polizaId, usuarios, onClose, onSaved }) {
+  const [titulo, setTitulo]       = useState('')
+  const [descripcion, setDesc]    = useState('')
+  const [fechaVenc, setFechaVenc] = useState('')
+  const [asignadoA, setAsignadoA] = useState('')
+  const [saving, setSaving]       = useState(false)
+
+  useEffect(() => {
+    // Default to current user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setAsignadoA(user.id)
+    })
+  }, [])
+
+  const inp = {width:'100%',padding:'10px 12px',border:'1.5px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box',outline:'none'}
+  const lbl = {display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: myRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
+    await supabase.from('tareas').insert({
+      titulo, descripcion:descripcion||null, tipo:'manual', estado:'pendiente',
+      fecha_vencimiento:fechaVenc||null,
+      asignado_a:asignadoA||user.id,
+      created_by:user.id,
+      poliza_id:polizaId,
+      empresa_id:myRow?.empresa_id||null,
+    })
+    toast.success('Tarea creada')
+    onSaved()
+  }
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'white',borderRadius:'16px',width:'100%',maxWidth:'460px',boxShadow:'0 20px 60px rgba(0,0,0,0.25)',overflow:'hidden'}}>
+
+        <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <h3 style={{fontSize:'16px',fontWeight:700,color:'#111111',margin:0}}>Nueva tarea</h3>
+          <button onClick={onClose} style={{background:'#f1f5f9',border:'none',borderRadius:'8px',width:'30px',height:'30px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <X size={14} color='#64748b' />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:'14px'}}>
+            <div>
+              <label style={lbl}>Título *</label>
+              <input value={titulo} onChange={e=>setTitulo(e.target.value)} required placeholder='Ej: Llamar al cliente para renovación' style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Descripción</label>
+              <textarea value={descripcion} onChange={e=>setDesc(e.target.value)} rows={3} placeholder='Detalles adicionales...'
+                style={{...inp,resize:'vertical',minHeight:'72px',fontFamily:'inherit'}} />
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+              <div>
+                <label style={lbl}>Asignado a</label>
+                <select value={asignadoA} onChange={e=>setAsignadoA(e.target.value)} style={inp}>
+                  <option value=''>Sin asignar</option>
+                  {usuarios.map(u=>(
+                    <option key={u.id} value={u.id}>{u.nombre||u.email}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Fecha límite</label>
+                <input type='date' value={fechaVenc} onChange={e=>setFechaVenc(e.target.value)} style={inp} />
+              </div>
+            </div>
+          </div>
+          <div style={{padding:'14px 20px',borderTop:'1px solid #f1f5f9',display:'flex',gap:'8px'}}>
+            <button type='submit' disabled={saving}
+              style={{flex:1,padding:'11px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+              {saving?'Creando...':'Crear tarea'}
+            </button>
+            <button type='button' onClick={onClose}
+              style={{padding:'11px 18px',background:'white',color:'#64748b',border:'1.5px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
