@@ -168,16 +168,68 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message === 'Invalid login credentials'
-      ? 'Correo o contraseña incorrectos'
-      : error.message)
+
+    // Step 1: Supabase auth
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) {
+      setError(authError.message === 'Invalid login credentials'
+        ? 'Correo o contraseña incorrectos'
+        : authError.message)
+      setLoading(false)
+      return
+    }
+
+    // Step 2: Verify user exists in our users table and is active
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('activo, active')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (!userRow) {
+      // Auth succeeded but no users row — not provisioned
+      await supabase.auth.signOut()
+      setError('No tenés acceso al sistema. Contactá al administrador.')
+      setLoading(false)
+      return
+    }
+
+    if (userRow.activo === false || userRow.active === false) {
+      // Account deactivated
+      await supabase.auth.signOut()
+      setError('Tu cuenta está desactivada. Contactá al administrador.')
+      setLoading(false)
+      return
+    }
+
+    // All good — App.jsx will pick up the session and redirect
     setLoading(false)
   }
 
   const handleForgot = async (e) => {
     e.preventDefault()
     setLoading(true); setError('')
+
+    // Verify email exists in our users table before sending reset
+    // (Supabase never errors for unknown emails by design, so we check ourselves)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, activo, active')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (!userRow) {
+      setError('No existe una cuenta registrada con ese correo.')
+      setLoading(false)
+      return
+    }
+
+    if (userRow.activo === false || userRow.active === false) {
+      setError('Tu cuenta está desactivada. Contactá al administrador.')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
