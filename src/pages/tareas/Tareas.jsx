@@ -34,6 +34,9 @@ export default function Tareas() {
   const [asignadoA, setAsignadoA] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Detail modal
+  const [tareaModal, setTareaModal] = useState(null)
+
   // Poliza selector
   const [polizaId, setPolizaId]           = useState(null)
   const [polizaSelected, setPolizaSelected] = useState(null)   // { id, numero_poliza, cliente }
@@ -372,15 +375,22 @@ export default function Tareas() {
           const esPropia = asignado?.id === currentUser?.id
 
           return (
-            <div key={t.id} style={{
-              display: 'flex', alignItems: 'flex-start', padding: '14px 20px',
-              borderBottom: i < tareas.length - 1 ? '1px solid #f1f5f9' : 'none',
-              background: vencida ? '#fff8f8' : 'white',
-              opacity: t.estado === 'completada' ? 0.65 : 1,
-            }}>
+            <div key={t.id}
+              onClick={() => setTareaModal(t)}
+              style={{
+                display: 'flex', alignItems: 'flex-start', padding: '14px 20px',
+                borderBottom: i < tareas.length - 1 ? '1px solid #f1f5f9' : 'none',
+                background: vencida ? '#fff8f8' : 'white',
+                opacity: t.estado === 'completada' ? 0.65 : 1,
+                cursor: 'pointer', transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = vencida ? '#fff0f0' : '#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.background = vencida ? '#fff8f8' : 'white'}
+            >
 
-              {/* Checkbox */}
-              <button onClick={() => t.estado === 'pendiente' ? completar(t.id) : reabrir(t.id)}
+              {/* Checkbox — stopPropagation so it doesn't open the modal */}
+              <button
+                onClick={e => { e.stopPropagation(); t.estado === 'pendiente' ? completar(t.id) : reabrir(t.id) }}
                 style={{ width: '22px', height: '22px', borderRadius: '6px', border: '2px solid ' + (t.estado === 'completada' ? '#22c55e' : '#e2e8f0'), background: t.estado === 'completada' ? '#22c55e' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginRight: '12px', marginTop: '2px' }}>
                 {t.estado === 'completada' && <Check size={13} color='white' />}
               </button>
@@ -433,8 +443,8 @@ export default function Tareas() {
                 </div>
               )}
 
-              {/* Delete */}
-              <button onClick={() => eliminar(t.id)}
+              {/* Delete — stopPropagation so it doesn't open the modal */}
+              <button onClick={e => { e.stopPropagation(); eliminar(t.id) }}
                 style={{ padding: '5px', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, marginLeft: '4px', opacity: 0.35 }}
                 onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                 onMouseLeave={e => e.currentTarget.style.opacity = '0.35'}>
@@ -443,6 +453,193 @@ export default function Tareas() {
             </div>
           )
         })}
+      </div>
+
+      {/* ── Task detail / edit modal ── */}
+      {tareaModal && (
+        <TareaDetailModal
+          tarea={tareaModal}
+          usuarios={usuarios}
+          onClose={() => setTareaModal(null)}
+          onSaved={() => { setTareaModal(null); fetchTareas() }}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ─── Tarea detail / edit modal ──────────────────────────────────── */
+function TareaDetailModal({ tarea, usuarios, onClose, onSaved }) {
+  const [titulo, setTitulo]       = useState(tarea.titulo || '')
+  const [descripcion, setDesc]    = useState(tarea.descripcion || '')
+  const [fechaVenc, setFechaVenc] = useState(tarea.fecha_vencimiento || '')
+  const [asignadoA, setAsignadoA] = useState(tarea.asignado_a || '')
+  const [saving, setSaving]       = useState(false)
+
+  // Poliza link
+  const [polizaSelected, setPolizaSelected] = useState(
+    tarea.polizas ? { id: tarea.poliza_id, numero_poliza: tarea.polizas.numero_poliza, clientes: tarea.clientes } : null
+  )
+  const [polizaSearch, setPolizaSearch]   = useState('')
+  const [polizaResults, setPolizaResults] = useState([])
+  const [polizaLoading, setPolizaLoading] = useState(false)
+  const [showPolizaDrop, setShowPolizaDrop] = useState(false)
+
+  const inp = { width:'100%', padding:'10px 12px', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box', outline:'none' }
+  const lbl = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'5px' }
+
+  const searchPolizas = async (q) => {
+    setPolizaSearch(q)
+    if (!q.trim()) { setPolizaResults([]); setShowPolizaDrop(false); return }
+    setPolizaLoading(true); setShowPolizaDrop(true)
+    const { data } = await supabase.from('polizas').select('id, numero_poliza, clientes(nombre, apellido)').ilike('numero_poliza', `%${q}%`).limit(8)
+    setPolizaResults(data || []); setPolizaLoading(false)
+  }
+
+  const vencida = tarea.estado === 'pendiente' && tarea.fecha_vencimiento && new Date(tarea.fecha_vencimiento + 'T12:00:00') < new Date()
+
+  const handleSave = async () => {
+    setSaving(true)
+    await supabase.from('tareas').update({
+      titulo,
+      descripcion: descripcion || null,
+      fecha_vencimiento: fechaVenc || null,
+      asignado_a: asignadoA || null,
+      poliza_id: polizaSelected?.id || null,
+    }).eq('id', tarea.id)
+    toast.success('Tarea actualizada')
+    onSaved()
+  }
+
+  const handleToggleEstado = async () => {
+    const nuevo = tarea.estado === 'pendiente' ? 'completada' : 'pendiente'
+    await supabase.from('tareas').update({ estado: nuevo, fecha_completada: nuevo === 'completada' ? new Date().toISOString() : null }).eq('id', tarea.id)
+    toast.success(nuevo === 'completada' ? 'Tarea completada ✓' : 'Tarea reabierta')
+    onSaved()
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('¿Eliminar esta tarea?')) return
+    await supabase.from('tareas').delete().eq('id', tarea.id)
+    toast.success('Tarea eliminada')
+    onSaved()
+  }
+
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'white', borderRadius:'16px', width:'100%', maxWidth:'480px', boxShadow:'0 20px 60px rgba(0,0,0,0.25)', overflow:'hidden' }}>
+
+        {/* Header */}
+        <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'22px', height:'22px', borderRadius:'6px', border:'2px solid '+(tarea.estado==='completada'?'#22c55e':vencida?'#ef4444':'#e2e8f0'), background:tarea.estado==='completada'?'#22c55e':'white', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              {tarea.estado==='completada' && <Check size={12} color='white' />}
+            </div>
+            <h3 style={{ fontSize:'16px', fontWeight:700, color:'#111111', margin:0 }}>
+              {tarea.estado==='completada' ? 'Tarea completada' : vencida ? '⚠️ Tarea vencida' : 'Detalle de tarea'}
+            </h3>
+          </div>
+          <button onClick={onClose} style={{ background:'#f1f5f9', border:'none', borderRadius:'8px', width:'30px', height:'30px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+            <X size={14} color='#64748b' />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding:'20px', display:'flex', flexDirection:'column', gap:'14px' }}>
+          <div>
+            <label style={lbl}>Título</label>
+            <input value={titulo} onChange={e => setTitulo(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>Descripción</label>
+            <textarea value={descripcion} onChange={e => setDesc(e.target.value)} rows={3} placeholder='Sin descripción...'
+              style={{ ...inp, resize:'vertical', minHeight:'72px', fontFamily:'inherit' }} />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={lbl}>Asignado a</label>
+              <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)} style={inp}>
+                <option value=''>Sin asignar</option>
+                {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre || u.email}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>Fecha límite</label>
+              <input type='date' value={fechaVenc} onChange={e => setFechaVenc(e.target.value)} style={inp} />
+            </div>
+          </div>
+
+          {/* Poliza */}
+          <div style={{ position:'relative' }}>
+            <label style={lbl}>Póliza asociada <span style={{ color:'#94a3b8', fontWeight:400 }}>(opcional)</span></label>
+            {polizaSelected ? (
+              <div style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border:'1.5px solid #C4A96B', borderRadius:'8px', background:'#FDF8EE' }}>
+                <FileText size={14} color='#C4A96B' style={{ flexShrink:0 }} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ fontSize:'13px', fontWeight:700, color:'#111111', margin:0 }}>Póliza {polizaSelected.numero_poliza}</p>
+                  {polizaSelected.clientes && <p style={{ fontSize:'11px', color:'#6B6B62', margin:0 }}>{polizaSelected.clientes.nombre} {polizaSelected.clientes.apellido||''}</p>}
+                </div>
+                <button type='button' onClick={() => setPolizaSelected(null)}
+                  style={{ background:'rgba(196,169,107,0.15)', border:'none', borderRadius:'6px', width:'24px', height:'24px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
+                  <X size={12} color='#C4A96B' />
+                </button>
+              </div>
+            ) : (
+              <>
+                <input value={polizaSearch} onChange={e => searchPolizas(e.target.value)} onFocus={() => polizaSearch && setShowPolizaDrop(true)}
+                  placeholder='Buscar por número de póliza...' style={inp} autoComplete='off' />
+                {showPolizaDrop && (
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, marginTop:'4px', background:'white', border:'1.5px solid #e2e8f0', borderRadius:'10px', boxShadow:'0 8px 24px rgba(0,0,0,0.12)', zIndex:50, overflow:'hidden', maxHeight:'180px', overflowY:'auto' }}>
+                    {polizaLoading ? <p style={{ padding:'12px 14px', fontSize:'13px', color:'#94a3b8', margin:0 }}>Buscando...</p>
+                      : polizaResults.length === 0 ? <p style={{ padding:'12px 14px', fontSize:'13px', color:'#94a3b8', margin:0 }}>Sin resultados</p>
+                      : polizaResults.map(p => (
+                        <button key={p.id} type='button'
+                          onClick={() => { setPolizaSelected(p); setPolizaSearch(''); setPolizaResults([]); setShowPolizaDrop(false) }}
+                          style={{ width:'100%', display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', background:'none', border:'none', borderBottom:'1px solid #f1f5f9', cursor:'pointer', textAlign:'left' }}
+                          onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                          onMouseLeave={e => e.currentTarget.style.background='none'}>
+                          <FileText size={13} color='#C4A96B' style={{ flexShrink:0 }} />
+                          <div>
+                            <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', margin:0 }}>Póliza {p.numero_poliza}</p>
+                            {p.clientes && <p style={{ fontSize:'11px', color:'#64748b', margin:0 }}>{p.clientes.nombre} {p.clientes.apellido||''}</p>}
+                          </div>
+                        </button>
+                      ))
+                    }
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Metadata chips */}
+          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+            <span style={{ fontSize:'11px', padding:'3px 9px', borderRadius:'20px', background:tarea.tipo==='automatica'?'#dbeafe':'#f0fdf4', color:tarea.tipo==='automatica'?'#1d4ed8':'#15803d' }}>
+              {tarea.tipo==='automatica'?'Automática':'Manual'}
+            </span>
+            <span style={{ fontSize:'11px', padding:'3px 9px', borderRadius:'20px', background:tarea.estado==='completada'?'#dcfce7':vencida?'#fef2f2':'#f1f5f9', color:tarea.estado==='completada'?'#15803d':vencida?'#ef4444':'#64748b' }}>
+              {tarea.estado==='completada'?'Completada':vencida?'Vencida':'Pendiente'}
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'14px 20px', borderTop:'1px solid #f1f5f9', display:'flex', gap:'8px', justifyContent:'space-between' }}>
+          <button onClick={handleDelete}
+            style={{ padding:'9px 14px', background:'#fef2f2', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:500 }}>
+            Eliminar
+          </button>
+          <div style={{ display:'flex', gap:'8px' }}>
+            <button onClick={handleToggleEstado}
+              style={{ padding:'9px 14px', background:tarea.estado==='completada'?'#f1f5f9':'#dcfce7', color:tarea.estado==='completada'?'#64748b':'#15803d', border:'none', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:600 }}>
+              {tarea.estado==='completada'?'Reabrir':'✓ Completar'}
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              style={{ padding:'9px 18px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+              {saving?'Guardando...':'Guardar'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
