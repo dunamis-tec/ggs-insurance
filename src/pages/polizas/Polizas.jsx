@@ -20,12 +20,12 @@ const fraccionamientoOpciones = [
 const fraccionamientoLabels = { anual:'Contado', semestral:'Semestral', trimestral:'Trimestral', mensual:'Mensual' }
 
 const polizaEstados = {
-  solicitud:    { bg:'#eff6ff', color:'#1d4ed8', label:'Solicitud' },
-  enviada:      { bg:'#fef9c3', color:'#a16207', label:'Enviada' },
-  en_reproceso: { bg:'#fef2f2', color:'#ef4444', label:'En reproceso' },
-  emitida:      { bg:'#dcfce7', color:'#15803d', label:'Emitida' },
-  completado:   { bg:'#f0fdfa', color:'#0891b2', label:'Completado' },
-  cancelada:    { bg:'#f1f5f9', color:'#64748b', label:'Cancelada' },
+  solicitud:    { bg:'#F5F0E8', color:'#7A5A1E', label:'Solicitud' },
+  enviada:      { bg:'#FBF5E6', color:'#C4A96B', label:'Enviada' },
+  en_reproceso: { bg:'#111111', color:'#C4A96B', label:'En reproceso' },
+  emitida:      { bg:'#C4A96B', color:'#ffffff', label:'Emitida' },
+  completado:   { bg:'#2C2C2C', color:'#C4A96B', label:'Completado' },
+  cancelada:    { bg:'#F1F5F9', color:'#94A3B8', label:'Cancelada' },
 }
 // Flujo lineal simple (un solo siguiente): solicitud→enviada, en_reproceso→enviada (regresa)
 const estadoFlujo  = { solicitud:'enviada', en_reproceso:'enviada' }
@@ -41,7 +41,7 @@ const camposClienteReq = [
 
 const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
-const emisionEstadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
+const emisionEstadoColors = { solicitada:'#C4A96B', reproceso:'#111111', emitida:'#C4A96B' }
 const emisionEstadoIcons  = { solicitada: Clock, reproceso: AlertCircle, emitida: CheckCircle }
 
 const emptyPoliza  = { cliente_id:'', aseguradora_id:'', producto_id:'', prima_neta:'', prima_total:0, monto_gasto_emision:0, monto_recargo:0, monto_iva:0, tipo_pago:'contado', numero_cuotas:1, fecha_inicio:'', fecha_vencimiento:'', vigencia:'1anio', persona_facturable_id:'' }
@@ -727,14 +727,14 @@ export default function Polizas() {
             </button>
             {showFilterDropdown && (
               <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,right:0,background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',boxShadow:'0 4px 16px rgba(0,0,0,0.10)',zIndex:101,overflow:'hidden'}}>
-                {[['todas','Todas',null],['solicitud','Solicitudes',polizaEstados.solicitud],['enviada','Enviadas',polizaEstados.enviada],['en_reproceso','En reproceso',polizaEstados.en_reproceso],['emitida','Emitidas',polizaEstados.emitida]].map(([key,label,est])=>{
+                {[['todas','Todas'],['solicitud','Solicitudes'],['enviada','Enviadas'],['en_reproceso','En reproceso'],['emitida','Emitidas']].map(([key,label])=>{
                   const isActive = filtroEstado === key
                   return (
                     <button key={key}
                       onClick={()=>{ setFiltroEstado(key); setShowFilterDropdown(false) }}
-                      style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 16px',background:isActive?'#f8fafc':'white',border:'none',borderBottom:'1px solid #f1f5f9',fontSize:'14px',fontWeight:isActive?600:400,cursor:'pointer',color:isActive?(est?.color||'#111111'):'#374151',textAlign:'left'}}>
+                      style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 16px',background:isActive?'#F5F0E8':'white',border:'none',borderBottom:'1px solid #f1f5f9',fontSize:'14px',fontWeight:isActive?600:400,cursor:'pointer',color:isActive?'#111111':'#374151',textAlign:'left'}}>
                       <span>{label} ({counts[key]??counts.todas})</span>
-                      {isActive && <Check size={15} color={est?.color||'#111111'}/>}
+                      {isActive && <Check size={15} color="#C4A96B"/>}
                     </button>
                   )
                 })}
@@ -743,14 +743,14 @@ export default function Polizas() {
           </div>
         ) : (
           <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-            {[['todas','Todas',null],['solicitud','Solicitudes',polizaEstados.solicitud],['enviada','Enviadas',polizaEstados.enviada],['en_reproceso','En reproceso',polizaEstados.en_reproceso],['emitida','Emitidas',polizaEstados.emitida]].map(([key,label,est])=>{
+            {[['todas','Todas'],['solicitud','Solicitudes'],['enviada','Enviadas'],['en_reproceso','En reproceso'],['emitida','Emitidas']].map(([key,label])=>{
               const isActive = filtroEstado === key
               return (
                 <button key={key} onClick={()=>setFiltroEstado(key)}
-                  style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
-                    background: isActive ? (est?.color||'#111111') : 'white',
-                    color: isActive ? 'white' : (est?.color||'#64748b'),
-                    border: `1px solid ${est?.color||'#e2e8f0'}`}}>
+                  style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:isActive?600:400,
+                    background: isActive ? '#111111' : 'white',
+                    color: isActive ? 'white' : '#6B6B62',
+                    border: `1px solid ${isActive ? '#111111' : '#E2E8F0'}`}}>
                   {label} ({counts[key]??counts.todas})
                 </button>
               )
@@ -772,7 +772,7 @@ export default function Polizas() {
           {filtered.map((p,i)=>{
             const pEst = polizaEstados[p.estado] || polizaEstados.solicitud
             const vencEst = p.estado === 'emitida' ? getVencimientoEstado(p) : null
-            const vencBadge = vencEst === 'vencida' ? { bg:'#fef2f2',color:'#ef4444',label:'Vencida' } : vencEst === 'por_vencer' ? { bg:'#fef9c3',color:'#a16207',label:'Por vencer' } : null
+            const vencBadge = vencEst === 'vencida' ? { bg:'#111111',color:'#ffffff',label:'Vencida' } : vencEst === 'por_vencer' ? { bg:'#F5F0E8',color:'#7A5A1E',label:'Por vencer' } : null
             return (
               <div key={p.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
                 onClick={()=>{ setSelected(p); setView('detalle'); navigate('/polizas/'+p.id, {replace:true}) }}
@@ -1381,7 +1381,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const vencEst = vencDate ? (vencDate < hoy ? 'vencida' : diasRestantes <= 30 ? 'por_vencer' : 'activa') : 'activa'
 
   const estadoBitacora = {
-    solicitud:'#1d4ed8', enviada:'#a16207', en_reproceso:'#ef4444', emitida:'#15803d'
+    solicitud:'#7A5A1E', enviada:'#C4A96B', en_reproceso:'#C4A96B', emitida:'#C4A96B'
   }
 
   return (
@@ -1948,16 +1948,16 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             vehicles.sort((a,b) => order[a.status] - order[b.status])
 
             const statusStyle = {
-              activo:    { bg:'#dcfce7', color:'#15803d', label:'Activo' },
-              excluido:  { bg:'#fff7ed', color:'#ea580c', label:'Excluido' },
-              cancelado: { bg:'#f1f5f9', color:'#64748b', label:'Cancelado' },
+              activo:    { bg:'#C4A96B', color:'#ffffff', label:'Activo' },
+              excluido:  { bg:'#F5F0E8', color:'#7A5A1E', label:'Excluido' },
+              cancelado: { bg:'#F1F5F9', color:'#94A3B8', label:'Cancelado' },
             }
 
             const historyTipoStyle = {
-              emision:    { icon:'➕', color:'#1d4ed8', label:'Emisión inicial' },
-              inclusion:  { icon:'➕', color:'#15803d', label:'Inclusión' },
-              exclusion:  { icon:'➖', color:'#ea580c', label:'Exclusión' },
-              renovacion: { icon:'🔄', color:'#7c3aed', label:'Renovación' },
+              emision:    { icon:'➕', color:'#7A5A1E', label:'Emisión inicial' },
+              inclusion:  { icon:'➕', color:'#C4A96B', label:'Inclusión' },
+              exclusion:  { icon:'➖', color:'#111111', label:'Exclusión' },
+              renovacion: { icon:'🔄', color:'#C4A96B', label:'Renovación' },
             }
 
             if (vehicles.length === 0) return (
