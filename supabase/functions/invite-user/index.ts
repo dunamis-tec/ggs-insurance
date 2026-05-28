@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Verify the caller is authenticated and belongs to the same empresa
+    // Verify the caller is authenticated
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return new Response(JSON.stringify({ error: 'No autorizado' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -40,26 +40,56 @@ Deno.serve(async (req) => {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-    // Invite the user — Supabase sends them an email to set their password
+    // ── Step 1: Invite or find the auth user ─────────────────────────────
+    let authUserId: string | null = null
+
     const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${Deno.env.get('SITE_URL') ?? 'https://ggs-insurance.vercel.app'}/reset-password`,
       data: { nombre, rol, empresa_id }
     })
 
     if (inviteError) {
-      // If user already exists in auth, that's ok — just upsert the users row
-      if (!inviteError.message.includes('already been registered')) {
+      if (inviteError.message.includes('already been registered')) {
+        // User already exists in auth — look up their real auth UUID
+        const { data: { users: allUsers } } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 })
+        const existing = allUsers?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+        authUserId = existing?.id ?? null
+      } else {
         return new Response(JSON.stringify({ error: inviteError.message }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
+    } else {
+      // Fresh invite — Supabase returns the new auth user with their UUID
+      authUserId = invited?.user?.id ?? null
     }
 
-    // Upsert into the users table
-    await adminClient.from('users').upsert(
-      { email, nombre: nombre || '', rol: rol || 'agente', empresa_id },
-      { onConflict: 'email' }
-    )
+    // ── Step 2: Upsert into users table with the CORRECT auth UUID ────────
+    if (authUserId) {
+      // If a stale row exists with this email but a different id, remove it first
+      const { data: staleRow } = await adminClient
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .neq('id', authUserId)
+        .maybeSingle()
+
+      if (staleRow) {
+        await adminClient.from('users').delete().eq('id', staleRow.id)
+      }
+
+      // Upsert with the real auth UUID as the primary key
+      await adminClient.from('users').upsert(
+        { id: authUserId, email, nombre: nombre || '', rol: rol || 'agente', empresa_id },
+        { onConflict: 'id' }
+      )
+    } else {
+      // Fallback (should not happen): upsert by email only
+      await adminClient.from('users').upsert(
+        { email, nombre: nombre || '', rol: rol || 'agente', empresa_id },
+        { onConflict: 'email' }
+      )
+    }
 
     return new Response(JSON.stringify({ ok: true, user: invited?.user ?? null }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
