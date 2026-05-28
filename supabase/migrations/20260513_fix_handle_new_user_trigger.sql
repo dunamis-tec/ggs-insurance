@@ -1,6 +1,7 @@
--- Fix handle_new_user trigger
--- Reads empresa_id, nombre, rol from invite metadata (raw_user_meta_data)
--- and inserts all NOT NULL columns (full_name, role) to avoid constraint errors.
+-- Fix handle_new_user trigger (v3)
+-- Reads empresa_id, nombre, rol from invite metadata.
+-- Deletes stale rows with same email/different id before inserting
+-- to avoid UNIQUE(email) constraint violations on re-invites.
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -13,6 +14,11 @@ BEGIN
     split_part(NEW.email, '@', 1)
   );
   v_rol := COALESCE(NEW.raw_user_meta_data->>'rol', 'agente');
+
+  -- Remove any stale row with the same email but a different id
+  -- (happens when a previous invite created a row with a temporary UUID)
+  DELETE FROM public.users
+  WHERE email = NEW.email AND id <> NEW.id;
 
   INSERT INTO public.users (id, email, full_name, role, nombre, rol, empresa_id)
   VALUES (
