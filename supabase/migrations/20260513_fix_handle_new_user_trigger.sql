@@ -1,6 +1,8 @@
--- Fix handle_new_user trigger (v3)
--- Reads empresa_id, nombre, rol from invite metadata.
--- Deletes stale rows with same email/different id before inserting
+-- Fix handle_new_user trigger (v4 - final)
+-- Root cause: SECURITY DEFINER changed the search_path so 'user_role' type
+-- wasn't found (type "user_role" does not exist SQLSTATE 42704).
+-- Fix: remove SECURITY DEFINER (not needed for triggers), use public.user_role.
+-- Also: delete stale rows with same email/different id before inserting
 -- to avoid UNIQUE(email) constraint violations on re-invites.
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
@@ -15,8 +17,7 @@ BEGIN
   );
   v_rol := COALESCE(NEW.raw_user_meta_data->>'rol', 'agente');
 
-  -- Remove any stale row with the same email but a different id
-  -- (happens when a previous invite created a row with a temporary UUID)
+  -- Remove stale row with same email but different id (from a previous invite)
   DELETE FROM public.users
   WHERE email = NEW.email AND id <> NEW.id;
 
@@ -25,10 +26,10 @@ BEGIN
     NEW.id,
     NEW.email,
     v_nombre,
-    v_rol::user_role,
+    v_rol::public.user_role,
     v_nombre,
     v_rol,
-    (NEW.raw_user_meta_data->>'empresa_id')::UUID
+    (NEW.raw_user_meta_data->>'empresa_id')::uuid
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name  = COALESCE(EXCLUDED.full_name,  public.users.full_name),
@@ -38,4 +39,4 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
