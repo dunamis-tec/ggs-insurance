@@ -121,8 +121,8 @@ export default function App() {
     </div>
   )
 
-  // Authenticated but no empresa → onboarding
-  if (session && (userRow === null || !userRow?.empresa_id)) {
+  // Authenticated but no empresa → onboarding (skip for /reset-password)
+  if (!isResetRoute && session && (userRow === null || !userRow?.empresa_id)) {
     return <Onboarding session={session} onComplete={() => fetchUserRow(session.user.id)} />
   }
 
