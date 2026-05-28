@@ -36,7 +36,11 @@ const _initialHashParams = (() => {
     return new URLSearchParams()
   }
 })()
-const _isInviteFlow = _initialHashParams.get('type') === 'invite'
+// Use `let` so we can consume the flag after the first redirect.
+// If it stayed `const true`, every subsequent SIGNED_IN event (e.g. normal
+// re-login after the invited user sets their password) would also redirect
+// to /reset-password.
+let _isInviteFlow = _initialHashParams.get('type') === 'invite'
 
 export default function App() {
   const [session, setSession]           = useState(undefined)
@@ -80,8 +84,10 @@ export default function App() {
       if (session?.user) {
         // Always fetch userRow so loading resolves
         fetchUserRow(session.user.id)
-        // Invite flow: also navigate to reset-password
+        // Invite flow: navigate to reset-password, then consume the flag so
+        // that any later SIGNED_IN event (e.g. normal re-login) is unaffected.
         if (_isInviteFlow) {
+          _isInviteFlow = false
           navigate('/reset-password')
         }
       } else {
@@ -98,9 +104,12 @@ export default function App() {
       } else if (event === 'SIGNED_IN' && session?.user) {
         // Always fetch the user row so the loading screen can resolve.
         fetchUserRow(session.user.id)
-        // Invite flow: also redirect to reset-password so the user sets their password.
-        // _isInviteFlow is read from the URL hash at page load, before Supabase clears it.
+        // Invite flow: redirect to reset-password so the user sets their password.
+        // Consume the flag immediately so subsequent SIGNED_IN events (e.g. normal
+        // re-login after the invited user has already set their password) are not
+        // redirected to /reset-password.
         if (_isInviteFlow) {
+          _isInviteFlow = false
           navigate('/reset-password')
         }
       }
