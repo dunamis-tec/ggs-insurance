@@ -78,15 +78,33 @@ Deno.serve(async (req) => {
         await adminClient.from('users').delete().eq('id', staleRow.id)
       }
 
-      // Upsert with the real auth UUID as the primary key
+      // Upsert with the real auth UUID as the primary key.
+      // Write both `rol` (text) and `role` (enum) so the two columns stay in sync.
+      const rolValue = rol || 'agente'
       await adminClient.from('users').upsert(
-        { id: authUserId, email, nombre: nombre || '', rol: rol || 'agente', empresa_id },
+        {
+          id: authUserId,
+          email,
+          nombre: nombre || '',
+          rol: rolValue,
+          role: rolValue,
+          full_name: nombre || email.split('@')[0],
+          empresa_id,
+        },
         { onConflict: 'id' }
       )
     } else {
       // Fallback (should not happen): upsert by email only
+      const rolValue = rol || 'agente'
       await adminClient.from('users').upsert(
-        { email, nombre: nombre || '', rol: rol || 'agente', empresa_id },
+        {
+          email,
+          nombre: nombre || '',
+          rol: rolValue,
+          role: rolValue,
+          full_name: nombre || email.split('@')[0],
+          empresa_id,
+        },
         { onConflict: 'email' }
       )
     }
