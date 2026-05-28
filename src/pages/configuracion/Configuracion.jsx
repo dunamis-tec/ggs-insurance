@@ -236,7 +236,8 @@ function TabUsuarios({ isAdmin, currentUser }) {
 
   const fetchUsuarios = async () => {
     setLoading(true)
-    const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false })
+    // Use RPC to also get last_sign_in_at from auth.users
+    const { data } = await supabase.rpc('list_users_with_auth_status')
     setUsuarios(data || [])
     setLoading(false)
   }
@@ -407,14 +408,23 @@ function InviteModal({ onClose, onSuccess }) {
 
 /* ─── EDIT USER MODAL ──────────────────────────────────────────── */
 function EditUserModal({ user, onClose, onSuccess }) {
-  const [nombre, setNombre]   = useState(user.nombre || '')
-  const [email, setEmail]     = useState(user.email || '')
-  const [rol, setRol]         = useState(user.rol || 'agente')
-  const [activo, setActivo]   = useState(user.activo !== false)
-  const [loading, setLoading] = useState(false)
+  const [nombre, setNombre]         = useState(user.nombre || '')
+  const [email, setEmail]           = useState(user.email || '')
+  const [rol, setRol]               = useState(user.rol || 'agente')
+  const [activo, setActivo]         = useState(user.activo !== false)
+  const [loading, setLoading]       = useState(false)
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const inp = { width:'100%', padding:'10px 12px', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box', outline:'none' }
   const lbl = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'5px' }
+
+  // If last_sign_in_at is null the user has never logged in → "re-invite"
+  // If they have logged in at least once → "reset password"
+  const hasLoggedIn = !!user.last_sign_in_at
+  const emailAction  = hasLoggedIn ? 'reset_password' : 'invite'
+  const emailLabel   = hasLoggedIn ? 'Restablecer contraseña' : 'Reenviar invitación'
 
   const handleSave = async () => {
     setLoading(true)
@@ -426,57 +436,133 @@ function EditUserModal({ user, onClose, onSuccess }) {
     onSuccess()
   }
 
+  const handleSendEmail = async () => {
+    setEmailLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-send-user-email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email: user.email, action: emailAction }),
+      }
+    )
+    const json = await res.json()
+    if (!res.ok || json.error) {
+      toast.error('Error: ' + (json.error || 'Error desconocido'))
+    } else {
+      toast.success(hasLoggedIn ? 'Correo de restablecimiento enviado' : 'Invitación reenviada')
+    }
+    setEmailLoading(false)
+  }
+
+  const handleDelete = async () => {
+    setDeleteLoading(true)
+    const { error } = await supabase.rpc('admin_delete_user', { target_uid: user.id })
+    if (error) {
+      toast.error('Error al eliminar: ' + error.message)
+      setDeleteLoading(false)
+      setConfirmDelete(false)
+      return
+    }
+    toast.success(`Usuario ${user.nombre || user.email} eliminado`)
+    onSuccess()
+  }
+
   return (
     <Modal title='Editar usuario' onClose={onClose}>
-      <div style={{ display:'flex', flexDirection:'column', gap:'14px', marginBottom:'20px' }}>
-        <div>
-          <label style={lbl}>Nombre completo</label>
-          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder='Nombre completo' style={inp} />
-        </div>
-        <div>
-          <label style={lbl}>Correo electrónico</label>
-          <input type='email' value={email} onChange={e => setEmail(e.target.value)} style={inp} />
-        </div>
-        <div>
-          <label style={lbl}>Rol</label>
-          <select value={rol} onChange={e => setRol(e.target.value)} style={inp}>
-            <option value='agente'>Agente</option>
-            <option value='admin'>Administrador</option>
-          </select>
-        </div>
-
-        {/* Active toggle */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', background:'#f8fafc', borderRadius:'10px', border:'1.5px solid #e2e8f0' }}>
-          <div>
-            <p style={{ fontSize:'14px', fontWeight:600, color:'#111111', margin:0 }}>Estado de la cuenta</p>
-            <p style={{ fontSize:'12px', color:'#64748b', margin:'2px 0 0' }}>{activo ? 'El usuario puede iniciar sesión' : 'El usuario no puede iniciar sesión'}</p>
+      {/* ── Confirm delete overlay ── */}
+      {confirmDelete ? (
+        <div style={{ textAlign:'center', padding:'8px 0' }}>
+          <div style={{ fontSize:'36px', marginBottom:'12px' }}>⚠️</div>
+          <p style={{ fontWeight:700, fontSize:'15px', color:'#111111', margin:'0 0 6px' }}>
+            ¿Eliminar a {user.nombre || user.email}?
+          </p>
+          <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'20px', lineHeight:1.5 }}>
+            Esta acción es permanente. El usuario perderá acceso al sistema
+            y no podrá ser recuperado.
+          </p>
+          <div style={{ display:'flex', gap:'8px' }}>
+            <button onClick={handleDelete} disabled={deleteLoading}
+              style={{ flex:1, padding:'11px', background:'#ef4444', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+              {deleteLoading ? 'Eliminando...' : 'Sí, eliminar'}
+            </button>
+            <button onClick={() => setConfirmDelete(false)}
+              style={{ flex:1, padding:'11px', background:'white', color:'#374151', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', cursor:'pointer' }}>
+              Cancelar
+            </button>
           </div>
-          <button type='button' onClick={() => setActivo(a => !a)}
-            style={{
-              width:'44px', height:'24px', borderRadius:'12px', border:'none', cursor:'pointer', flexShrink:0,
-              background: activo ? '#C4A96B' : '#e2e8f0',
-              position:'relative', transition:'background 0.2s',
-            }}>
-            <span style={{
-              position:'absolute', top:'2px', width:'20px', height:'20px',
-              background:'white', borderRadius:'50%', transition:'left 0.2s',
-              left: activo ? '22px' : '2px',
-              boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
-            }} />
-          </button>
         </div>
-      </div>
+      ) : (
+        <>
+          <div style={{ display:'flex', flexDirection:'column', gap:'14px', marginBottom:'20px' }}>
+            <div>
+              <label style={lbl}>Nombre completo</label>
+              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder='Nombre completo' style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Correo electrónico</label>
+              <input type='email' value={email} onChange={e => setEmail(e.target.value)} style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Rol</label>
+              <select value={rol} onChange={e => setRol(e.target.value)} style={inp}>
+                <option value='agente'>Agente</option>
+                <option value='admin'>Administrador</option>
+              </select>
+            </div>
 
-      <div style={{ display:'flex', gap:'8px' }}>
-        <button onClick={handleSave} disabled={loading}
-          style={{ flex:1, padding:'11px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
-          {loading ? 'Guardando...' : 'Guardar cambios'}
-        </button>
-        <button onClick={onClose}
-          style={{ padding:'11px 18px', background:'white', color:'#64748b', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', cursor:'pointer' }}>
-          Cancelar
-        </button>
-      </div>
+            {/* Active toggle */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', background:'#f8fafc', borderRadius:'10px', border:'1.5px solid #e2e8f0' }}>
+              <div>
+                <p style={{ fontSize:'14px', fontWeight:600, color:'#111111', margin:0 }}>Estado de la cuenta</p>
+                <p style={{ fontSize:'12px', color:'#64748b', margin:'2px 0 0' }}>{activo ? 'Puede iniciar sesión' : 'No puede iniciar sesión'}</p>
+              </div>
+              <button type='button' onClick={() => setActivo(a => !a)}
+                style={{ width:'44px', height:'24px', borderRadius:'12px', border:'none', cursor:'pointer', flexShrink:0, background: activo ? '#C4A96B' : '#e2e8f0', position:'relative', transition:'background 0.2s' }}>
+                <span style={{ position:'absolute', top:'2px', width:'20px', height:'20px', background:'white', borderRadius:'50%', transition:'left 0.2s', left: activo ? '22px' : '2px', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }} />
+              </button>
+            </div>
+
+            {/* Email action: re-invite or reset password */}
+            <div style={{ borderTop:'1px solid #f1f5f9', paddingTop:'14px', display:'flex', flexDirection:'column', gap:'8px' }}>
+              <p style={{ fontSize:'12px', color:'#94a3b8', margin:0 }}>
+                {hasLoggedIn
+                  ? `Último acceso: ${new Date(user.last_sign_in_at).toLocaleDateString('es-GT', { day:'2-digit', month:'short', year:'numeric' })}`
+                  : 'El usuario aún no ha iniciado sesión'}
+              </p>
+              <button type='button' onClick={handleSendEmail} disabled={emailLoading}
+                style={{ width:'100%', padding:'10px', background:'#FBF5E6', color:'#7A5A1E', border:'1.5px solid #E8D9B0', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', textAlign:'center' }}>
+                {emailLoading ? 'Enviando...' : `✉️  ${emailLabel}`}
+              </button>
+            </div>
+          </div>
+
+          {/* Footer actions */}
+          <div style={{ display:'flex', gap:'8px' }}>
+            <button onClick={handleSave} disabled={loading}
+              style={{ flex:1, padding:'11px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+              {loading ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+            <button onClick={onClose}
+              style={{ padding:'11px 18px', background:'white', color:'#64748b', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', cursor:'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+
+          {/* Delete — separated visually */}
+          <div style={{ marginTop:'12px', borderTop:'1px solid #fef2f2', paddingTop:'12px' }}>
+            <button type='button' onClick={() => setConfirmDelete(true)}
+              style={{ width:'100%', padding:'10px', background:'white', color:'#ef4444', border:'1.5px solid #fecaca', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+              🗑  Eliminar usuario
+            </button>
+          </div>
+        </>
+      )}
     </Modal>
   )
 }
