@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 
@@ -42,7 +42,8 @@ export default function App() {
   const [session, setSession]           = useState(undefined)
   const [userRow, setUserRow]           = useState(undefined) // null = not found, obj = found
   const [checkingUser, setCheckingUser] = useState(false)
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const location  = useLocation()
 
   const fetchUserRow = useCallback(async (uid) => {
     setCheckingUser(true)
@@ -77,11 +78,11 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session?.user) {
-        // If the user arrived via an invite link, send them to set their password first
+        // Always fetch userRow so loading resolves
+        fetchUserRow(session.user.id)
+        // Invite flow: also navigate to reset-password
         if (_isInviteFlow) {
           navigate('/reset-password')
-        } else {
-          fetchUserRow(session.user.id)
         }
       } else {
         setUserRow(undefined)
@@ -95,12 +96,12 @@ export default function App() {
         // Recovery link clicked: ensure user lands on the reset-password form
         navigate('/reset-password')
       } else if (event === 'SIGNED_IN' && session?.user) {
-        // Invite flow: auto-signed in when clicking the invite link — redirect to set password.
+        // Always fetch the user row so the loading screen can resolve.
+        fetchUserRow(session.user.id)
+        // Invite flow: also redirect to reset-password so the user sets their password.
         // _isInviteFlow is read from the URL hash at page load, before Supabase clears it.
         if (_isInviteFlow) {
           navigate('/reset-password')
-        } else {
-          fetchUserRow(session.user.id)
         }
       }
       // TOKEN_REFRESHED, USER_UPDATED, etc: only update session token,
@@ -112,7 +113,9 @@ export default function App() {
   // Loading: only block on initial load — when session or userRow are not yet known.
   // Do NOT block when checkingUser=true but userRow is already populated; that would
   // unmount all child components and wipe in-progress work on every token refresh.
-  if (session === undefined || (session && userRow === undefined)) return (
+  // Exception: /reset-password must always render (it handles its own auth state).
+  const isResetRoute = location.pathname === '/reset-password'
+  if (!isResetRoute && (session === undefined || (session && userRow === undefined))) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <p>Cargando...</p>
     </div>
