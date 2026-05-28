@@ -26,6 +26,18 @@ function ProtectedRoute({ children, session }) {
   return children
 }
 
+// Read the URL hash at module load time — before Supabase's client can consume it.
+// This is the only reliable way to detect an invite flow, because by the time React
+// renders and effects run, the hash has already been processed and cleared.
+const _initialHashParams = (() => {
+  try {
+    return new URLSearchParams(window.location.hash.substring(1))
+  } catch {
+    return new URLSearchParams()
+  }
+})()
+const _isInviteFlow = _initialHashParams.get('type') === 'invite'
+
 export default function App() {
   const [session, setSession]           = useState(undefined)
   const [userRow, setUserRow]           = useState(undefined) // null = not found, obj = found
@@ -64,8 +76,16 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      if (session?.user) fetchUserRow(session.user.id)
-      else { setUserRow(undefined) }
+      if (session?.user) {
+        // If the user arrived via an invite link, send them to set their password first
+        if (_isInviteFlow) {
+          navigate('/reset-password')
+        } else {
+          fetchUserRow(session.user.id)
+        }
+      } else {
+        setUserRow(undefined)
+      }
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
@@ -75,7 +95,13 @@ export default function App() {
         // Recovery link clicked: ensure user lands on the reset-password form
         navigate('/reset-password')
       } else if (event === 'SIGNED_IN' && session?.user) {
-        fetchUserRow(session.user.id)
+        // Invite flow: auto-signed in when clicking the invite link — redirect to set password.
+        // _isInviteFlow is read from the URL hash at page load, before Supabase clears it.
+        if (_isInviteFlow) {
+          navigate('/reset-password')
+        } else {
+          fetchUserRow(session.user.id)
+        }
       }
       // TOKEN_REFRESHED, USER_UPDATED, etc: only update session token,
       // do NOT re-fetch userRow or set checkingUser — avoids wiping component state

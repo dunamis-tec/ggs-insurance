@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     let authUserId: string | null = null
 
     const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${Deno.env.get('SITE_URL') ?? 'https://ggs-insurance.vercel.app'}/reset-password`,
+      redirectTo: `${Deno.env.get('SITE_URL') ?? 'https://ggs-gt.com'}/reset-password`,
       data: { nombre, rol, empresa_id }
     })
 
