@@ -1,11 +1,13 @@
--- Fix handle_new_user trigger (v4 - final)
--- Root cause: SECURITY DEFINER changed the search_path so 'user_role' type
--- wasn't found (type "user_role" does not exist SQLSTATE 42704).
--- Fix: remove SECURITY DEFINER (not needed for triggers), use public.user_role.
--- Also: delete stale rows with same email/different id before inserting
--- to avoid UNIQUE(email) constraint violations on re-invites.
+-- Fix handle_new_user trigger (v5 - final)
+-- Requires SECURITY DEFINER to write to public.users (auth role lacks permission).
+-- Requires SET search_path = public, pg_catalog so user_role enum is found.
+-- Also deletes stale email rows before insert to avoid UNIQUE(email) conflicts.
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+LANGUAGE plpgsql
+AS $$
 DECLARE
   v_nombre TEXT;
   v_rol    TEXT;
@@ -39,4 +41,4 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
