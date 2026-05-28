@@ -169,20 +169,17 @@ export default function Login() {
     e.preventDefault()
     setLoading(true); setError('')
 
-    // Step 1: Check user status BEFORE attempting auth
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('activo, active')
-      .eq('email', email)
-      .maybeSingle()
+    // Step 1: Check user status via RPC (bypasses RLS for unauthenticated callers)
+    const { data: status, error: rpcErr } = await supabase
+      .rpc('check_user_status', { user_email: email })
 
-    if (!userRow) {
+    if (rpcErr || !status?.exists) {
       setError('No tenés acceso al sistema. Contactá al administrador.')
       setLoading(false)
       return
     }
 
-    if (userRow.activo === false || userRow.active === false) {
+    if (status.activo === false) {
       setError('Tu cuenta está desactivada. Contactá al administrador.')
       setLoading(false)
       return
@@ -206,21 +203,17 @@ export default function Login() {
     e.preventDefault()
     setLoading(true); setError('')
 
-    // Verify email exists in our users table before sending reset
-    // (Supabase never errors for unknown emails by design, so we check ourselves)
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('id, activo, active')
-      .eq('email', email)
-      .maybeSingle()
+    // Verify email exists via RPC (bypasses RLS for unauthenticated callers)
+    const { data: status, error: rpcErr } = await supabase
+      .rpc('check_user_status', { user_email: email })
 
-    if (!userRow) {
+    if (rpcErr || !status?.exists) {
       setError('No existe una cuenta registrada con ese correo.')
       setLoading(false)
       return
     }
 
-    if (userRow.activo === false || userRow.active === false) {
+    if (status.activo === false) {
       setError('Tu cuenta está desactivada. Contactá al administrador.')
       setLoading(false)
       return
