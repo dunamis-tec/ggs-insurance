@@ -3279,8 +3279,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                     if (gestionEstadoOpcion === 'emitir' && emisionPdfFile) {
                       setUploadingPdf(true)
                       const ext = emisionPdfFile.name.split('.').pop()
+                      const eid = await getMyEmpresaId()
+                      const path = `${eid}/${poliza.id}/${em.id}.${ext}`
                       const { data: ud, error: ue } = await supabase.storage
-                        .from('polizas-pdfs').upload(`${poliza.id}/${em.id}.${ext}`, emisionPdfFile, { upsert: true })
+                        .from('polizas-pdfs').upload(path, emisionPdfFile, { upsert: true })
                       setUploadingPdf(false)
                       if (ue) { toast.error('Error subiendo PDF: ' + ue.message); return }
                       const { data: uUrl } = supabase.storage.from('polizas-pdfs').getPublicUrl(ud.path)
