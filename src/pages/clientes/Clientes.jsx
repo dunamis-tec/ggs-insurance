@@ -88,7 +88,7 @@ export default function Clientes() {
       if (error) { toast.error('Error: ' + error.message); return }
       toast.success('Cliente actualizado')
     } else {
-      const { error } = await supabase.from('clientes').insert({ ...payload, created_by: user?.id })
+      const { error } = await supabase.from('clientes').insert(payload)
       if (error) { toast.error('Error: ' + error.message); return }
       toast.success('Cliente creado')
     }
