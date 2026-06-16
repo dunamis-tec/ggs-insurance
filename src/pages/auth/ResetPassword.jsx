@@ -91,7 +91,7 @@ export default function ResetPassword() {
     <div style={cardStyle}>
       <div style={boxStyle}>
         <div style={{textAlign:'center', marginBottom:'28px'}}>
-          <img src="/ggs-logo.svg" alt="GGS" style={{height:'80px', width:'auto'}}/>
+          <img src="/ggs-logo.png" alt="GGS" style={{height:'80px', width:'auto'}}/>
           <h2 style={{fontSize:'17px', fontWeight:700, color:'#111111', marginTop:'16px'}}>
             Nueva contraseña
           </h2>

@@ -29,21 +29,11 @@ function BrandPanel() {
 
       {/* GGS logo mark */}
       <div style={{ position: 'relative', zIndex: 1, marginBottom: '28px' }}>
-        <svg viewBox="0 0 260 160" width="220" height="135">
-          <circle cx="68"  cy="80" r="55" fill="none" stroke="#C4A96B" strokeWidth="7"/>
-          <circle cx="148" cy="80" r="55" fill="none" stroke="#C4A96B" strokeWidth="7"/>
-          <rect   x="183"  y="25" width="72" height="110" rx="2" fill="none" stroke="#C4A96B" strokeWidth="7"/>
-          <text x="64"  y="80" textAnchor="middle" dominantBaseline="central"
-                fontFamily="Georgia, 'Times New Roman', serif" fontSize="50" fill="#C4A96B">G</text>
-          <text x="144" y="80" textAnchor="middle" dominantBaseline="central"
-                fontFamily="Georgia, 'Times New Roman', serif" fontSize="50" fill="#C4A96B">G</text>
-          <text x="219" y="80" textAnchor="middle" dominantBaseline="central"
-                fontFamily="Georgia, 'Times New Roman', serif" fontSize="50" fill="#C4A96B">S</text>
-        </svg>
+        <img src="/ggs-logo.png" alt="GGS" style={{ width: '220px', height: 'auto', display: 'block', margin: '0 auto' }} />
         <p style={{
           textAlign: 'center', color: '#C4A96B',
           fontSize: '10px', fontWeight: 400, letterSpacing: '0.22em',
-          textTransform: 'uppercase', marginTop: '6px',
+          textTransform: 'uppercase', marginTop: '12px',
         }}>
           GRUPO GLOBAL EN SEGUROS
         </p>
@@ -57,8 +47,8 @@ function BrandPanel() {
           lineHeight: 1.45, letterSpacing: '0.01em',
           margin: 0,
         }}>
-          Protegemos lo que<br />
-          <span style={{ fontWeight: 700, fontStyle: 'italic', color: '#C4A96B' }}>más importa</span>
+          Cuidar es amar<br />
+          <span style={{ fontWeight: 700, fontStyle: 'italic', color: '#C4A96B' }}>y agregar</span>
         </h2>
       </div>
 
@@ -109,17 +99,7 @@ function MobileBrandHeader() {
       padding: '24px 20px 20px',
       textAlign: 'center',
     }}>
-      <svg viewBox="0 0 260 160" width="120" height="74" style={{ display: 'block', margin: '0 auto 6px' }}>
-        <circle cx="68"  cy="80" r="55" fill="none" stroke="#C4A96B" strokeWidth="7"/>
-        <circle cx="148" cy="80" r="55" fill="none" stroke="#C4A96B" strokeWidth="7"/>
-        <rect   x="183"  y="25" width="72" height="110" rx="2" fill="none" stroke="#C4A96B" strokeWidth="7"/>
-        <text x="64"  y="80" textAnchor="middle" dominantBaseline="central"
-              fontFamily="Georgia, 'Times New Roman', serif" fontSize="50" fill="#C4A96B">G</text>
-        <text x="144" y="80" textAnchor="middle" dominantBaseline="central"
-              fontFamily="Georgia, 'Times New Roman', serif" fontSize="50" fill="#C4A96B">G</text>
-        <text x="219" y="80" textAnchor="middle" dominantBaseline="central"
-              fontFamily="Georgia, 'Times New Roman', serif" fontSize="50" fill="#C4A96B">S</text>
-      </svg>
+      <img src="/ggs-logo.png" alt="GGS" style={{ width: '120px', height: 'auto', display: 'block', margin: '0 auto 6px' }} />
       <p style={{
         color: '#C4A96B', fontSize: '9px', fontWeight: 400,
         letterSpacing: '0.2em', textTransform: 'uppercase', margin: 0,
