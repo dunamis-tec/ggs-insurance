@@ -124,7 +124,7 @@ export default function MainLayout({ session }) {
         }}>
           {companyLogo
             ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
-            : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '28px', width: 'auto' }} />
+            : <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '28px', width: 'auto' }} />
           }
           <span style={{ color: 'white', fontSize: '15px', fontWeight: 600, flex: 1 }}>{currentLabel}</span>
           <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -241,7 +241,7 @@ export default function MainLayout({ session }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginRight: '28px', paddingRight: '24px', borderRight: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           {companyLogo
             ? <img src={companyLogo} alt="Logo" style={{ height: '30px', width: '30px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
-            : <img src="/ggs-icon.svg" alt="GGS" style={{ height: '28px', width: 'auto' }} />
+            : <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '28px', width: 'auto' }} />
           }
           <div style={{ lineHeight: 1.2 }}>
             <div style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>Grupo Global</div>
