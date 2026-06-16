@@ -86,6 +86,7 @@ export default function Dashboard() {
   const fetchData = async () => {
     setLoading(true)
     const hoy = new Date().toISOString().split('T')[0]
+    const en15 = new Date(Date.now() + 15 * 864e5).toISOString().split('T')[0]
     const en30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0]
     const en60 = new Date(Date.now() + 60 * 864e5).toISOString().split('T')[0]
     const ahora = new Date()
@@ -101,7 +102,8 @@ export default function Dashboard() {
       { data: polVencen60 },
       { data: pipelineData },
       { data: tareasData },
-      { count: cntClientes },
+      { count: cntVencen15 },
+      { count: cntVencidas },
     ] = await Promise.all([
       supabase.from('polizas')
         .select('id, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido), aseguradoras(nombre)')
@@ -141,10 +143,17 @@ export default function Dashboard() {
         .eq('estado', 'pendiente')
         .order('fecha_vencimiento', { ascending: true, nullsFirst: false })
         .limit(8),
-      supabase.from('clientes')
+      // Card 2: pólizas que vencen en los próximos 15 días
+      supabase.from('polizas')
         .select('*', { count: 'exact', head: true })
-        .eq('activo', true)
-        .neq('tipo', 'prospecto'),
+        .eq('activa', true)
+        .gte('fecha_vencimiento', hoy)
+        .lte('fecha_vencimiento', en15),
+      // Card 3: pólizas vencidas que no se han renovado (activa=true pero ya pasó el vencimiento)
+      supabase.from('polizas')
+        .select('*', { count: 'exact', head: true })
+        .eq('activa', true)
+        .lt('fecha_vencimiento', hoy),
     ])
 
     const primaTotal = (polizasActivas || []).reduce((s, p) => s + parseFloat(p.prima_total || 0), 0)
@@ -159,7 +168,8 @@ export default function Dashboard() {
     setKpis({
       primaTotal,
       cntPolizas: (polizasActivas || []).length,
-      cntClientes: cntClientes || 0,
+      cntVencen15: cntVencen15 || 0,
+      cntVencidas: cntVencidas || 0,
       montosPendMes,
       cntPendMes: (reqsPendMes || []).length,
       mesLabel,
@@ -222,7 +232,7 @@ export default function Dashboard() {
         <div style={{ padding: '20px 24px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111111', margin: 0 }}>Dashboard</h1>
           <p style={{ color: '#6B6B62', fontSize: '14px', marginTop: '4px', marginBottom: 0 }}>
-            {kpis.cntPolizas} pólizas activas · {kpis.cntClientes} clientes · {kpis.cntVencen30 > 0 ? `⚠ ${kpis.cntVencen30} pólizas vencen en ≤30 días` : 'Sin vencimientos urgentes'}
+            {kpis.cntPolizas} pólizas activas · {kpis.cntVencen15 > 0 ? `⚠ ${kpis.cntVencen15} vencen en ≤15 días` : 'Sin vencimientos urgentes'} · {kpis.cntVencidas > 0 ? `${kpis.cntVencidas} vencidas sin renovar` : 'Sin vencidas pendientes'}
           </p>
         </div>
       </div>
@@ -234,12 +244,16 @@ export default function Dashboard() {
           icon={DollarSign} color="#C4A96B" sub={`${kpis.cntPolizas} pólizas emitidas`}
         />
         <KpiCard
-          label="Clientes activos" value={kpis.cntClientes}
-          icon={Users} color="#111111" sub="personas y empresas"
+          label="Pólizas vencen ≤15d" value={kpis.cntVencen15}
+          icon={Clock} color={kpis.cntVencen15 > 0 ? '#f59e0b' : '#22c55e'}
+          sub="vencimiento próximo"
+          alert={kpis.cntVencen15 > 0}
         />
         <KpiCard
-          label={`Por cobrar — ${kpis.mesLabel}`} value={fmtQ(kpis.montosPendMes)}
-          icon={CreditCard} color="#f59e0b" sub={`${kpis.cntPendMes} reqs este mes`}
+          label="Vencidas sin renovar" value={kpis.cntVencidas}
+          icon={AlertTriangle} color={kpis.cntVencidas > 0 ? '#ef4444' : '#22c55e'}
+          sub="pólizas por gestionar"
+          alert={kpis.cntVencidas > 0}
         />
         <KpiCard
           label="Vencido" value={fmtQ(kpis.montosVenc)}
