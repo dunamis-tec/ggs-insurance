@@ -35,9 +35,20 @@ function urgenciaStyle(dias) {
 }
 
 /* ── Sub-components ── */
-function KpiCard({ label, value, icon: Icon, color, sub, alert }) {
+function KpiCard({ label, value, icon: Icon, color, sub, sub2, alert, onClick }) {
   return (
-    <div style={{ background: 'white', borderRadius: '12px', padding: '18px 20px', border: `1px solid ${alert ? color + '60' : '#e2e8f0'}`, position: 'relative', overflow: 'hidden' }}>
+    <div
+      onClick={onClick}
+      style={{
+        background: 'white', borderRadius: '12px', padding: '18px 20px',
+        border: `1px solid ${alert ? color + '60' : '#e2e8f0'}`,
+        position: 'relative', overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'box-shadow 0.15s',
+      }}
+      onMouseEnter={e => { if (onClick) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)' }}
+      onMouseLeave={e => { if (onClick) e.currentTarget.style.boxShadow = 'none' }}
+    >
       {alert && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: color }} />}
       <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
         <Icon size={18} color={color} />
@@ -45,6 +56,7 @@ function KpiCard({ label, value, icon: Icon, color, sub, alert }) {
       <p style={{ fontSize: '24px', fontWeight: 800, color: '#111111', margin: 0, letterSpacing: '-0.5px', lineHeight: 1.1 }}>{value}</p>
       <p style={{ fontSize: '13px', color: '#374151', fontWeight: 600, margin: '6px 0 2px' }}>{label}</p>
       {sub && <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>{sub}</p>}
+      {sub2 && <p style={{ fontSize: '11px', color: color, fontWeight: 600, margin: '4px 0 0', borderTop: '1px solid #f1f5f9', paddingTop: '6px' }}>{sub2}</p>}
     </div>
   )
 }
@@ -92,6 +104,7 @@ export default function Dashboard() {
     const ahora = new Date()
     const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString().split('T')[0]
     const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0).toISOString().split('T')[0]
+    const primerDiaAnio = new Date(ahora.getFullYear(), 0, 1).toISOString().split('T')[0]
 
     const [
       { data: polizasActivas },
@@ -104,6 +117,8 @@ export default function Dashboard() {
       { data: tareasData },
       { count: cntVencen15 },
       { count: cntVencidas },
+      { count: cntNuevasMes },
+      { count: cntNuevasAnio },
     ] = await Promise.all([
       supabase.from('polizas')
         .select('id, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido), aseguradoras(nombre)')
@@ -154,6 +169,17 @@ export default function Dashboard() {
         .select('*', { count: 'exact', head: true })
         .eq('activa', true)
         .lt('fecha_vencimiento', hoy),
+      // Card 4: pólizas nuevas este mes (excluye renovaciones)
+      supabase.from('polizas')
+        .select('*', { count: 'exact', head: true })
+        .is('poliza_origen_id', null)
+        .gte('created_at', primerDiaMes)
+        .lte('created_at', ultimoDiaMes + 'T23:59:59'),
+      // Card 4 sub2: pólizas nuevas este año (excluye renovaciones)
+      supabase.from('polizas')
+        .select('*', { count: 'exact', head: true })
+        .is('poliza_origen_id', null)
+        .gte('created_at', primerDiaAnio),
     ])
 
     const primaTotal = (polizasActivas || []).reduce((s, p) => s + parseFloat(p.prima_total || 0), 0)
@@ -177,6 +203,8 @@ export default function Dashboard() {
       cntVenc: (reqsVenc || []).length,
       cntVencen30: (polVencen30 || []).length,
       cntPipeline: (pipelineData || []).length,
+      cntNuevasMes: cntNuevasMes || 0,
+      cntNuevasAnio: cntNuevasAnio || 0,
     })
 
     setPolizasVencen(polVencen30 || [])
@@ -256,15 +284,17 @@ export default function Dashboard() {
           alert={kpis.cntVencidas > 0}
         />
         <KpiCard
-          label="Vencido" value={fmtQ(kpis.montosVenc)}
-          icon={AlertCircle} color="#ef4444" sub={`${kpis.cntVenc} reqs vencidos`}
-          alert={kpis.cntVenc > 0}
+          label={`Pólizas nuevas — ${kpis.mesLabel}`} value={kpis.cntNuevasMes}
+          icon={TrendingUp} color="#C4A96B"
+          sub="nuevas este mes (sin renovaciones)"
+          sub2={`${kpis.cntNuevasAnio} nuevas en ${new Date().getFullYear()}`}
         />
         <KpiCard
-          label="Pólizas vencen ≤30d" value={kpis.cntVencen30}
-          icon={Calendar} color={kpis.cntVencen30 > 0 ? '#f59e0b' : '#22c55e'}
-          sub={`${kpis.cntPipeline} solicitudes en pipeline`}
-          alert={kpis.cntVencen30 > 0}
+          label="Requerimientos de pago" value={kpis.cntVenc > 0 ? `${kpis.cntVenc} vencidos` : 'Al día'}
+          icon={CreditCard} color={kpis.cntVenc > 0 ? '#ef4444' : '#22c55e'}
+          sub={`${fmtQ(kpis.montosVenc)} pendiente de cobro`}
+          alert={kpis.cntVenc > 0}
+          onClick={() => navigate('/requerimientos')}
         />
       </div>
 
