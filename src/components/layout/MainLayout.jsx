@@ -238,15 +238,8 @@ export default function MainLayout({ session }) {
         zIndex: 100, flexShrink: 0,
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginRight: '28px', paddingRight: '24px', borderRight: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
-          {companyLogo
-            ? <img src={companyLogo} alt="Logo" style={{ height: '30px', width: '30px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
-            : <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '28px', width: 'auto' }} />
-          }
-          <div style={{ lineHeight: 1.2 }}>
-            <div style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>Grupo Global</div>
-            <div style={{ color: '#C4A96B', fontSize: '9px', fontWeight: 400, letterSpacing: '0.06em', textTransform: 'uppercase' }}>en Seguros</div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', marginRight: '28px', paddingRight: '24px', borderRight: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '36px', width: 'auto' }} />
         </div>
 
         {/* Primary nav items */}
