@@ -18,12 +18,16 @@ const diasHasta = (fecha) => {
 }
 const nombreCliente = (c) => c ? [c.nombre, c.apellido].filter(Boolean).join(' ') : '—'
 
-const estadoLabel = { solicitud: 'Solicitud', enviada: 'Enviada', en_reproceso: 'En reproceso' }
+const estadoLabel = { solicitud: 'Solicitud', solicitada: 'Solicitada', enviada: 'Enviada', en_reproceso: 'En reproceso', reproceso: 'En reproceso' }
 const estadoBadge = {
   solicitud:    { bg: '#dbeafe', color: '#1d4ed8' },
+  solicitada:   { bg: '#dbeafe', color: '#1d4ed8' },
   enviada:      { bg: '#fef9c3', color: '#854d0e' },
   en_reproceso: { bg: '#fee2e2', color: '#991b1b' },
+  reproceso:    { bg: '#fee2e2', color: '#991b1b' },
 }
+const tipoLabel = { emision: 'Nueva', inclusion: 'Inclusión', exclusion: 'Exclusión', renovacion: 'Renovación' }
+const tipoColor = { emision: '#C4A96B', inclusion: '#16a34a', exclusion: '#64748b', renovacion: '#7c3aed' }
 
 function urgenciaStyle(dias) {
   if (dias == null) return { bg: '#f1f5f9', color: '#64748b' }
@@ -148,11 +152,11 @@ export default function Dashboard() {
         .lte('fecha_vencimiento', en60)
         .gte('fecha_vencimiento', hoy)
         .order('fecha_vencimiento', { ascending: true }),
-      supabase.from('polizas')
-        .select('id, numero_poliza, prima_total, estado, created_at, clientes(nombre,apellido), aseguradoras(nombre), productos(nombre)')
-        .in('estado', ['solicitud', 'enviada', 'en_reproceso'])
+      supabase.from('emisiones')
+        .select('id, numero_emision, tipo, estado, prima_emision, created_at, polizas(id, numero_poliza, clientes(nombre,apellido), aseguradoras(nombre))')
+        .not('estado', 'in', '("emitida","completado","cancelada")')
         .order('created_at', { ascending: false })
-        .limit(6),
+        .limit(20),
       supabase.from('tareas')
         .select('*, polizas(numero_poliza), clientes(nombre,apellido)')
         .eq('estado', 'pendiente')
@@ -203,6 +207,7 @@ export default function Dashboard() {
       cntVenc: (reqsVenc || []).length,
       cntVencen30: (polVencen30 || []).length,
       cntPipeline: (pipelineData || []).length,
+
       cntNuevasMes: cntNuevasMes || 0,
       cntNuevasAnio: cntNuevasAnio || 0,
     })
@@ -314,28 +319,34 @@ export default function Dashboard() {
                 <FileText size={28} color='#cbd5e1' style={{ marginBottom: '8px' }} />
                 <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Sin solicitudes pendientes</p>
               </div>
-            ) : pipeline.map(p => {
-              const badge = estadoBadge[p.estado] || { bg: '#f1f5f9', color: '#64748b' }
+            ) : pipeline.map(em => {
+              const badge  = estadoBadge[em.estado]  || { bg: '#f1f5f9', color: '#64748b' }
+              const tColor = tipoColor[em.tipo]       || '#64748b'
+              const tLabel = tipoLabel[em.tipo]       || em.tipo
+              const eLabel = estadoLabel[em.estado]   || em.estado
               return (
-                <div key={p.id}
-                  onClick={() => navigate('/polizas', { state: { openPolizaId: p.id } })}
+                <div key={em.id}
+                  onClick={() => navigate('/polizas', { state: { openPolizaId: em.polizas?.id } })}
                   style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
                   onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' }}>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.numero_poliza || '(Sin número)'}
+                        {em.numero_emision || em.polizas?.numero_poliza || '(Sin número)'}
                       </p>
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '20px', background: tColor + '18', color: tColor, fontWeight: 700, flexShrink: 0 }}>
+                        {tLabel}
+                      </span>
                       <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '20px', background: badge.bg, color: badge.color, fontWeight: 700, flexShrink: 0 }}>
-                        {estadoLabel[p.estado]}
+                        {eLabel}
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {nombreCliente(p.clientes)} · {p.aseguradoras?.nombre}
+                      {nombreCliente(em.polizas?.clientes)} · {em.polizas?.aseguradoras?.nombre}
                     </p>
                   </div>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#C4A96B', margin: 0, flexShrink: 0 }}>{fmtQ(p.prima_total)}</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#C4A96B', margin: 0, flexShrink: 0 }}>{fmtQ(em.prima_emision)}</p>
                 </div>
               )
             })}
