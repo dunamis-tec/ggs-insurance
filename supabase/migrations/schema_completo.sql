@@ -574,17 +574,17 @@ CREATE TABLE IF NOT EXISTS public.vehiculo_documentos (
 
 -- ── Funciones que dependen de tablas ────────────────────────
 CREATE OR REPLACE FUNCTION public.get_my_empresa_id()
-RETURNS uuid LANGUAGE sql STABLE AS $$
+RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER AS $$
   SELECT empresa_id FROM public.users WHERE id = auth.uid()
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean LANGUAGE sql STABLE AS $$
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
   SELECT EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_user_role()
-RETURNS public.user_role LANGUAGE sql STABLE AS $$
+RETURNS public.user_role LANGUAGE sql STABLE SECURITY DEFINER AS $$
   SELECT role FROM users WHERE id = auth.uid()
 $$;
 
