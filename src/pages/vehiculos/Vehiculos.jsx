@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Car, Plus, Edit2, Trash2, Search, ArrowLeft, FileText, X } from 'lucide-react'
+import { Car, Plus, Edit2, Trash2, Search, ArrowLeft, FileText, X, Paperclip, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { ReclamoModal, ReclamosMiniList } from '../reclamos/Reclamos'
 
 const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
 const tiposPlaca = ['M','C','P','CD','A','MI','TC']
@@ -78,6 +79,13 @@ export default function Vehiculos() {
       if (v) { setSelected(v); setView('detalle') }
     }
   }, [location.state, vehiculos])
+
+  // Reset to list when navigating to /vehiculos root (e.g. clicking nav link from a detail)
+  useEffect(() => {
+    if (location.pathname === '/vehiculos' && !location.state?.openVehiculoId && view !== 'list') {
+      setView('list'); setSelected(null)
+    }
+  }, [location.pathname])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -322,6 +330,14 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
   const navigate = useNavigate()
   const [historial, setHistorial] = useState([])
   const [loading, setLoading] = useState(true)
+  const [documentos, setDocumentos] = useState([])
+  const [loadingDocs, setLoadingDocs] = useState(true)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [reclamos, setReclamos] = useState([])
+  const [loadingReclamos, setLoadingReclamos] = useState(true)
+  const [polizaVigente, setPolizaVigente] = useState(null)
+  const [showReclamoModal, setShowReclamoModal] = useState(false)
+  const fileInputRef = useRef(null)
 
   const handleBack = () => {
     if (fromPolizaId) {
@@ -333,7 +349,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
     }
   }
 
-  useEffect(() => { fetchHistorial() }, [vehiculo.id])
+  useEffect(() => { fetchHistorial(); fetchDocumentos(); fetchReclamos() }, [vehiculo.id])
 
   const fetchHistorial = async () => {
     setLoading(true)
@@ -342,7 +358,80 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
       .eq('vehiculo_id', vehiculo.id)
       .order('created_at', { ascending: false })
     setHistorial(data || [])
+    // Detectar póliza vigente para el botón de nuevo reclamo
+    const hoy = new Date().toISOString().split('T')[0]
+    const vigente = (data || []).find(ev =>
+      ev.emisiones?.estado === 'emitida' &&
+      ev.emisiones?.polizas &&
+      ev.emisiones.fecha_fin >= hoy
+    )
+    setPolizaVigente(vigente ? { id: vigente.emisiones.poliza_id, numero_poliza: vigente.emisiones.polizas.numero_poliza, cliente_id: vehiculo.cliente_id } : null)
     setLoading(false)
+  }
+
+  const fetchReclamos = async () => {
+    setLoadingReclamos(true)
+    const { data } = await supabase.from('reclamos')
+      .select('*, polizas(id, numero_poliza), vehiculos(id, marca, modelo, anio, placa, tipo_placa), clientes(id, nombre, apellido)')
+      .eq('vehiculo_id', vehiculo.id)
+      .order('created_at', { ascending: false })
+    setReclamos(data || [])
+    setLoadingReclamos(false)
+  }
+
+  const fetchDocumentos = async () => {
+    setLoadingDocs(true)
+    const { data } = await supabase.from('vehiculo_documentos')
+      .select('*')
+      .eq('vehiculo_id', vehiculo.id)
+      .order('created_at', { ascending: false })
+    setDocumentos(data || [])
+    setLoadingDocs(false)
+  }
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingDoc(true)
+    const toastId = toast.loading('Subiendo documento...')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: userData } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
+      const empresaId = userData.empresa_id
+      const path = `${empresaId}/${vehiculo.id}/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabase.storage.from('vehiculo-documentos').upload(path, file)
+      if (uploadError) throw uploadError
+      const ext = file.name.split('.').pop().toLowerCase()
+      await supabase.from('vehiculo_documentos').insert({
+        vehiculo_id: vehiculo.id,
+        empresa_id: empresaId,
+        nombre: file.name,
+        archivo_url: path,
+        tipo: ext,
+        created_by: user.id,
+      })
+      toast.success('Documento adjuntado', { id: toastId })
+      fetchDocumentos()
+    } catch (err) {
+      console.error(err)
+      toast.error('Error al subir documento', { id: toastId })
+    }
+    setUploadingDoc(false)
+    e.target.value = ''
+  }
+
+  const handleDownload = async (doc) => {
+    const { data, error } = await supabase.storage.from('vehiculo-documentos').createSignedUrl(doc.archivo_url, 3600)
+    if (error || !data?.signedUrl) { toast.error('Error al obtener el archivo'); return }
+    window.open(data.signedUrl, '_blank')
+  }
+
+  const handleDeleteDoc = async (doc) => {
+    if (!confirm(`¿Eliminar "${doc.nombre}"?`)) return
+    await supabase.storage.from('vehiculo-documentos').remove([doc.archivo_url])
+    await supabase.from('vehiculo_documentos').delete().eq('id', doc.id)
+    toast.success('Documento eliminado')
+    setDocumentos(prev => prev.filter(d => d.id !== doc.id))
   }
 
   return (
@@ -374,16 +463,108 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
             </div>
           ))}
         </div>
-        {vehiculo.valor_asegurado > 0 && (
-          <div style={{padding:'0 24px 16px'}}>
-            <div style={{padding:'10px 14px',background:'#dbeafe',borderRadius:'8px',display:'inline-block'}}>
-              <p style={{fontSize:'11px',color:'#1d4ed8',margin:0}}>Valor asegurado</p>
-              <p style={{fontSize:'16px',fontWeight:700,color:'#1d4ed8',margin:'3px 0 0'}}>Q {parseFloat(vehiculo.valor_asegurado).toLocaleString()}</p>
+        {(() => {
+          const lastEv = historial.find(ev => ev.emisiones?.estado === 'emitida' && ev.emisiones?.tipo === 'emision')
+          const showValor = vehiculo.valor_asegurado > 0
+          const showPrima = lastEv && parseFloat(lastEv.prima_total||0) > 0
+          const showDanios = lastEv && parseFloat(lastEv.deducible_danios||0) > 0
+          const showRobo   = lastEv && parseFloat(lastEv.deducible_robo||0) > 0
+          if (!showValor && !showPrima && !showDanios && !showRobo) return null
+          return (
+            <div style={{padding:'0 24px 16px',display:'flex',flexWrap:'wrap',gap:'10px'}}>
+              {showValor && (
+                <div style={{padding:'10px 14px',background:'#dbeafe',borderRadius:'8px'}}>
+                  <p style={{fontSize:'11px',color:'#1d4ed8',margin:0}}>Valor asegurado</p>
+                  <p style={{fontSize:'16px',fontWeight:700,color:'#1d4ed8',margin:'3px 0 0'}}>Q {parseFloat(vehiculo.valor_asegurado).toLocaleString()}</p>
+                </div>
+              )}
+              {showPrima && (
+                <div style={{padding:'10px 14px',background:'#fef9c3',borderRadius:'8px'}}>
+                  <p style={{fontSize:'11px',color:'#92400e',margin:0}}>Prima total</p>
+                  <p style={{fontSize:'16px',fontWeight:700,color:'#92400e',margin:'3px 0 0'}}>Q {parseFloat(lastEv.prima_total).toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+                </div>
+              )}
+              {showDanios && (
+                <div style={{padding:'10px 14px',background:'#f0fdf4',borderRadius:'8px'}}>
+                  <p style={{fontSize:'11px',color:'#15803d',margin:0}}>Ded. daños</p>
+                  <p style={{fontSize:'16px',fontWeight:700,color:'#15803d',margin:'3px 0 0'}}>{parseFloat(lastEv.deducible_danios)}%</p>
+                </div>
+              )}
+              {showRobo && (
+                <div style={{padding:'10px 14px',background:'#fef2f2',borderRadius:'8px'}}>
+                  <p style={{fontSize:'11px',color:'#b91c1c',margin:0}}>Ded. robo</p>
+                  <p style={{fontSize:'16px',fontWeight:700,color:'#b91c1c',margin:'3px 0 0'}}>{parseFloat(lastEv.deducible_robo)}%</p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
+      {/* ── Documentos ── */}
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
+          <Paperclip size={16} color='#C4A96B'/>
+          <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Documentos</h3>
+          <span style={{marginLeft:'auto',background:'#f1f5f9',color:'#64748b',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>{documentos.length}</span>
+          <input ref={fileInputRef} type="file" style={{display:'none'}} onChange={handleUpload}/>
+          <button
+            onClick={()=>fileInputRef.current?.click()}
+            disabled={uploadingDoc}
+            style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',background:'#111111',color:'white',border:'none',borderRadius:'7px',fontSize:'13px',fontWeight:600,cursor:uploadingDoc?'not-allowed':'pointer',opacity:uploadingDoc?0.6:1}}>
+            <Paperclip size={13}/> {uploadingDoc ? 'Subiendo...' : 'Adjuntar'}
+          </button>
+        </div>
+        {loadingDocs ? (
+          <p style={{padding:'20px',color:'#64748b',fontSize:'13px'}}>Cargando...</p>
+        ) : documentos.length === 0 ? (
+          <div style={{padding:'36px',textAlign:'center'}}>
+            <Paperclip size={26} color='#cbd5e1' style={{marginBottom:'8px'}}/>
+            <p style={{color:'#94a3b8',margin:0,fontSize:'13px'}}>Sin documentos adjuntos</p>
+          </div>
+        ) : documentos.map((doc, i) => {
+          const ext = doc.tipo || doc.nombre.split('.').pop().toLowerCase()
+          const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext)
+          const isPdf = ext === 'pdf'
+          const iconBg = isPdf ? '#fef2f2' : isImg ? '#f0fdf4' : '#f8fafc'
+          const iconColor = isPdf ? '#ef4444' : isImg ? '#22c55e' : '#64748b'
+          return (
+            <div key={doc.id} style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:i<documentos.length-1?'1px solid #f1f5f9':'none'}}>
+              <div style={{width:'36px',height:'36px',borderRadius:'8px',background:iconBg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginRight:'12px'}}>
+                <FileText size={16} color={iconColor}/>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontWeight:600,color:'#111111',fontSize:'13px',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{doc.nombre}</p>
+                <p style={{fontSize:'11px',color:'#94a3b8',margin:'2px 0 0'}}>
+                  {ext.toUpperCase()} · {new Date(doc.created_at).toLocaleDateString('es-GT')}
+                </p>
+              </div>
+              <div style={{display:'flex',gap:'6px',flexShrink:0}}>
+                <button onClick={()=>handleDownload(doc)}
+                  style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 10px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer',fontSize:'12px',color:'#475569',fontWeight:500}}>
+                  <Download size={13}/> Ver
+                </button>
+                <button onClick={()=>handleDeleteDoc(doc)}
+                  style={{padding:'6px',background:'#fef2f2',border:'none',borderRadius:'6px',cursor:'pointer'}}>
+                  <Trash2 size={13} color='#ef4444'/>
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── Reclamos ── */}
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
+        <ReclamosMiniList
+          reclamos={reclamos}
+          loading={loadingReclamos}
+          sinPolizaVigente={!loading && !polizaVigente}
+          onNuevo={polizaVigente ? () => setShowReclamoModal(true) : null}
+        />
+      </div>
+
+      {/* ── Historial ── */}
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
         <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
           <FileText size={16} color='#C4A96B'/>
@@ -417,6 +598,26 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
             </div>
           ))}
       </div>
+
+      {showReclamoModal && polizaVigente && (
+        <ReclamoModal
+          context={{
+            tipo: 'vehiculo',
+            vehiculoId: vehiculo.id,
+            vehiculoData: vehiculo,
+            polizaId: polizaVigente.id,
+            polizaData: polizaVigente,
+            clienteId: vehiculo.cliente_id,
+            clienteData: vehiculo.clientes,
+          }}
+          onClose={() => setShowReclamoModal(false)}
+          onSaved={(r) => {
+            setShowReclamoModal(false)
+            fetchReclamos()
+            navigate('/reclamos', { state: { openReclamoId: r.id } })
+          }}
+        />
+      )}
     </div>
   )
 }

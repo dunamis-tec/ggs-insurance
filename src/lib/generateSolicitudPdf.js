@@ -54,7 +54,7 @@ async function buildLogoDataUrl() {
 }
 
 /* ─────────────────────────────────────────────────── */
-export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturable, usuario }) {
+export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturable, usuario, coberturas }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()   // 210
   const margin = 14
@@ -119,7 +119,7 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.5)
   doc.setTextColor(...GOLD)
-  doc.text('TÚ CREA, NOSOTROS TE CUIDAMOS', textX, HEADER_H / 2 + 5.5)
+  doc.text('CUIDAR ES AMAR', textX, HEADER_H / 2 + 5.5)
 
   // Document title (right-aligned)
   const solNum = poliza.numero_poliza || `SOL-${poliza.numero_solicitud || '?'}`
@@ -136,8 +136,14 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
 
   /* ══════════════ DATOS DE AGENTE ══════════════ */
   y = sectionTable('DATOS DE AGENTE', [
-    { label: 'Código de agente', value: '2128' },
+    { label: 'Código de agente', value: fmt(poliza.aseguradoras?.codigo_agente) },
     { label: 'Nombre de agente', value: 'GRUPO GLOBAL EN SEGUROS, S.A.' },
+  ], y)
+
+  /* ══════════════ DATOS DE LA PÓLIZA ══════════════ */
+  y = sectionTable('DATOS DE LA PÓLIZA', [
+    { label: 'Aseguradora', value: fmt(poliza.aseguradoras?.nombre) },
+    { label: 'Producto',    value: fmt(poliza.productos?.nombre) },
   ], y)
 
   /* ══════════════ DATOS DEL CLIENTE ══════════════ */
@@ -151,6 +157,9 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
     { label: 'NIT',               value: fmt(cli.nit) },
     { label: 'Teléfono / Celular',value: fmt(cli.telefono) },
     { label: 'Email',             value: fmt(cli.email) },
+    { label: '¿Es o ha sido PEP (últimos 2 años)?',             value: cli.pep            === true ? 'Sí' : cli.pep            === false ? 'No' : 'No indicado' },
+    { label: '¿Tiene parentesco o relación con un PEP?',        value: cli.pep_parentesco === true ? 'Sí' : cli.pep_parentesco === false ? 'No' : 'No indicado' },
+    { label: '¿Es o ha sido CPE (Contratista/Proveedor Estado)?', value: cli.cpe          === true ? 'Sí' : cli.cpe          === false ? 'No' : 'No indicado' },
   ], y)
 
   /* ══════════════ RESPONSABLE DE PAGO (si aplica) ══════════════ */
@@ -165,24 +174,88 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
 
   /* ══════════════ VEHÍCULOS (una tabla por vehículo) ══════════════ */
   const vList = vehiculos.length > 0
-    ? vehiculos.map(sv => sv.vehiculos || sv)
+    ? vehiculos.map(sv => ({
+        ...(sv.vehiculos || sv),
+        prima_neta: sv.prima_neta,
+        monto_gasto_emision: sv.monto_gasto_emision,
+        monto_recargo: sv.monto_recargo,
+        monto_iva: sv.monto_iva,
+        prima_total: sv.prima_total,
+        deducible_danios: sv.deducible_danios,
+        deducible_robo: sv.deducible_robo,
+      }))
     : []
 
   for (const v of vList) {
-    // New page if not enough space
-    if (y > 220) { doc.addPage(); y = 14 }
+    if (y > 200) { doc.addPage(); y = 14 }
 
     const placa = v.tipo_placa ? `${v.tipo_placa}${v.placa || ''}` : (v.placa || '—')
-    y = sectionTable('DESCRIPCIÓN DEL VEHÍCULO', [
-      { label: 'Marca',            value: fmt(v.marca?.toUpperCase()) },
-      { label: 'Línea / Modelo',   value: fmt(v.modelo?.toUpperCase()) },
-      { label: 'Año',              value: fmt(v.anio) },
-      { label: 'Placa',            value: fmt(placa.toUpperCase()) },
-      { label: 'No. de Chasis',    value: fmt(v.chasis?.toUpperCase()) },
-      { label: 'No. de Motor',     value: fmt(v.motor?.toUpperCase()) },
-      { label: 'Color',            value: fmt(v.color?.toUpperCase()) },
-      { label: 'Valor del vehículo', value: fmtQ(v.valor_asegurado) },
-    ], y)
+    const hasPrima = parseFloat(v.prima_total || 0) > 0
+
+    // Build unified body: vehicle rows + optional prima separator + prima rows
+    const bodyRows = [
+      [{ content: 'Marca',              styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.marca?.toUpperCase())],
+      [{ content: 'Línea / Modelo',     styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.modelo?.toUpperCase())],
+      [{ content: 'Año',                styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.anio)],
+      [{ content: 'Placa',              styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(placa.toUpperCase())],
+      [{ content: 'No. de Chasis',      styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.chasis?.toUpperCase())],
+      [{ content: 'No. de Motor',       styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.motor?.toUpperCase())],
+      [{ content: 'Color',              styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.color?.toUpperCase())],
+      [{ content: 'Valor del vehículo', styles: { fontStyle:'bold', fillColor:LIGHT } }, fmtQ(v.valor_asegurado)],
+    ]
+
+    if (hasPrima) {
+      bodyRows.push([{
+        content: 'PRIMA DEL VEHÍCULO',
+        colSpan: 2,
+        styles: { fillColor: GOLD, textColor: BLACK, fontStyle: 'bold', halign: 'center', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } },
+      }])
+      bodyRows.push([{ content: 'Prima neta',            styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.prima_neta),            styles: { halign:'right' } }])
+      bodyRows.push([{ content: 'Gastos de emisión',     styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.monto_gasto_emision),   styles: { halign:'right' } }])
+      if (parseFloat(v.monto_recargo || 0) > 0) {
+        bodyRows.push([{ content: 'Recargo fraccionamiento', styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.monto_recargo), styles: { halign:'right' } }])
+      }
+      bodyRows.push([{ content: 'IVA 12%',               styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.monto_iva),             styles: { halign:'right' } }])
+      bodyRows.push([
+        { content: 'Prima total', styles: { fontStyle:'bold', fillColor:[235,225,200], textColor:BLACK } },
+        { content: fmtQ(v.prima_total), styles: { fontStyle:'bold', fillColor:[235,225,200], textColor:BLACK, halign:'right' } },
+      ])
+    }
+
+    const hasDed = parseFloat(v.deducible_danios||0) > 0 || parseFloat(v.deducible_robo||0) > 0
+    if (hasDed) {
+      bodyRows.push([{
+        content: 'DEDUCIBLES',
+        colSpan: 2,
+        styles: { fillColor: [80,80,80], textColor: [255,255,255], fontStyle: 'bold', halign: 'center', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } },
+      }])
+      if (parseFloat(v.deducible_danios||0) > 0)
+        bodyRows.push([{ content: 'Deducible daños', styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: `${parseFloat(v.deducible_danios)}%`, styles: { halign:'right' } }])
+      if (parseFloat(v.deducible_robo||0) > 0)
+        bodyRows.push([{ content: 'Deducible robo', styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: `${parseFloat(v.deducible_robo)}%`, styles: { halign:'right' } }])
+    }
+
+    // Section header bar
+    doc.setFillColor(...GOLD)
+    doc.rect(margin, y, W - margin * 2, 7, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...BLACK)
+    doc.text('DESCRIPCIÓN DEL VEHÍCULO', W / 2, y + 4.8, { align: 'center' })
+
+    autoTable(doc, {
+      startY: y + 7,
+      margin: { left: margin, right: margin },
+      body: bodyRows,
+      columnStyles: {
+        0: { cellWidth: 58, fontSize: 8, textColor: BLACK, cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 3 } },
+        1: { fontSize: 8, textColor: BLACK, fillColor: WHITE, cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 4 } },
+      },
+      theme: 'grid',
+      styles: { lineColor: BORDER, lineWidth: 0.2, overflow: 'linebreak' },
+      showHead: false,
+    })
+    y = doc.lastAutoTable.finalY + 6
   }
 
   if (vList.length === 0) {
@@ -191,16 +264,51 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
     ], y)
   }
 
+  /* ══════════════ OBSERVACIONES ══════════════ */
+  if (poliza.observaciones) {
+    y = sectionTable('OBSERVACIONES', [
+      { label: 'Observaciones', value: fmt(poliza.observaciones) },
+    ], y)
+  }
+
   /* ══════════════ INFORMACIÓN DE PAGO ══════════════ */
   const numPagos = calcNumeroPagos(poliza)
 
   y = sectionTable('INFORMACIÓN DE PAGO', [
     { label: 'Prima total (plan elegido)', value: fmtQ(poliza.prima_total) },
-    { label: 'Tipo de pago',               value: poliza.tipo_pago === 'contado' ? 'Contado' : 'Financiado' },
+    { label: 'Tipo de pago',               value: poliza.tipo_pago === 'contado' ? 'Contado' : 'Fraccionado' },
     { label: 'Frecuencia de pago',         value: poliza.tipo_pago === 'contado' ? 'Pago único' : 'Mensual' },
     { label: 'No. de cuotas',              value: String(numPagos) },
     { label: 'Vigencia',                   value: `${fmtDate(poliza.fecha_inicio)} — ${fmtDate(poliza.fecha_vencimiento)}` },
   ], y)
+
+  /* ══════════════ COBERTURAS ══════════════ */
+  if (coberturas && coberturas.length > 0) {
+    if (y > 200) { doc.addPage(); y = 14 }
+
+    doc.setFillColor(...GOLD)
+    doc.rect(margin, y, W - margin * 2, 7, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...BLACK)
+    doc.text('COBERTURAS', W / 2, y + 4.8, { align: 'center' })
+
+    autoTable(doc, {
+      startY: y + 7,
+      margin: { left: margin, right: margin },
+      head: [['Cobertura', 'Monto']],
+      body: coberturas.map(c => [c.nombre || '—', c.monto ? fmtQ(c.monto) : 'Incluida']),
+      columnStyles: {
+        0: { fontSize: 8, textColor: BLACK, fillColor: WHITE, cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 3 } },
+        1: { fontSize: 8, textColor: BLACK, fillColor: LIGHT, cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 4 }, halign: 'right' },
+      },
+      headStyles: { fillColor: LIGHT, textColor: BLACK, fontSize: 8, fontStyle: 'bold' },
+      theme: 'grid',
+      styles: { lineColor: BORDER, lineWidth: 0.2, overflow: 'linebreak' },
+    })
+
+    y = doc.lastAutoTable.finalY + 5
+  }
 
   /* ══════════════ FECHA / REALIZADO POR ══════════════ */
   if (y > 250) { doc.addPage(); y = 14 }
@@ -235,7 +343,7 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
     doc.setFont('helvetica', 'bolditalic')
     doc.setFontSize(8)
     doc.setTextColor(...BLACK)
-    doc.text('TÚ CREA, NOSOTROS TE CUIDAMOS', W / 2, pageH - 4, { align: 'center' })
+    doc.text('CUIDAR ES AMAR', W / 2, pageH - 4, { align: 'center' })
     if (pageCount > 1) {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)

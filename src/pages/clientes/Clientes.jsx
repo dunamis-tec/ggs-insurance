@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car, Upload, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { ReclamoModal, ReclamosMiniList } from '../reclamos/Reclamos'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
-const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', fecha_nacimiento:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
+const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', fecha_nacimiento:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'', rep_legal_nombre:'', rep_legal_nit:'', rep_legal_fecha_nacimiento:'', fecha_constitucion:'', pep:false, pep_parentesco:false, cpe:false }
 const emptyPF = { nombre:'', apellido:'', nit:'', email:'', telefono:'', direccion:'' }
 
 const tipoColors = { prospecto:{ bg:'#FDF8EE', color:'#C4A96B' }, individual:{ bg:'#f1f5f9', color:'#64748b' }, empresa:{ bg:'#111111', color:'white' } }
@@ -25,6 +26,7 @@ export default function Clientes() {
   const [editing, setEditing] = useState(null)
   const [conglomeradoSearch, setConglomeradoSearch] = useState('')
   const [showConglomeradoDropdown, setShowConglomeradoDropdown] = useState(false)
+  const [docsFiles, setDocsFiles] = useState({ recibo: null, dpi: null, patente: null })
   const [activeMainTab, setActiveMainTab] = useState('clientes')
   const [congTabSearch, setCongTabSearch] = useState('')
   const [congForm, setCongForm] = useState(emptyCong)
@@ -42,6 +44,13 @@ export default function Clientes() {
       if (c) { setSelected(c); setView('detalle') }
     }
   }, [location.state, clientes])
+
+  // Reset to list when navigating to /clientes root (e.g. clicking nav link from a detail)
+  useEffect(() => {
+    if (location.pathname === '/clientes' && !location.state?.openClienteId && view !== 'list') {
+      setView('list'); setSelected(null)
+    }
+  }, [location.pathname])
 
   // Pass the desired tab to ClienteDetalle when coming back from a vehicle
   const initialTab = location.state?.openClienteId && location.state?.fromVehiculo ? 'vehiculos' : undefined
@@ -73,6 +82,9 @@ export default function Clientes() {
       }
     }
     const { data: { user } } = await supabase.auth.getUser()
+    const { data: myRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
+    const empresaId = myRow?.empresa_id
+
     const payload = {
       nombre: form.nombre, apellido: form.apellido || null, tipo: form.tipo,
       email: form.email || null, telefono: form.telefono || null, nit: form.nit || null, dpi: form.dpi || null,
@@ -82,18 +94,48 @@ export default function Clientes() {
       contacto_nombre: form.contacto_nombre || null, contacto_apellido: form.contacto_apellido || null,
       contacto_telefono: form.contacto_telefono || null, contacto_email: form.contacto_email || null,
       contacto_cargo: form.contacto_cargo || null,
+      rep_legal_nombre: form.rep_legal_nombre || null, rep_legal_nit: form.rep_legal_nit || null,
+      rep_legal_fecha_nacimiento: form.rep_legal_fecha_nacimiento || null,
+      fecha_constitucion: form.fecha_constitucion || null,
+      pep: form.pep || false, pep_parentesco: form.pep_parentesco || false, cpe: form.cpe || false,
     }
+
+    let clienteId = editing
     if (editing) {
       const { error } = await supabase.from('clientes').update(payload).eq('id', editing)
       if (error) { toast.error('Error: ' + error.message); return }
-      toast.success('Cliente actualizado')
     } else {
-      const { error } = await supabase.from('clientes').insert(payload)
+      const { data: inserted, error } = await supabase.from('clientes').insert(payload).select().single()
       if (error) { toast.error('Error: ' + error.message); return }
-      toast.success('Cliente creado')
+      clienteId = inserted.id
     }
+
+    // Upload documents
+    const docMap = [
+      { key: 'recibo', col: 'doc_recibo_url', label: 'Recibo' },
+      { key: 'dpi',    col: 'doc_dpi_url',    label: 'DPI' },
+      { key: 'patente',col: 'doc_patente_url', label: 'Patente' },
+    ]
+    const docUpdates = {}
+    for (const { key, col } of docMap) {
+      const file = docsFiles[key]
+      if (!file) continue
+      const ext = file.name.split('.').pop()
+      const path = `${empresaId}/${clienteId}/${key}.${ext}`
+      const { error: upErr } = await supabase.storage.from('cliente-docs').upload(path, file, { upsert: true })
+      if (!upErr) {
+        const { data: { publicUrl } } = supabase.storage.from('cliente-docs').getPublicUrl(path)
+        docUpdates[col] = publicUrl
+      }
+    }
+    if (Object.keys(docUpdates).length > 0) {
+      await supabase.from('clientes').update(docUpdates).eq('id', clienteId)
+    }
+
+    toast.success(editing ? 'Cliente actualizado' : 'Cliente creado')
     setForm(emptyCliente)
     setEditing(null)
+    setDocsFiles({ recibo: null, dpi: null, patente: null })
     setView('list')
     fetchAll()
   }
@@ -107,7 +149,11 @@ export default function Clientes() {
       contacto_nombre: c.contacto_nombre || '', contacto_apellido: c.contacto_apellido || '',
       contacto_telefono: c.contacto_telefono || '', contacto_email: c.contacto_email || '',
       contacto_cargo: c.contacto_cargo || '', dpi: c.dpi || '',
-      fecha_nacimiento: c.fecha_nacimiento || ''
+      fecha_nacimiento: c.fecha_nacimiento || '',
+      rep_legal_nombre: c.rep_legal_nombre || '', rep_legal_nit: c.rep_legal_nit || '',
+      rep_legal_fecha_nacimiento: c.rep_legal_fecha_nacimiento || '',
+      fecha_constitucion: c.fecha_constitucion || '',
+      pep: c.pep || false, pep_parentesco: c.pep_parentesco || false, cpe: c.cpe || false,
     })
     const cong = conglomerados.find(x => x.id === c.conglomerado_id)
     setConglomeradoSearch(cong?.nombre || '')
@@ -236,6 +282,25 @@ export default function Clientes() {
                   <label style={labelStyle}>Direccion</label>
                   <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
                 </div>
+                <div>
+                  <label style={labelStyle}>Fecha de constitución</label>
+                  <input type='date' value={form.fecha_constitucion} onChange={e => setForm({ ...form, fecha_constitucion: e.target.value })} style={inp} />
+                </div>
+              </div>
+              <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Representante legal</p>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
+                <div>
+                  <label style={labelStyle}>Nombre del rep. legal</label>
+                  <input value={form.rep_legal_nombre} onChange={e => setForm({ ...form, rep_legal_nombre: e.target.value })} style={inp} />
+                </div>
+                <div>
+                  <label style={labelStyle}>NIT del rep. legal</label>
+                  <input value={form.rep_legal_nit} onChange={e => setForm({ ...form, rep_legal_nit: e.target.value })} style={inp} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Fecha nac. rep. legal</label>
+                  <input type='date' value={form.rep_legal_fecha_nacimiento} onChange={e => setForm({ ...form, rep_legal_fecha_nacimiento: e.target.value })} max={new Date().toISOString().split('T')[0]} style={inp} />
+                </div>
               </div>
               <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
@@ -308,6 +373,7 @@ export default function Clientes() {
               <input value={selectedCong ? selectedCong.nombre : conglomeradoSearch}
                 onChange={e => { setConglomeradoSearch(e.target.value); setForm({ ...form, conglomerado_id:'' }); setShowConglomeradoDropdown(true) }}
                 onFocus={() => setShowConglomeradoDropdown(true)}
+                onBlur={() => setTimeout(() => setShowConglomeradoDropdown(false), 150)}
                 placeholder='Buscar conglomerado...' style={inp} />
               {form.conglomerado_id && (
                 <button type='button' onClick={() => { setForm({ ...form, conglomerado_id:'' }); setConglomeradoSearch('') }}
@@ -329,11 +395,58 @@ export default function Clientes() {
               )}
             </div>
           </div>
+          {/* ── Cumplimiento PEP / CPE ── */}
+          <div style={{ marginBottom:'20px' }}>
+            <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Cumplimiento</p>
+            {[
+              { key:'pep',           label:'¿Es o ha sido en los últimos dos años Persona Expuesta Políticamente (PEP)?' },
+              { key:'pep_parentesco',label:'¿Tiene parentesco o está relacionado con una Persona Expuesta Políticamente (PEP)?' },
+              { key:'cpe',           label:'¿Es o ha sido en el último año Contratista o Proveedor del Estado (CPE)?' },
+            ].map(({ key, label }) => (
+              <div key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderBottom:'1px solid #f8fafc' }}>
+                <p style={{ fontSize:'13px', color:'#374151', margin:0, flex:1, paddingRight:'16px' }}>{label}</p>
+                <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
+                  {[true, false].map(val => (
+                    <button key={String(val)} type='button'
+                      onClick={() => setForm({ ...form, [key]: val })}
+                      style={{ padding:'6px 18px', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', border:'1.5px solid ' + (form[key] === val ? (val ? '#C4A96B' : '#e2e8f0') : '#e2e8f0'), background: form[key] === val ? (val ? '#FDF8EE' : '#f1f5f9') : 'white', color: form[key] === val ? (val ? '#C4A96B' : '#111111') : '#94a3b8' }}>
+                      {val ? 'Sí' : 'No'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Documentos ── */}
+          <div style={{ marginBottom:'20px' }}>
+            <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Documentos</p>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'12px' }}>
+              {[
+                { key:'recibo', label:'Recibo de servicios' },
+                { key:'dpi',    label:'DPI / Pasaporte' },
+                { key:'patente',label:'Patente' },
+              ].map(({ key, label }) => (
+                <div key={key}>
+                  <label style={labelStyle}>{label}</label>
+                  <label style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 12px', border:'1.5px dashed ' + (docsFiles[key] ? '#C4A96B' : '#e2e8f0'), borderRadius:'8px', cursor:'pointer', background: docsFiles[key] ? '#FDF8EE' : '#f8fafc' }}>
+                    {docsFiles[key] ? <CheckCircle size={15} color='#C4A96B' /> : <Upload size={15} color='#94a3b8' />}
+                    <span style={{ fontSize:'12px', color: docsFiles[key] ? '#C4A96B' : '#94a3b8', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {docsFiles[key] ? docsFiles[key].name : 'Seleccionar archivo'}
+                    </span>
+                    <input type='file' accept='.pdf,.jpg,.jpeg,.png' style={{ display:'none' }}
+                      onChange={e => setDocsFiles({ ...docsFiles, [key]: e.target.files[0] || null })} />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display:'flex', gap:'8px', paddingTop:'16px', borderTop:'1px solid #f1f5f9' }}>
             <button type='submit' style={{ padding:'11px 24px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
               {editing ? 'Actualizar cliente' : 'Crear cliente'}
             </button>
-            <button type='button' onClick={() => { setView('list'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
+            <button type='button' onClick={() => { setView('list'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch(''); setDocsFiles({ recibo:null, dpi:null, patente:null }) }}
               style={{ padding:'11px 24px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', cursor:'pointer' }}>
               Cancelar
             </button>
@@ -563,6 +676,9 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
   const [personas, setPersonas] = useState([])
   const [reqs, setReqs] = useState([])
   const [vehiculos, setVehiculos] = useState([])
+  const [reclamos, setReclamos] = useState([])
+  const [loadingReclamos, setLoadingReclamos] = useState(true)
+  const [showReclamoModal, setShowReclamoModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(initialTab || 'polizas')
   const [showPFForm, setShowPFForm] = useState(false)
@@ -570,7 +686,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
   const [editingPF, setEditingPF] = useState(null)
   const [filtroReqEstado, setFiltroReqEstado] = useState('todos')
 
-  useEffect(() => { fetchData() }, [cliente.id])
+  useEffect(() => { fetchData(); fetchReclamos() }, [cliente.id])
 
   const fetchData = async () => {
     setLoading(true)
@@ -593,6 +709,16 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
       setReqs([])
     }
     setLoading(false)
+  }
+
+  const fetchReclamos = async () => {
+    setLoadingReclamos(true)
+    const { data } = await supabase.from('reclamos')
+      .select('*, polizas(id, numero_poliza), vehiculos(id, marca, modelo, anio, placa, tipo_placa), clientes(id, nombre, apellido)')
+      .eq('cliente_id', cliente.id)
+      .order('created_at', { ascending: false })
+    setReclamos(data || [])
+    setLoadingReclamos(false)
   }
 
   const handlePFSubmit = async (e) => {
@@ -688,7 +814,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['reclamos',`Reclamos (${reclamos.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#111111' : 'white',
@@ -891,6 +1017,29 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
               </div>
             ))}
         </div>
+      )}
+
+      {activeTab === 'reclamos' && (
+        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+          <ReclamosMiniList
+            reclamos={reclamos}
+            loading={loadingReclamos}
+            sinPolizaVigente={false}
+            onNuevo={() => setShowReclamoModal(true)}
+          />
+        </div>
+      )}
+
+      {showReclamoModal && (
+        <ReclamoModal
+          context={{
+            tipo: 'cliente',
+            clienteId: cliente.id,
+            clienteData: cliente,
+          }}
+          onClose={() => setShowReclamoModal(false)}
+          onSaved={(r) => { setShowReclamoModal(false); fetchReclamos(); navigate('/reclamos', { state: { openReclamoId: r.id } }) }}
+        />
       )}
     </div>
   )

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { DollarSign, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
+import { DollarSign, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, BookOpen, FileSpreadsheet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
+import * as XLSX from 'xlsx'
 
 const toDateStr = (d) => d.toISOString().split('T')[0]
 const addDays = (dateStr, n) => { const d = new Date(dateStr + 'T12:00:00'); d.setDate(d.getDate() + n); return toDateStr(d) }
@@ -59,6 +60,31 @@ export default function Comisiones() {
   }
 
   const toggleExpandInforme = (id) => setExpandedInforme(prev => prev === id ? null : id)
+
+  const exportInformeExcel = (inf) => {
+    const reqs = informeReqs[inf.id] || []
+    const fmtD = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT') : '—'
+    const rows = reqs.map(r => ({
+      'Nº Req.':    r.codigo || '—',
+      'Cuota':      `${r.numero_cuota}/${r.total_cuotas}`,
+      'Póliza':     r.polizas?.numero_poliza || '—',
+      'Cliente':    [r.polizas?.clientes?.nombre, r.polizas?.clientes?.apellido].filter(Boolean).join(' ') || '—',
+      'Fecha pago': fmtD(r.fecha_pago),
+      'Monto (Q)':  parseFloat(r.monto || 0),
+    }))
+    rows.push({
+      'Nº Req.': '', 'Cuota': '', 'Póliza': '', 'Cliente': '',
+      'Fecha pago': 'TOTAL',
+      'Monto (Q)': reqs.reduce((s, r) => s + parseFloat(r.monto || 0), 0),
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [{ wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 12 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Comisiones')
+    const aseg = (inf.aseguradoras?.nombre || 'informe').replace(/\s+/g, '_')
+    const fecha = new Date(inf.created_at).toISOString().split('T')[0]
+    XLSX.writeFile(wb, `Comisiones_${aseg}_${fecha}.xlsx`)
+  }
 
   const filteredInformes = informes.filter(inf => {
     if (filtroFechaHistorial) {
@@ -386,6 +412,10 @@ export default function Comisiones() {
                         <p style={{ fontSize: '14px', fontWeight: 700, color: '#C4A96B', margin: 0, whiteSpace: 'nowrap' }}>Q {parseFloat(inf.total_monto || 0).toLocaleString()}</p>
                         <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>{new Date(inf.created_at).toLocaleDateString('es-GT')}</p>
                       </div>
+                      <button onClick={e => { e.stopPropagation(); exportInformeExcel(inf) }} title="Exportar Excel"
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, marginRight: '8px' }}>
+                        <FileSpreadsheet size={13} /> Excel
+                      </button>
                       {isExpanded ? <ChevronUp size={16} color='#64748b' /> : <ChevronDown size={16} color='#64748b' />}
                     </div>
 

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
-import { Building2, Plus, Trash2, Edit2, X, Upload, Search, Settings, ChevronDown, ChevronUp } from 'lucide-react'
+import { Building2, Plus, Trash2, Edit2, X, Upload, Search, Settings, ChevronDown, ChevronUp, Shield } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'', logo_url:'', porcentaje_gasto_emision: 5 }
+const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'', logo_url:'', porcentaje_gasto_emision: 5, codigo_agente: '' }
 
 /* ─────────────────────────────────────────
    Main page
@@ -30,7 +30,7 @@ export default function Aseguradoras() {
     setLoading(true)
     const { data } = await supabase
       .from('aseguradoras')
-      .select('*, recargo_fraccionamiento(*), productos(*, coberturas(*), producto_comisiones(*))')
+      .select('*, recargo_fraccionamiento(*), coberturas_catalogo(*), productos(*, coberturas(*), producto_comisiones(*), producto_coberturas_catalogo(id,cobertura_catalogo_id))')
       .eq('activa', true)
       .order('nombre')
     setAseguradoras(data || [])
@@ -77,7 +77,7 @@ export default function Aseguradoras() {
   }
 
   const openEditModal = (a) => {
-    setForm({ nombre:a.nombre, nit:a.nit||'', direccion:a.direccion||'', telefono:a.telefono||'', email:a.email||'', contacto_nombre:a.contacto_nombre||'', logo_url:a.logo_url||'', porcentaje_gasto_emision: a.porcentaje_gasto_emision ?? 5 })
+    setForm({ nombre:a.nombre, nit:a.nit||'', direccion:a.direccion||'', telefono:a.telefono||'', email:a.email||'', contacto_nombre:a.contacto_nombre||'', logo_url:a.logo_url||'', porcentaje_gasto_emision: a.porcentaje_gasto_emision ?? 5, codigo_agente: a.codigo_agente||'' })
     setLogoPreview(a.logo_url || null)
     setEditing(a.id)
     setShowFormModal(true)
@@ -219,6 +219,12 @@ export default function Aseguradoras() {
                     onChange={e=>setForm({...form, porcentaje_gasto_emision: e.target.value})}
                     style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
                 </div>
+                <div>
+                  <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Código de agente</label>
+                  <input type="text" value={form.codigo_agente} onChange={e=>setForm({...form, codigo_agente: e.target.value})}
+                    placeholder="Ej. 2128"
+                    style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
+                </div>
               </div>
 
               <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
@@ -298,6 +304,7 @@ function ConfigModal({ aseguradora, onClose, onRefresh }) {
         {/* Tabs */}
         <div style={{padding:'12px 24px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc',display:'flex',gap:'4px'}}>
           <button style={tabStyle('productos')} onClick={()=>setTab('productos')}>Productos y coberturas</button>
+          <button style={tabStyle('catalogo')} onClick={()=>setTab('catalogo')}>Catálogo de coberturas</button>
           <button style={tabStyle('recargos')} onClick={()=>setTab('recargos')}>Recargos por fraccionamiento</button>
         </div>
 
@@ -305,6 +312,9 @@ function ConfigModal({ aseguradora, onClose, onRefresh }) {
         <div style={{padding:'24px',maxHeight:'60vh',overflowY:'auto'}}>
           {tab==='productos' && (
             <ProductosTab aseguradora={aseguradora} onRefresh={onRefresh}/>
+          )}
+          {tab==='catalogo' && (
+            <CatalogoCoberturasTab aseguradora={aseguradora} onRefresh={onRefresh}/>
           )}
           {tab==='recargos' && (
             <RecargosTab aseguradora={aseguradora} onRefresh={onRefresh}/>
@@ -423,7 +433,7 @@ function ProductosTab({ aseguradora, onRefresh }) {
                 {/* Coberturas toggle */}
                 <button onClick={()=>setExpandedProd(isExpanded?null:prod.id)}
                   style={{display:'flex',alignItems:'center',gap:'4px',padding:'4px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer',fontSize:'12px',color:'#64748b'}}>
-                  {prod.coberturas?.filter(c=>c.activa).length||0} coberturas
+                  {prod.producto_coberturas_catalogo?.length||0} coberturas
                   {isExpanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
                 </button>
 
@@ -435,7 +445,7 @@ function ProductosTab({ aseguradora, onRefresh }) {
 
               {/* Coberturas section */}
               {isExpanded && (
-                <CoberturasSection producto={prod} onRefresh={onRefresh}/>
+                <CoberturasSection producto={prod} catalogo={aseguradora.coberturas_catalogo?.filter(c=>c.activa)||[]} onRefresh={onRefresh}/>
               )}
             </div>
           )
@@ -446,26 +456,76 @@ function ProductosTab({ aseguradora, onRefresh }) {
 }
 
 /* ─────────────────────────────────────────
-   Coberturas section (inside product)
+   Coberturas section (inside product) — selects from catalog
 ───────────────────────────────────────── */
-function CoberturasSection({ producto, onRefresh }) {
-  const [showForm, setShowForm]   = useState(false)
-  const [nombre, setNombre]       = useState('')
-  const [monto, setMonto]         = useState('')
-  const [editingId, setEditingId] = useState(null)
+function CoberturasSection({ producto, catalogo, onRefresh }) {
+  const assigned = new Set((producto.producto_coberturas_catalogo || []).map(r => r.cobertura_catalogo_id))
+
+  const toggle = async (catId, isOn) => {
+    if (isOn) {
+      await supabase.from('producto_coberturas_catalogo').delete()
+        .eq('producto_id', producto.id).eq('cobertura_catalogo_id', catId)
+    } else {
+      await supabase.from('producto_coberturas_catalogo').insert({ producto_id: producto.id, cobertura_catalogo_id: catId })
+    }
+    onRefresh()
+  }
+
+  return (
+    <div style={{borderTop:'1px solid #f1f5f9', padding:'12px 16px', background:'#f8fafc'}}>
+      <p style={{fontSize:'12px', fontWeight:600, color:'#374151', margin:'0 0 10px'}}>Coberturas del producto</p>
+      {catalogo.length === 0 ? (
+        <p style={{fontSize:'12px', color:'#94a3b8', margin:0}}>
+          Sin coberturas en el catálogo. Agrégalas en la pestaña <strong>Catálogo de coberturas</strong>.
+        </p>
+      ) : (
+        <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+          {catalogo.map(c => {
+            const isOn = assigned.has(c.id)
+            return (
+              <label key={c.id} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px 12px', background:'white', borderRadius:'8px', border:`1px solid ${isOn?'#C4A96B':'#e2e8f0'}`, cursor:'pointer', transition:'border-color 0.15s'}}>
+                <input type="checkbox" checked={isOn} onChange={()=>toggle(c.id, isOn)}
+                  style={{width:'15px', height:'15px', accentColor:'#C4A96B', cursor:'pointer', flexShrink:0}}/>
+                <span style={{flex:1, fontSize:'13px', color:'#374151', fontWeight: isOn?600:400}}>{c.nombre}</span>
+                {c.monto != null && (
+                  <span style={{fontSize:'12px', fontWeight:600, color:'#C4A96B', whiteSpace:'nowrap'}}>
+                    Q {parseFloat(c.monto).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                  </span>
+                )}
+              </label>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────
+   Catálogo de coberturas tab
+───────────────────────────────────────── */
+function CatalogoCoberturasTab({ aseguradora, onRefresh }) {
+  const [showForm, setShowForm]     = useState(false)
+  const [nombre, setNombre]         = useState('')
+  const [monto, setMonto]           = useState('')
+  const [editingId, setEditingId]   = useState(null)
   const [editNombre, setEditNombre] = useState('')
   const [editMonto, setEditMonto]   = useState('')
 
-  const activas = producto.coberturas?.filter(c => c.activa) || []
+  const catalogo = (aseguradora.coberturas_catalogo || []).filter(c => c.activa)
+  const inpStyle = { padding:'8px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'13px', background:'white' }
 
-  const addCobertura = async (e) => {
+  const add = async (e) => {
     e.preventDefault()
-    await supabase.from('coberturas').insert({
-      producto_id: producto.id,
+    const eid = await getMyEmpresaId()
+    const { error } = await supabase.from('coberturas_catalogo').insert({
+      aseguradora_id: aseguradora.id,
       nombre,
       monto: monto !== '' ? parseFloat(monto) : null,
+      empresa_id: eid,
     })
-    toast.success('Cobertura agregada')
+    if (error) { toast.error('Error al agregar'); return }
+    toast.success('Cobertura agregada al catálogo')
     setNombre(''); setMonto(''); setShowForm(false); onRefresh()
   }
 
@@ -477,7 +537,7 @@ function CoberturasSection({ producto, onRefresh }) {
 
   const saveEdit = async (e) => {
     e.preventDefault()
-    await supabase.from('coberturas').update({
+    await supabase.from('coberturas_catalogo').update({
       nombre: editNombre,
       monto: editMonto !== '' ? parseFloat(editMonto) : null,
     }).eq('id', editingId)
@@ -485,86 +545,89 @@ function CoberturasSection({ producto, onRefresh }) {
     setEditingId(null); onRefresh()
   }
 
-  const deleteCobertura = async (id) => {
-    await supabase.from('coberturas').update({ activa: false }).eq('id', id)
-    onRefresh()
+  const remove = async (id) => {
+    await supabase.from('coberturas_catalogo').update({ activa: false }).eq('id', id)
+    toast.success('Cobertura eliminada'); onRefresh()
   }
 
-  const inpStyle = { padding:'6px 10px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', background:'white' }
-
   return (
-    <div style={{borderTop:'1px solid #f1f5f9', padding:'12px 16px', background:'#f8fafc'}}>
-      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px'}}>
-        <span style={{fontSize:'12px', fontWeight:600, color:'#374151'}}>Coberturas</span>
-        <button onClick={()=>{ setShowForm(!showForm); setNombre(''); setMonto('') }}
-          style={{fontSize:'12px', padding:'3px 10px', background:'#C4A96B', color:'white', border:'none', borderRadius:'6px', cursor:'pointer'}}>
-          + Cobertura
+    <div>
+      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+          <Shield size={16} color="#C4A96B"/>
+          <p style={{fontSize:'14px', color:'#64748b', margin:0}}>{catalogo.length} cobertura(s) en el catálogo</p>
+        </div>
+        <button onClick={()=>setShowForm(!showForm)}
+          style={{display:'flex', alignItems:'center', gap:'6px', padding:'8px 14px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer'}}>
+          <Plus size={14}/> Nueva cobertura
         </button>
       </div>
 
-      {/* ── Formulario nueva cobertura ── */}
+      <p style={{fontSize:'13px', color:'#94a3b8', margin:'0 0 16px', lineHeight:1.5}}>
+        Define aquí todas las coberturas disponibles para esta aseguradora. Luego, selecciónalas desde cada producto.
+      </p>
+
       {showForm && (
-        <form onSubmit={addCobertura} style={{display:'grid', gridTemplateColumns:'1fr 120px auto auto', gap:'6px', marginBottom:'10px', alignItems:'center'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de cobertura" required autoFocus style={inpStyle}/>
-          <input value={monto} onChange={e=>setMonto(e.target.value)} placeholder="Monto (Q)" type="number" min="0" step="0.01"
-            style={inpStyle}/>
-          <button type="submit" style={{padding:'6px 12px', background:'#111111', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', fontSize:'12px', whiteSpace:'nowrap'}}>
+        <form onSubmit={add} style={{display:'grid', gridTemplateColumns:'1fr 140px auto auto', gap:'8px', marginBottom:'16px', background:'#f8fafc', padding:'12px', borderRadius:'8px', border:'1px solid #e2e8f0', alignItems:'center'}}>
+          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de la cobertura" required autoFocus style={inpStyle}/>
+          <input value={monto} onChange={e=>setMonto(e.target.value)} placeholder="Monto (Q) — opcional" type="number" min="0" step="0.01" style={inpStyle}/>
+          <button type="submit" style={{padding:'8px 14px', background:'#C4A96B', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:500, whiteSpace:'nowrap'}}>
             Agregar
           </button>
-          <button type="button" onClick={()=>{setShowForm(false); setNombre(''); setMonto('')}}
-            style={{padding:'6px', background:'white', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center'}}>
-            <X size={12} color="#64748b"/>
+          <button type="button" onClick={()=>{setShowForm(false);setNombre('');setMonto('')}}
+            style={{padding:'8px', background:'white', border:'1px solid #e2e8f0', borderRadius:'8px', cursor:'pointer', display:'flex', alignItems:'center'}}>
+            <X size={14} color="#64748b"/>
           </button>
         </form>
       )}
 
-      {/* ── Lista de coberturas ── */}
-      <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-        {activas.length === 0 && !showForm && (
-          <span style={{fontSize:'12px', color:'#94a3b8'}}>Sin coberturas</span>
-        )}
-        {activas.map(c => (
-          <div key={c.id}>
-            {editingId === c.id ? (
-              /* ── Modo edición inline ── */
-              <form onSubmit={saveEdit} style={{display:'grid', gridTemplateColumns:'1fr 120px auto auto', gap:'6px', alignItems:'center'}}>
-                <input value={editNombre} onChange={e=>setEditNombre(e.target.value)} required autoFocus style={inpStyle}/>
-                <input value={editMonto} onChange={e=>setEditMonto(e.target.value)} placeholder="Monto (Q)" type="number" min="0" step="0.01"
-                  style={inpStyle}/>
-                <button type="submit" style={{padding:'6px 12px', background:'#111111', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', fontSize:'12px'}}>
-                  Guardar
-                </button>
-                <button type="button" onClick={()=>setEditingId(null)}
-                  style={{padding:'6px', background:'white', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center'}}>
-                  <X size={12} color="#64748b"/>
-                </button>
-              </form>
-            ) : (
-              /* ── Vista normal ── */
-              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 12px', background:'white', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'10px', minWidth:0}}>
-                  <span style={{fontSize:'13px', color:'#374151', fontWeight:500}}>{c.nombre}</span>
-                  {c.monto != null && (
-                    <span style={{fontSize:'12px', fontWeight:600, color:'#C4A96B', whiteSpace:'nowrap'}}>
-                      Q {parseFloat(c.monto).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}
-                    </span>
-                  )}
-                </div>
-                <div style={{display:'flex', gap:'4px', flexShrink:0}}>
-                  <button onClick={()=>startEdit(c)}
-                    style={{padding:'4px', background:'#f1f5f9', border:'none', borderRadius:'5px', cursor:'pointer', display:'flex', alignItems:'center'}}>
-                    <Edit2 size={11} color="#64748b"/>
+      {catalogo.length === 0 && !showForm ? (
+        <div style={{textAlign:'center', padding:'40px', color:'#94a3b8', fontSize:'14px', border:'1px dashed #e2e8f0', borderRadius:'10px'}}>
+          No hay coberturas en el catálogo aún.
+        </div>
+      ) : (
+        <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+          {catalogo.map(c => (
+            <div key={c.id}>
+              {editingId === c.id ? (
+                <form onSubmit={saveEdit} style={{display:'grid', gridTemplateColumns:'1fr 140px auto auto', gap:'8px', alignItems:'center'}}>
+                  <input value={editNombre} onChange={e=>setEditNombre(e.target.value)} required autoFocus style={inpStyle}/>
+                  <input value={editMonto} onChange={e=>setEditMonto(e.target.value)} placeholder="Monto (Q)" type="number" min="0" step="0.01" style={inpStyle}/>
+                  <button type="submit" style={{padding:'8px 14px', background:'#111111', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
+                    Guardar
                   </button>
-                  <button onClick={()=>deleteCobertura(c.id)}
-                    style={{padding:'4px', background:'#fef2f2', border:'none', borderRadius:'5px', cursor:'pointer', display:'flex', alignItems:'center'}}>
-                    <Trash2 size={11} color="#ef4444"/>
+                  <button type="button" onClick={()=>setEditingId(null)}
+                    style={{padding:'8px', background:'white', border:'1px solid #e2e8f0', borderRadius:'8px', cursor:'pointer', display:'flex', alignItems:'center'}}>
+                    <X size={14} color="#64748b"/>
                   </button>
+                </form>
+              ) : (
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'white', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'12px', minWidth:0}}>
+                    <Shield size={13} color="#C4A96B" style={{flexShrink:0}}/>
+                    <span style={{fontSize:'13px', color:'#374151', fontWeight:500}}>{c.nombre}</span>
+                    {c.monto != null && (
+                      <span style={{fontSize:'12px', fontWeight:600, color:'#C4A96B', whiteSpace:'nowrap'}}>
+                        Q {parseFloat(c.monto).toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{display:'flex', gap:'4px', flexShrink:0}}>
+                    <button onClick={()=>startEdit(c)}
+                      style={{padding:'5px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center'}}>
+                      <Edit2 size={12} color="#64748b"/>
+                    </button>
+                    <button onClick={()=>remove(c.id)}
+                      style={{padding:'5px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center'}}>
+                      <Trash2 size={12} color="#ef4444"/>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

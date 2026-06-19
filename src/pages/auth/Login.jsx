@@ -47,8 +47,7 @@ function BrandPanel() {
           lineHeight: 1.45, letterSpacing: '0.01em',
           margin: 0,
         }}>
-          Cuidar es amar<br />
-          <span style={{ fontWeight: 700, fontStyle: 'italic', color: '#C4A96B' }}>y agregar</span>
+          <span style={{ fontWeight: 700, fontStyle: 'italic', color: '#C4A96B' }}>Cuidar es amar</span>
         </h2>
       </div>
 
@@ -199,10 +198,19 @@ export default function Login() {
       return
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    if (error) setError(error.message)
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-send-user-email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email, action: 'reset_password' }),
+      }
+    )
+    const json = await res.json()
+    if (!res.ok || json.error) setError(json.error || 'Error al enviar el correo')
     else setSent(true)
     setLoading(false)
   }

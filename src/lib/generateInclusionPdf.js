@@ -55,7 +55,7 @@ async function buildLogoDataUrl() {
  * @param {object|null} opts.personaFacturable
  * @param {string} opts.usuario      — user name string
  */
-export async function generateInclusionPdf({ emision, poliza, vehiculos, personaFacturable, usuario }) {
+export async function generateInclusionPdf({ emision, poliza, vehiculos, personaFacturable, usuario, coberturas }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()
   const margin = 14
@@ -118,7 +118,7 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.5)
   doc.setTextColor(...GOLD)
-  doc.text('TÚ CREA, NOSOTROS TE CUIDAMOS', textX, HEADER_H / 2 + 5.5)
+  doc.text('CUIDAR ES AMAR', textX, HEADER_H / 2 + 5.5)
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
@@ -133,7 +133,7 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
 
   /* ══ DATOS DE AGENTE ══ */
   y = sectionTable('DATOS DE AGENTE', [
-    { label: 'Código de agente', value: '2128' },
+    { label: 'Código de agente', value: fmt(poliza.aseguradoras?.codigo_agente) },
     { label: 'Nombre de agente', value: 'GRUPO GLOBAL EN SEGUROS, S.A.' },
   ], y)
 
@@ -157,6 +157,9 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
     { label: 'NIT',                value: fmt(cli.nit) },
     { label: 'Teléfono / Celular', value: fmt(cli.telefono) },
     { label: 'Email',              value: fmt(cli.email) },
+    { label: '¿Es o ha sido PEP (últimos 2 años)?',              value: cli.pep            === true ? 'Sí' : cli.pep            === false ? 'No' : 'No indicado' },
+    { label: '¿Tiene parentesco o relación con un PEP?',         value: cli.pep_parentesco === true ? 'Sí' : cli.pep_parentesco === false ? 'No' : 'No indicado' },
+    { label: '¿Es o ha sido CPE (Contratista/Proveedor Estado)?', value: cli.cpe           === true ? 'Sí' : cli.cpe           === false ? 'No' : 'No indicado' },
   ], y)
 
   /* ══ RESPONSABLE DE PAGO (si aplica) ══ */
@@ -173,19 +176,73 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
   const vList = vehiculos || []
 
   for (const v of vList) {
-    if (y > 220) { doc.addPage(); y = 14 }
+    if (y > 200) { doc.addPage(); y = 14 }
     const placa = v.tipo_placa ? `${v.tipo_placa}${v.placa || ''}` : (v.placa || '—')
     const sectionTitle = isExclusion ? 'VEHÍCULO A EXCLUIR' : 'VEHÍCULO A INCLUIR'
-    y = sectionTable(sectionTitle, [
-      { label: 'Marca',              value: fmt(v.marca?.toUpperCase()) },
-      { label: 'Línea / Modelo',     value: fmt(v.modelo?.toUpperCase()) },
-      { label: 'Año',                value: fmt(v.anio) },
-      { label: 'Placa',              value: fmt(placa.toUpperCase()) },
-      { label: 'No. de Chasis',      value: fmt(v.chasis?.toUpperCase()) },
-      { label: 'No. de Motor',       value: fmt(v.motor?.toUpperCase()) },
-      { label: 'Color',              value: fmt(v.color?.toUpperCase()) },
-      { label: 'Valor del vehículo', value: fmtQ(v.valor_asegurado) },
-    ], y)
+    const hasPrimaI = !isExclusion && parseFloat(v.prima_total || 0) > 0
+
+    const bodyRowsI = [
+      [{ content: 'Marca',              styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.marca?.toUpperCase())],
+      [{ content: 'Línea / Modelo',     styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.modelo?.toUpperCase())],
+      [{ content: 'Año',                styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.anio)],
+      [{ content: 'Placa',              styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(placa.toUpperCase())],
+      [{ content: 'No. de Chasis',      styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.chasis?.toUpperCase())],
+      [{ content: 'No. de Motor',       styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.motor?.toUpperCase())],
+      [{ content: 'Color',              styles: { fontStyle:'bold', fillColor:LIGHT } }, fmt(v.color?.toUpperCase())],
+      [{ content: 'Valor del vehículo', styles: { fontStyle:'bold', fillColor:LIGHT } }, fmtQ(v.valor_asegurado)],
+    ]
+
+    if (hasPrimaI) {
+      bodyRowsI.push([{
+        content: 'PRIMA DEL VEHÍCULO',
+        colSpan: 2,
+        styles: { fillColor: GOLD, textColor: BLACK, fontStyle: 'bold', halign: 'center', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } },
+      }])
+      bodyRowsI.push([{ content: 'Prima neta',            styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.prima_neta),          styles: { halign:'right' } }])
+      bodyRowsI.push([{ content: 'Gastos de emisión',     styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.monto_gasto_emision), styles: { halign:'right' } }])
+      if (parseFloat(v.monto_recargo || 0) > 0) {
+        bodyRowsI.push([{ content: 'Recargo fraccionamiento', styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.monto_recargo), styles: { halign:'right' } }])
+      }
+      bodyRowsI.push([{ content: 'IVA 12%',               styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: fmtQ(v.monto_iva),           styles: { halign:'right' } }])
+      bodyRowsI.push([
+        { content: 'Prima total', styles: { fontStyle:'bold', fillColor:[235,225,200], textColor:BLACK } },
+        { content: fmtQ(v.prima_total), styles: { fontStyle:'bold', fillColor:[235,225,200], textColor:BLACK, halign:'right' } },
+      ])
+    }
+
+    const hasDedI = parseFloat(v.deducible_danios||0) > 0 || parseFloat(v.deducible_robo||0) > 0
+    if (hasDedI) {
+      bodyRowsI.push([{
+        content: 'DEDUCIBLES',
+        colSpan: 2,
+        styles: { fillColor: [80,80,80], textColor: [255,255,255], fontStyle: 'bold', halign: 'center', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } },
+      }])
+      if (parseFloat(v.deducible_danios||0) > 0)
+        bodyRowsI.push([{ content: 'Deducible daños', styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: `${parseFloat(v.deducible_danios)}%`, styles: { halign:'right' } }])
+      if (parseFloat(v.deducible_robo||0) > 0)
+        bodyRowsI.push([{ content: 'Deducible robo', styles: { fontStyle:'bold', fillColor:LIGHT } }, { content: `${parseFloat(v.deducible_robo)}%`, styles: { halign:'right' } }])
+    }
+
+    doc.setFillColor(...GOLD)
+    doc.rect(margin, y, W - margin * 2, 7, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...BLACK)
+    doc.text(sectionTitle, W / 2, y + 4.8, { align: 'center' })
+
+    autoTable(doc, {
+      startY: y + 7,
+      margin: { left: margin, right: margin },
+      body: bodyRowsI,
+      columnStyles: {
+        0: { cellWidth: 58, fontSize: 8, textColor: BLACK, cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 3 } },
+        1: { fontSize: 8, textColor: BLACK, fillColor: WHITE, cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 4 } },
+      },
+      theme: 'grid',
+      styles: { lineColor: BORDER, lineWidth: 0.2, overflow: 'linebreak' },
+      showHead: false,
+    })
+    y = doc.lastAutoTable.finalY + 6
   }
 
   if (vList.length === 0) {
@@ -194,21 +251,55 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
     ], y)
   }
 
+  /* ══ OBSERVACIONES ══ */
+  if (emision.notas) {
+    y = sectionTable('OBSERVACIONES', [
+      { label: 'Observaciones', value: fmt(emision.notas) },
+    ], y)
+  }
+
   /* ══ INFORMACIÓN DE PAGO ══ */
   if (!isExclusion) {
     const numCuotas = emision.tipo_pago === 'contado' ? 1 : (emision.numero_cuotas || 1)
     y = sectionTable('INFORMACIÓN DE PAGO', [
       { label: 'Prima de inclusión',   value: fmtQ(emision.prima_emision) },
-      { label: 'Tipo de pago',         value: emision.tipo_pago === 'contado' ? 'Contado' : 'Financiado' },
+      { label: 'Tipo de pago',         value: emision.tipo_pago === 'contado' ? 'Contado' : 'Fraccionado' },
       { label: 'No. de cuotas',        value: String(numCuotas) },
       { label: 'Frecuencia',           value: numCuotas === 1 ? 'Pago único' : 'Mensual' },
       { label: 'Vigencia inclusión',   value: `${fmtDate(emision.fecha_inicio)} — ${fmtDate(emision.fecha_fin)}` },
     ], y)
   } else {
     y = sectionTable('INFORMACIÓN DE EXCLUSIÓN', [
-      { label: 'Prima de exclusión', value: fmtQ(emision.prima_emision) },
       { label: 'Fecha de exclusión', value: fmtDate(emision.fecha_inicio) },
     ], y)
+  }
+
+  /* ══ COBERTURAS ══ */
+  if (!isExclusion && coberturas && coberturas.length > 0) {
+    if (y > 200) { doc.addPage(); y = 14 }
+
+    doc.setFillColor(...GOLD)
+    doc.rect(margin, y, W - margin * 2, 7, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...BLACK)
+    doc.text('COBERTURAS', W / 2, y + 4.8, { align: 'center' })
+
+    autoTable(doc, {
+      startY: y + 7,
+      margin: { left: margin, right: margin },
+      head: [['Cobertura', 'Monto']],
+      body: coberturas.map(c => [c.nombre || '—', c.monto ? fmtQ(c.monto) : 'Incluida']),
+      columnStyles: {
+        0: { fontSize: 8, textColor: BLACK, fillColor: [255,255,255], cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 3 } },
+        1: { fontSize: 8, textColor: BLACK, fillColor: LIGHT, cellPadding: { top: 2.8, bottom: 2.8, left: 4, right: 4 }, halign: 'right' },
+      },
+      headStyles: { fillColor: LIGHT, textColor: BLACK, fontSize: 8, fontStyle: 'bold' },
+      theme: 'grid',
+      styles: { lineColor: BORDER, lineWidth: 0.2, overflow: 'linebreak' },
+    })
+
+    y = doc.lastAutoTable.finalY + 5
   }
 
   /* ══ FECHA / REALIZADO POR ══ */
@@ -240,7 +331,7 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
     doc.setFont('helvetica', 'bolditalic')
     doc.setFontSize(8)
     doc.setTextColor(...BLACK)
-    doc.text('TÚ CREA, NOSOTROS TE CUIDAMOS', W / 2, pageH - 4, { align: 'center' })
+    doc.text('CUIDAR ES AMAR', W / 2, pageH - 4, { align: 'center' })
     if (pageCount > 1) {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { notifyTaskAssigned } from '../../lib/notifyTaskAssigned'
 import { CheckSquare, Plus, Check, Trash2, Clock, AlertCircle, FileText, Users, User, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -17,6 +19,7 @@ function Avatar({ nombre, size = 28 }) {
 }
 
 export default function Tareas() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [currentUser, setCurrentUser] = useState(null)
   const [usuarios, setUsuarios]       = useState([])
   const [tareas, setTareas]           = useState([])
@@ -54,7 +57,7 @@ export default function Tareas() {
       if (!user) return
       const { data: row } = await supabase.from('users').select('id, nombre, email, rol').eq('id', user.id).single()
       setCurrentUser(row)
-      setAsignadoA(row?.id || '')
+      setAsignadoA('')
 
       const { data: team } = await supabase.from('users')
         .select('id, nombre, email, rol, activo')
@@ -71,6 +74,17 @@ export default function Tareas() {
     fetchTareas()
   }, [currentUser, estado, scope])
 
+  /* ── Deep-link: ?id=xxx opens that task's modal ── */
+  useEffect(() => {
+    const tareaId = searchParams.get('id')
+    if (!tareaId || loading || tareas.length === 0) return
+    const found = tareas.find(t => t.id === tareaId)
+    if (found) {
+      setTareaModal(found)
+      setSearchParams({}, { replace: true })  // clean URL
+    }
+  }, [searchParams, tareas, loading])
+
   const fetchTareas = async () => {
     setLoading(true)
     let query = supabase.from('tareas')
@@ -85,9 +99,9 @@ export default function Tareas() {
 
     if (estado !== 'todas') query = query.eq('estado', estado)
 
-    // Scope: non-admins always see only their tasks
+    // Scope: "mias" shows tasks assigned to me + unassigned general tasks
     if (!isAdmin || scope === 'mias') {
-      query = query.eq('asignado_a', currentUser.id)
+      query = query.or(`asignado_a.eq.${currentUser.id},asignado_a.is.null`)
     }
 
     const { data } = await query
@@ -149,24 +163,28 @@ export default function Tareas() {
     e.preventDefault()
     setSubmitting(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: { session } } = await supabase.auth.getSession()
 
     // Get empresa_id from session user's row
     const { data: myRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
 
-    await supabase.from('tareas').insert({
+    const { data: inserted } = await supabase.from('tareas').insert({
       titulo,
       descripcion: descripcion || null,
       tipo: 'manual',
       estado: 'pendiente',
       fecha_vencimiento: fechaVenc || null,
-      asignado_a: asignadoA || user.id,
+      asignado_a: asignadoA || null,
       created_by: user.id,
       empresa_id: myRow?.empresa_id || null,
       poliza_id: polizaId || null,
-    })
+    }).select().single()
+
+    if (inserted && asignadoA && asignadoA !== user.id) {
+      notifyTaskAssigned({ taskId: inserted.id, titulo, descripcion, fechaVencimiento: fechaVenc || null, asignadoAId: asignadoA, creadoPorId: user.id })
+    }
+
     toast.success('Tarea creada')
-    setTitulo(''); setDesc(''); setFechaVenc(''); setAsignadoA(currentUser?.id || '')
+    setTitulo(''); setDesc(''); setFechaVenc(''); setAsignadoA('')
     clearPoliza()
     setShowForm(false)
     fetchTareas()
@@ -230,8 +248,9 @@ export default function Tareas() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={lbl}>Asignado a *</label>
+                    <label style={lbl}>Asignado a</label>
                     <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)} style={inp}>
+                      <option value=''>Sin asignar</option>
                       {usuarios.map(u => (
                         <option key={u.id} value={u.id}>
                           {u.nombre || u.email}{u.id === currentUser?.id ? ' (vos)' : ''}
@@ -372,7 +391,9 @@ export default function Tareas() {
         ) : tareas.map((t, i) => {
           const vencida = t.estado === 'pendiente' && t.fecha_vencimiento && new Date(t.fecha_vencimiento) < new Date()
           const asignado = t.asignado_user
+          const creador  = t.creador
           const esPropia = asignado?.id === currentUser?.id
+          const esCreador = creador?.id === currentUser?.id
 
           return (
             <div key={t.id}
@@ -431,6 +452,11 @@ export default function Tareas() {
                   {t.fecha_vencimiento && (
                     <span style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px', color: vencida ? '#ef4444' : '#64748b', fontWeight: vencida ? 600 : 400 }}>
                       <Clock size={10} />{vencida ? 'Venció' : 'Vence'}: {new Date(t.fecha_vencimiento + 'T12:00:00').toLocaleDateString('es-GT', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                  {creador && (
+                    <span style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px', color: '#94a3b8' }}>
+                      Creada por {esCreador ? 'vos' : (creador.nombre || creador.email)}
                     </span>
                   )}
                 </div>
@@ -613,13 +639,18 @@ function TareaDetailModal({ tarea, usuarios, onClose, onSaved }) {
           </div>
 
           {/* Metadata chips */}
-          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' }}>
             <span style={{ fontSize:'11px', padding:'3px 9px', borderRadius:'20px', background:tarea.tipo==='automatica'?'#dbeafe':'#f0fdf4', color:tarea.tipo==='automatica'?'#1d4ed8':'#15803d' }}>
               {tarea.tipo==='automatica'?'Automática':'Manual'}
             </span>
             <span style={{ fontSize:'11px', padding:'3px 9px', borderRadius:'20px', background:tarea.estado==='completada'?'#dcfce7':vencida?'#fef2f2':'#f1f5f9', color:tarea.estado==='completada'?'#15803d':vencida?'#ef4444':'#64748b' }}>
               {tarea.estado==='completada'?'Completada':vencida?'Vencida':'Pendiente'}
             </span>
+            {tarea.creador && (
+              <span style={{ fontSize:'11px', color:'#94a3b8' }}>
+                Creada por <strong style={{ color:'#64748b' }}>{tarea.creador.nombre || tarea.creador.email}</strong>
+              </span>
+            )}
           </div>
         </div>
 

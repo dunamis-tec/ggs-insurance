@@ -5,7 +5,7 @@ import { clearEmpresaIdCache } from '../../lib/getMyEmpresaId'
 import {
   LayoutDashboard, Users, FileText, Building2, CreditCard,
   BookOpen, DollarSign, CheckSquare, Car, LogOut, Settings,
-  X, Grid3x3, ChevronDown
+  X, Grid3x3, ChevronDown, ShieldAlert
 } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 
@@ -13,17 +13,18 @@ const NAV_HEIGHT = 54
 
 // Primary nav — always visible in top bar
 const primaryNavItems = [
-  { to: '/',          icon: LayoutDashboard, label: 'Dashboard',  end: true },
-  { to: '/polizas',   icon: FileText,        label: 'Pólizas' },
-  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
+  { to: '/',          icon: LayoutDashboard, label: 'Dashboard',           end: true },
   { to: '/clientes',  icon: Users,           label: 'Clientes' },
+  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
+  { to: '/polizas',   icon: FileText,        label: 'Cartera de Clientes' },
 ]
 
 // Secondary nav — hidden inside "Menú" dropdown
 const menuDropdownItems = [
+  { to: '/reclamos',      icon: ShieldAlert, label: 'Reclamos' },
   { to: '/aseguradoras',  icon: Building2,   label: 'Aseguradoras' },
-  { to: '/requerimientos',icon: CreditCard,  label: 'Requerimientos' },
-  { to: '/liquidaciones', icon: BookOpen,    label: 'Liquidaciones' },
+  { to: '/requerimientos',icon: CreditCard,  label: 'Gestión de cobro' },
+  { to: '/liquidaciones', icon: BookOpen,    label: 'Planillas' },
   { to: '/comisiones',    icon: DollarSign,  label: 'Comisiones' },
   { to: '/tareas',        icon: CheckSquare, label: 'Tareas' },
   { to: '/configuracion', icon: Settings,    label: 'Configuración' },
@@ -34,10 +35,10 @@ const navItems = [...primaryNavItems, ...menuDropdownItems]
 
 // Bottom-tab items (mobile)
 const tabItems = [
-  { to: '/',          icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/polizas',   icon: FileText,        label: 'Pólizas' },
-  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
+  { to: '/',          icon: LayoutDashboard, label: 'Dashboard',           end: true },
   { to: '/clientes',  icon: Users,           label: 'Clientes' },
+  { to: '/vehiculos', icon: Car,             label: 'Vehículos' },
+  { to: '/polizas',   icon: FileText,        label: 'Cartera de Clientes' },
 ]
 
 // Menu sheet items (mobile — everything not in tab bar)
@@ -122,11 +123,16 @@ export default function MainLayout({ session }) {
           flexShrink: 0,
           zIndex: 150,
         }}>
-          {companyLogo
-            ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
-            : <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '28px', width: 'auto' }} />
-          }
-          <span style={{ color: 'white', fontSize: '15px', fontWeight: 600, flex: 1 }}>{currentLabel}</span>
+          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+            {companyLogo
+              ? <img src={companyLogo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '5px', background: 'white', padding: '2px' }} />
+              : <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '28px', width: 'auto' }} />
+            }
+          </button>
+          <button onClick={() => { const item = navItems.find(n => n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)); navigate(item?.to || '/') }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'white', fontSize: '15px', fontWeight: 600, flex: 1, textAlign: 'left' }}>
+            {currentLabel}
+          </button>
           <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {session?.user?.email}
           </span>
@@ -237,9 +243,11 @@ export default function MainLayout({ session }) {
         padding: '0 24px', gap: 0,
         zIndex: 100, flexShrink: 0,
       }}>
-        {/* Logo */}
+        {/* Logo → Dashboard */}
         <div style={{ display: 'flex', alignItems: 'center', marginRight: '28px', paddingRight: '24px', borderRight: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
-          <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '36px', width: 'auto' }} />
+          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+            <img src="/ggs-logo-nav.png" alt="GGS" style={{ height: '36px', width: 'auto' }} />
+          </button>
         </div>
 
         {/* Primary nav items */}

@@ -18,6 +18,7 @@ import Comisiones from './pages/comisiones/Comisiones'
 import Tareas from './pages/tareas/Tareas'
 import Vehiculos from './pages/vehiculos/Vehiculos'
 import Configuracion from './pages/configuracion/Configuracion'
+import Reclamos from './pages/reclamos/Reclamos'
 import Onboarding from './pages/onboarding/Onboarding'
 import InstallBanner from './components/InstallBanner'
 
@@ -156,6 +157,7 @@ export default function App() {
         <Route path="tareas/*" element={<Tareas />} />
         <Route path="vehiculos/*" element={<Vehiculos />} />
         <Route path="configuracion/*" element={<Configuracion />} />
+        <Route path="reclamos/*" element={<Reclamos />} />
       </Route>
     </Routes>
     </>

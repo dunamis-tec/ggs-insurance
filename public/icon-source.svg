@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- White background -->
+  <rect width="512" height="512" fill="#FFFFFF"/>
+  <!-- GGS Symbol — centered, scaled to fit with padding -->
+  <!-- Original symbol is ~490w × 280h, scaled to ~380w, centered at 256,185 -->
+  <g transform="translate(66, 60) scale(0.776)">
+    <!-- Left circle (G) -->
+    <circle cx="115" cy="140" r="108" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
+    <!-- Right circle (G) -->
+    <circle cx="268" cy="140" r="108" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
+    <!-- Square (S) -->
+    <rect x="328" y="32" width="140" height="216" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
+    <!-- Letters -->
+    <text x="115" y="140" text-anchor="middle" dominant-baseline="central"
+          font-family="Outfit, 'Helvetica Neue', Arial, sans-serif"
+          font-size="98" font-weight="300" fill="#C4A96B">G</text>
+    <text x="268" y="140" text-anchor="middle" dominant-baseline="central"
+          font-family="Outfit, 'Helvetica Neue', Arial, sans-serif"
+          font-size="98" font-weight="300" fill="#C4A96B">G</text>
+    <text x="398" y="140" text-anchor="middle" dominant-baseline="central"
+          font-family="Outfit, 'Helvetica Neue', Arial, sans-serif"
+          font-size="98" font-weight="300" fill="#C4A96B">S</text>
+    <!-- Wordmark -->
+    <text x="245" y="318" text-anchor="middle" dominant-baseline="central"
+          font-family="Outfit, 'Helvetica Neue', Arial, sans-serif"
+          font-size="26" font-weight="300" fill="#C4A96B" letter-spacing="6">GRUPO GLOBAL</text>
+    <text x="245" y="362" text-anchor="middle" dominant-baseline="central"
+          font-family="Outfit, 'Helvetica Neue', Arial, sans-serif"
+          font-size="26" font-weight="300" fill="#C4A96B" letter-spacing="6">EN SEGUROS</text>
+  </g>
+</svg>

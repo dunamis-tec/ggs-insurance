@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { notifyTaskAssigned } from '../../lib/notifyTaskAssigned'
 import { useIsMobile } from '../../lib/useIsMobile'
 import {
   FileText, Users, CreditCard, AlertCircle, TrendingUp, Clock,
   Calendar, DollarSign, Plus, CheckSquare, AlertTriangle, Activity,
-  CheckCircle, ArrowRight, Check
+  CheckCircle, ArrowRight, Check, Gift
 } from 'lucide-react'
 
 /* ── Helpers ── */
@@ -93,11 +94,31 @@ export default function Dashboard() {
   const [polizasVencen, setPolizasVencen] = useState([])
   const [reqsVencidos, setReqsVencidos] = useState([])
   const [pipeline, setPipeline] = useState([])
-  const [vencimientos, setVencimientos] = useState([])
+  const [cumpleanos, setCumpleanos] = useState([])
   const [tareas, setTareas] = useState([])
   const [nuevaTarea, setNuevaTarea] = useState('')
+  const [usuarios, setUsuarios] = useState([])
+  const [quickAsignadoA, setQuickAsignadoA] = useState('')
+  const [quickFecha, setQuickFecha] = useState('')
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    fetchData()
+    supabase.from('users').select('id, nombre, email').eq('activo', true).order('nombre').then(({ data }) => setUsuarios(data || []))
+
+    // Cumpleaños del mes — fetch all with birthday then filter client-side
+    supabase.from('clientes').select('id, nombre, apellido, telefono, fecha_nacimiento').not('fecha_nacimiento', 'is', null).then(({ data }) => {
+      const ahora = new Date()
+      const mesActual = ahora.getMonth()    // 0-11
+      const diaHoy   = ahora.getDate()
+      const lista = (data || [])
+        .filter(c => {
+          const fn = new Date(c.fecha_nacimiento + 'T12:00:00')
+          return fn.getMonth() === mesActual && fn.getDate() >= diaHoy
+        })
+        .sort((a, b) => new Date(a.fecha_nacimiento + 'T12:00:00').getDate() - new Date(b.fecha_nacimiento + 'T12:00:00').getDate())
+      setCumpleanos(lista)
+    })
+  }, [])
 
   const fetchData = async () => {
     setLoading(true)
@@ -118,6 +139,7 @@ export default function Dashboard() {
       { data: polVencen30 },
       { data: polVencen60 },
       { data: pipelineData },
+      { data: polizasSolicitudData },
       { data: tareasData },
       { count: cntVencen15 },
       { count: cntVencidas },
@@ -125,7 +147,7 @@ export default function Dashboard() {
       { count: cntNuevasAnio },
     ] = await Promise.all([
       supabase.from('polizas')
-        .select('id, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido), aseguradoras(nombre)')
+        .select('id, prima_neta, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido), aseguradoras(nombre)')
         .eq('activa', true),
       supabase.from('requerimientos_pago')
         .select('monto')
@@ -137,7 +159,8 @@ export default function Dashboard() {
         .eq('estado', 'pendiente'),
       supabase.from('requerimientos_pago')
         .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido))')
-        .eq('estado', 'vencido')
+        .eq('estado', 'pendiente')
+        .lt('fecha_vencimiento', new Date().toISOString().split('T')[0])
         .order('fecha_vencimiento', { ascending: true })
         .limit(5),
       supabase.from('polizas')
@@ -155,6 +178,11 @@ export default function Dashboard() {
       supabase.from('emisiones')
         .select('id, numero_emision, tipo, estado, prima_emision, created_at, polizas(id, numero_poliza, clientes(nombre,apellido), aseguradoras(nombre))')
         .not('estado', 'in', '("emitida","completado","cancelada")')
+        .order('created_at', { ascending: false })
+        .limit(20),
+      supabase.from('polizas')
+        .select('id, numero_poliza, numero_solicitud, prima_total, created_at, clientes(nombre,apellido), aseguradoras(nombre)')
+        .eq('estado', 'solicitud')
         .order('created_at', { ascending: false })
         .limit(20),
       supabase.from('tareas')
@@ -186,6 +214,8 @@ export default function Dashboard() {
         .gte('created_at', primerDiaAnio),
     ])
 
+    const polizasVigentes = (polizasActivas || []).filter(p => p.estado === 'emitida' && p.fecha_vencimiento && p.fecha_vencimiento >= hoy)
+    const primaNeta = polizasVigentes.reduce((s, p) => s + parseFloat(p.prima_neta || 0), 0)
     const primaTotal = (polizasActivas || []).reduce((s, p) => s + parseFloat(p.prima_total || 0), 0)
     const montosPendMes = (reqsPendMes || []).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
     const montosVenc = (reqsVenc || []).reduce((s, r) => s + parseFloat(r.monto || 0), 0)
@@ -196,7 +226,9 @@ export default function Dashboard() {
       .slice(0, 5)
 
     setKpis({
+      primaNeta,
       primaTotal,
+      cntVigentes: polizasVigentes.length,
       cntPolizas: (polizasActivas || []).length,
       cntVencen15: cntVencen15 || 0,
       cntVencidas: cntVencidas || 0,
@@ -206,7 +238,7 @@ export default function Dashboard() {
       montosVenc,
       cntVenc: (reqsVenc || []).length,
       cntVencen30: (polVencen30 || []).length,
-      cntPipeline: (pipelineData || []).length,
+      cntPipeline: (pipelineData || []).length + (polizasSolicitudData || []).length,
 
       cntNuevasMes: cntNuevasMes || 0,
       cntNuevasAnio: cntNuevasAnio || 0,
@@ -214,23 +246,21 @@ export default function Dashboard() {
 
     setPolizasVencen(polVencen30 || [])
     setReqsVencidos(reqsVenc || [])
-    setPipeline(pipelineData || [])
+    // Normalize polizas in solicitud state to match emission shape for pipeline display
+    const polizasComoEmisiones = (polizasSolicitudData || []).map(p => ({
+      id: 'poliza-' + p.id,
+      numero_emision: p.numero_poliza || ('SOL-' + (p.numero_solicitud || '?')),
+      tipo: 'emision',
+      estado: 'solicitud',
+      prima_emision: p.prima_total,
+      created_at: p.created_at,
+      polizas: { id: p.id, numero_poliza: p.numero_poliza || ('SOL-' + (p.numero_solicitud || '?')), clientes: p.clientes, aseguradoras: p.aseguradoras },
+    }))
+    const allPipeline = [...(pipelineData || []), ...polizasComoEmisiones]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 30)
+    setPipeline(allPipeline)
     setTareas(tareasData || [])
-
-    const venc = [
-      ...(polVencen60 || []).map(p => ({
-        tipo: 'poliza', id: p.id, label: p.numero_poliza,
-        cliente: nombreCliente(p.clientes), fecha: p.fecha_vencimiento,
-      })),
-      ...reqsPendProximos.map(r => ({
-        tipo: 'req', id: r.codigo, label: r.codigo,
-        cliente: nombreCliente(r.polizas?.clientes),
-        fecha: r.fecha_vencimiento, monto: r.monto,
-        poliza: r.polizas?.numero_poliza,
-      })),
-    ].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-
-    setVencimientos(venc)
     setLoading(false)
   }
 
@@ -243,9 +273,21 @@ export default function Dashboard() {
     e.preventDefault()
     if (!nuevaTarea.trim()) return
     const { data: { user } } = await supabase.auth.getUser()
-    const { data } = await supabase.from('tareas').insert({ titulo: nuevaTarea, tipo: 'manual', estado: 'pendiente', created_by: user?.id }).select().single()
+    const { data: myRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
+    const { data } = await supabase.from('tareas').insert({
+      titulo: nuevaTarea, tipo: 'manual', estado: 'pendiente',
+      created_by: user?.id,
+      asignado_a: quickAsignadoA || null,
+      fecha_vencimiento: quickFecha || null,
+      empresa_id: myRow?.empresa_id || null,
+    }).select().single()
+    if (data && quickAsignadoA && quickAsignadoA !== user.id) {
+      notifyTaskAssigned({ taskId: data.id, titulo: nuevaTarea, descripcion: null, fechaVencimiento: null, asignadoAId: quickAsignadoA, creadoPorId: user.id })
+    }
     if (data) setTareas(t => [...t, data])
     setNuevaTarea('')
+    setQuickAsignadoA('')
+    setQuickFecha('')
   }
 
   if (loading) return (
@@ -273,8 +315,8 @@ export default function Dashboard() {
       {/* ── KPI Row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)', gap: '12px', marginBottom: '20px' }}>
         <KpiCard
-          label="Prima total activa" value={fmtQ(kpis.primaTotal)}
-          icon={DollarSign} color="#C4A96B" sub={`${kpis.cntPolizas} pólizas emitidas`}
+          label="Prima neta vigente" value={fmtQ(kpis.primaNeta)}
+          icon={DollarSign} color="#C4A96B" sub={`${kpis.cntVigentes} pólizas vigentes`}
         />
         <KpiCard
           label="Pólizas vencen ≤15d" value={kpis.cntVencen15}
@@ -451,64 +493,82 @@ export default function Dashboard() {
               })}
             </div>
             {/* Quick-add pinned at bottom */}
-            <form onSubmit={agregarTarea} style={{ display: 'flex', gap: '6px', padding: '10px 16px 14px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-              <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea rápida..."
-                style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', outline: 'none', background: 'white', color: '#1e293b' }} />
-              <button type="submit" style={{ padding: '7px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
-                <Plus size={13} />
-              </button>
+            <form onSubmit={agregarTarea} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px 16px 14px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea rápida..."
+                  style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', outline: 'none', background: 'white', color: '#1e293b' }} />
+                <button type="submit" style={{ padding: '7px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
+                  <Plus size={13} />
+                </button>
+              </div>
+              <select value={quickAsignadoA} onChange={e => setQuickAsignadoA(e.target.value)}
+                style={{ padding: '5px 8px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '11px', color: '#64748b', background: 'white', outline: 'none' }}>
+                <option value=''>Sin asignar</option>
+                {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre || u.email}</option>)}
+              </select>
+              <input type='date' value={quickFecha} onChange={e => setQuickFecha(e.target.value)}
+                style={{ padding: '5px 8px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '11px', color: quickFecha ? '#1e293b' : '#94a3b8', background: 'white', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
             </form>
           </div>
 
         </div>
       </div>
 
-      {/* ── Próximos vencimientos ── */}
+      {/* ── Cumpleaños del mes ── */}
       <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <SectionHeader icon={Calendar} label="Próximos vencimientos — 60 días" color="#C4A96B" badge={vencimientos.length} />
-        {vencimientos.length === 0 ? (
+        <SectionHeader icon={Gift} label={`Cumpleaños del mes — ${new Date().toLocaleDateString('es-GT', { month: 'long' })}`} color="#C4A96B" badge={cumpleanos.length} />
+        {cumpleanos.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Calendar size={30} color='#cbd5e1' style={{ marginBottom: '10px' }} />
-            <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Sin vencimientos en los próximos 60 días</p>
+            <Gift size={30} color='#cbd5e1' style={{ marginBottom: '10px' }} />
+            <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>No quedan cumpleaños pendientes este mes</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc' }}>
-                {['Tipo', 'Referencia', 'Cliente', 'Fecha de vencimiento', 'Días restantes'].map(h => (
-                  <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 600, color: '#64748b', textAlign: 'left', letterSpacing: '0.5px', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {vencimientos.map((v, i) => {
-                const dias = diasHasta(v.fecha)
-                const { bg, color } = urgenciaStyle(dias)
-                return (
-                  <tr key={i}
-                    onClick={() => v.tipo === 'poliza' ? navigate('/polizas', { state: { openPolizaId: v.id } }) : navigate('/requerimientos')}
-                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.1s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '11px 16px' }}>
-                      <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '20px', fontWeight: 600, background: v.tipo === 'poliza' ? '#FDF8EE' : '#dbeafe', color: v.tipo === 'poliza' ? '#92703a' : '#1d4ed8' }}>
-                        {v.tipo === 'poliza' ? 'Póliza' : 'Req. pago'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: '13px', fontWeight: 600, color: '#111111' }}>{v.label}</td>
-                    <td style={{ padding: '11px 16px', fontSize: '13px', color: '#475569' }}>{v.cliente || '—'}</td>
-                    <td style={{ padding: '11px 16px', fontSize: '13px', color: '#475569' }}>{fmtDate(v.fecha)}</td>
-                    <td style={{ padding: '11px 16px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', background: bg, color }}>
-                        {dias == null ? '—' : dias <= 0 ? 'Vencido' : dias === 0 ? 'Hoy' : `${dias} días`}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  {['Cliente', 'Teléfono', 'Cumpleaños', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 600, color: '#64748b', textAlign: 'left', letterSpacing: '0.5px', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cumpleanos.map((c, i) => {
+                  const fn   = new Date(c.fecha_nacimiento + 'T12:00:00')
+                  const dia  = fn.getDate()
+                  const mes  = fn.toLocaleDateString('es-GT', { month: 'short' })
+                  const hoy  = new Date()
+                  const esHoy = fn.getDate() === hoy.getDate()
+                  const diasFaltan = fn.getDate() - hoy.getDate()
+                  return (
+                    <tr key={c.id}
+                      style={{ borderBottom: i < cumpleanos.length - 1 ? '1px solid #f1f5f9' : 'none', background: esHoy ? '#FDF8EE' : 'white' }}
+                      onMouseEnter={e => e.currentTarget.style.background = esHoy ? '#faf0d8' : '#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background = esHoy ? '#FDF8EE' : 'white'}>
+                      <td style={{ padding: '12px 16px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0 }}>
+                          {esHoy && <span style={{ marginRight: '6px' }}>🎂</span>}
+                          {c.nombre} {c.apellido || ''}
+                        </p>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>
+                        {c.telefono || '—'}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>
+                        {dia} {mes}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {esHoy ? (
+                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: '#FDF8EE', color: '#C4A96B' }}>¡Hoy!</span>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>en {diasFaltan} día{diasFaltan !== 1 ? 's' : ''}</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

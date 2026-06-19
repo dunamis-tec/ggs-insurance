@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { BookOpen, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BookOpen, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
+import * as XLSX from 'xlsx'
 
 const toDateStr = (d) => d.toISOString().split('T')[0]
 const addDays = (dateStr, n) => { const d = new Date(dateStr + 'T12:00:00'); d.setDate(d.getDate() + n); return toDateStr(d) }
@@ -58,6 +59,32 @@ export default function Liquidaciones() {
   }
 
   const toggleExpandInforme = (id) => setExpandedInforme(prev => prev === id ? null : id)
+
+  const exportInformeExcel = (inf) => {
+    const reqs = informeReqs[inf.id] || []
+    const fmtD = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT') : '—'
+    const rows = reqs.map(r => ({
+      'Nº Req.':    r.codigo || '—',
+      'Cuota':      `${r.numero_cuota}/${r.total_cuotas}`,
+      'Póliza':     r.polizas?.numero_poliza || '—',
+      'Cliente':    [r.polizas?.clientes?.nombre, r.polizas?.clientes?.apellido].filter(Boolean).join(' ') || '—',
+      'Fecha pago': fmtD(r.fecha_pago),
+      'Monto (Q)':  parseFloat(r.monto || 0),
+    }))
+    // Total row
+    rows.push({
+      'Nº Req.': '', 'Cuota': '', 'Póliza': '', 'Cliente': '',
+      'Fecha pago': 'TOTAL',
+      'Monto (Q)': reqs.reduce((s, r) => s + parseFloat(r.monto || 0), 0),
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [{ wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 12 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Liquidación')
+    const aseg = (inf.aseguradoras?.nombre || 'informe').replace(/\s+/g, '_')
+    const fecha = new Date(inf.created_at).toISOString().split('T')[0]
+    XLSX.writeFile(wb, `Liquidacion_${aseg}_${fecha}.xlsx`)
+  }
 
   // Filtro de historial
   const filteredInformes = informes.filter(inf => {
@@ -115,7 +142,7 @@ export default function Liquidaciones() {
     if (sel.length === 0) { toast.error('Seleccioná al menos un requerimiento'); return '' }
     const asegNombre = sel[0]?.polizas?.aseguradoras?.nombre || 'Aseguradora'
     let texto = `LIQUIDACIÓN - ${asegNombre}\nFecha: ${new Date().toLocaleDateString('es-GT')}\n\n`
-    texto += `${'Código'.padEnd(20)} ${'Póliza'.padEnd(15)} ${'Cliente'.padEnd(25)} ${'Monto'.padStart(12)}\n` + '─'.repeat(75) + '\n'
+    texto += `${'# de Requerimiento'.padEnd(20)} ${'Póliza'.padEnd(15)} ${'Cliente'.padEnd(25)} ${'Monto'.padStart(12)}\n` + '─'.repeat(75) + '\n'
     sel.forEach(r => { texto += `${(r.codigo||'').padEnd(20)} ${(r.polizas?.numero_poliza||'').padEnd(15)} ${((r.polizas?.clientes?.nombre||'')+' '+(r.polizas?.clientes?.apellido||'')).slice(0,24).padEnd(25)} ${'Q '+parseFloat(r.monto||0).toLocaleString()}\n` })
     texto += '─'.repeat(75) + '\n' + `${'TOTAL'.padEnd(62)} Q ${totalSeleccionado.toLocaleString()}\n\nTotal requerimientos: ${sel.length}`
     return texto
@@ -152,7 +179,7 @@ export default function Liquidaciones() {
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
         <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Liquidaciones</h1>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Planillas</h1>
             <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {reqs.length} pendientes de envío · {informes.length} informes enviados
             </p>
@@ -352,6 +379,10 @@ export default function Liquidaciones() {
                       <p style={{fontSize:'14px',fontWeight:700,color:'#C4A96B',margin:0,whiteSpace:'nowrap'}}>Q {parseFloat(inf.total_monto||0).toLocaleString()}</p>
                       <p style={{fontSize:'11px',color:'#94a3b8',margin:0}}>{new Date(inf.created_at).toLocaleDateString('es-GT')}</p>
                     </div>
+                    <button onClick={e=>{e.stopPropagation();exportInformeExcel(inf)}} title="Exportar Excel"
+                      style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 10px',background:'#f0fdf4',color:'#15803d',border:'1px solid #bbf7d0',borderRadius:'7px',fontSize:'12px',fontWeight:600,cursor:'pointer',flexShrink:0,marginRight:'8px'}}>
+                      <FileSpreadsheet size={13}/> Excel
+                    </button>
                     {isExpanded ? <ChevronUp size={16} color='#64748b'/> : <ChevronDown size={16} color='#64748b'/>}
                   </div>
 
