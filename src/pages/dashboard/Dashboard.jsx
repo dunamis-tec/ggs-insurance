@@ -106,7 +106,7 @@ export default function Dashboard() {
     supabase.from('users').select('id, nombre, email').eq('activo', true).order('nombre').then(({ data }) => setUsuarios(data || []))
 
     // Cumpleaños del mes — fetch all with birthday then filter client-side
-    supabase.from('clientes').select('id, nombre, apellido, telefono, fecha_nacimiento').not('fecha_nacimiento', 'is', null).then(({ data }) => {
+    supabase.from('clientes').select('id, nombre, apellido, telefono, fecha_nacimiento').not('fecha_nacimiento', 'is', null).eq('activo', true).then(({ data }) => {
       const ahora = new Date()
       const mesActual = ahora.getMonth()    // 0-11
       const diaHoy   = ahora.getDate()
