@@ -9,23 +9,29 @@ export default function ResetPassword() {
   const [error, setError]         = useState('')
   const [done, setDone]           = useState(false)
   const [validSession, setValidSession] = useState(false)
+  const [procesando, setProcesando] = useState(false)
+  const [linkVencido, setLinkVencido] = useState(false)
   const navigate = useNavigate()
 
-  // Supabase redirects here with the recovery token in the URL.
-  // Two scenarios:
-  // 1. Normal: PASSWORD_RECOVERY event fires after component mounts → catch with listener
-  // 2. Race condition: token was processed before this component mounted →
-  //    getSession() already returns a valid session, catch it immediately
   useEffect(() => {
-    // Catch race condition: recovery session already established before mount
+    const hash = new URLSearchParams(window.location.hash.substring(1))
+    const errorCode = hash.get('error_code')
+    const hasToken  = hash.get('access_token') || hash.get('token') || hash.get('type')
+
+    if (errorCode === 'otp_expired' || errorCode === 'access_denied') {
+      setLinkVencido(true)
+      return
+    }
+
+    if (hasToken) setProcesando(true)
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setValidSession(true)
+      if (session) { setValidSession(true); setProcesando(false) }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') setValidSession(true)
-      // PKCE flow may fire SIGNED_IN instead of PASSWORD_RECOVERY
-      if (event === 'SIGNED_IN' && session) setValidSession(true)
+      if (event === 'PASSWORD_RECOVERY') { setValidSession(true); setProcesando(false) }
+      if (event === 'SIGNED_IN' && session) { setValidSession(true); setProcesando(false) }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -64,6 +70,36 @@ export default function ResetPassword() {
           Contraseña actualizada
         </h2>
         <p style={{color:'#64748b', fontSize:'14px'}}>Redirigiendo al sistema...</p>
+      </div>
+    </div>
+  )
+
+  if (linkVencido) return (
+    <div style={cardStyle}>
+      <div style={{...boxStyle, textAlign:'center'}}>
+        <div style={{fontSize:'48px', marginBottom:'16px'}}>⏱️</div>
+        <h2 style={{fontSize:'17px', fontWeight:700, color:'#111111', marginBottom:'8px'}}>
+          El enlace expiró
+        </h2>
+        <p style={{color:'#64748b', fontSize:'14px', lineHeight:'1.6'}}>
+          Este enlace de invitación ya no es válido porque venció (24 horas).
+          Pedile a tu administrador que te reenvíe la invitación.
+        </p>
+        <button onClick={()=>navigate('/login')}
+          style={{marginTop:'20px', color:'#C4A96B', background:'none', border:'none', fontSize:'14px', cursor:'pointer', textDecoration:'underline'}}>
+          Ir al inicio de sesión
+        </button>
+      </div>
+    </div>
+  )
+
+  if (procesando) return (
+    <div style={cardStyle}>
+      <div style={{...boxStyle, textAlign:'center'}}>
+        <div style={{width:'40px', height:'40px', border:'3px solid #e2e8f0', borderTop:'3px solid #C4A96B',
+          borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 20px'}}/>
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        <p style={{color:'#64748b', fontSize:'14px'}}>Verificando enlace…</p>
       </div>
     </div>
   )
