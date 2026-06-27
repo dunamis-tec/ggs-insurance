@@ -60,7 +60,7 @@ function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre'
   const [open, setOpen] = useState(false)
   const selected = options.find(o => o[valueKey] === value)
   const filtered = options.filter(o => {
-    const label = renderOption ? `${o.nombre||''} ${o.apellido||''}` : (o[labelKey]||'')
+    const label = renderOption ? renderOption(o) : (o[labelKey]||'')
     return label.toLowerCase().includes(search.toLowerCase())
   })
   return (
@@ -412,7 +412,7 @@ export default function Polizas() {
     const [{ data: polizasData }, { data: clientesData }, { data: aseguradorasData }, { data: usuariosData }] = await Promise.all([
       supabase.from('polizas').select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), emisiones(tipo,estado,prima_emision)')
         .eq('activa', true).order('created_at', { ascending: false }),
-      supabase.from('clientes').select('id,nombre,apellido,tipo,nit,email,telefono,dpi').eq('activo', true).order('nombre'),
+      supabase.from('clientes').select('id,nombre,apellido,tipo,nit,email,telefono,dpi,razon_social,nombre_empresa').eq('activo', true).order('nombre'),
       supabase.from('aseguradoras').select('id,nombre,logo_url,porcentaje_gasto_emision,productos(id,nombre,activo,producto_comisiones(porcentaje))').eq('activa', true).order('nombre'),
       empresaId
         ? supabase.from('users').select('id,nombre').eq('activo', true).eq('empresa_id', empresaId).order('nombre')
@@ -982,11 +982,11 @@ export default function Polizas() {
                 <label style={lbl}>Seleccionar cliente *</label>
                 {prefilledClienteId ? (
                   <div style={{padding:'9px 12px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',color:'#374151'}}>
-                    {clientes.find(c=>c.id===prefilledClienteId) ? `${clientes.find(c=>c.id===prefilledClienteId).nombre} ${clientes.find(c=>c.id===prefilledClienteId).apellido||''}` : '...'}
+                    {clientes.find(c=>c.id===prefilledClienteId) ? (c=>c.tipo==='empresa'?(c.razon_social||c.nombre_empresa||c.nombre||''):`${c.nombre||''} ${c.apellido||''}`.trim())(clientes.find(c=>c.id===prefilledClienteId)) : '...'}
                   </div>
                 ) : (
                   <SearchSelect value={form.cliente_id} onChange={handleClienteChange} options={clientes}
-                    placeholder="Buscar cliente..." renderOption={c=>`${c.nombre} ${c.apellido||''}`} labelKey="nombre"/>
+                    placeholder="Buscar cliente..." renderOption={c=>c.tipo==='empresa'?(c.razon_social||c.nombre_empresa||c.nombre||''):`${c.nombre||''} ${c.apellido||''}`.trim()} labelKey="nombre"/>
                 )}
               </div>
               {/* Validation warning */}
