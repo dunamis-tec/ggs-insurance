@@ -17,14 +17,15 @@ function ClienteSearchSelect({ value, onChange, clientes }) {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const selected = clientes.find(c => c.id === value)
+  const getNombre = c => c.tipo === 'empresa' ? (c.razon_social || c.nombre_empresa || c.nombre || '') : `${c.nombre||''} ${c.apellido||''}`.trim()
   const filtered = clientes.filter(c =>
-    `${c.nombre} ${c.apellido||''}`.toLowerCase().includes(search.toLowerCase())
+    getNombre(c).toLowerCase().includes(search.toLowerCase())
   )
   return (
     <div style={{position:'relative'}}>
       <div onClick={()=>setOpen(!open)} style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:'42px'}}>
         <span style={{color:selected?'#1e293b':'#94a3b8'}}>
-          {selected ? `${selected.nombre} ${selected.apellido||''}` : 'Buscar cliente...'}
+          {selected ? getNombre(selected) : 'Buscar cliente...'}
         </span>
         <div style={{display:'flex',gap:'4px',flexShrink:0}}>
           {value && <button type="button" onClick={e=>{e.stopPropagation();onChange('')}} style={{background:'none',border:'none',cursor:'pointer',padding:'0',display:'flex'}}><X size={13} color="#94a3b8"/></button>}
@@ -44,7 +45,7 @@ function ClienteSearchSelect({ value, onChange, clientes }) {
                 style={{padding:'10px 14px',cursor:'pointer',fontSize:'13px',color:'#1e293b',fontWeight:value===c.id?600:400,background:value===c.id?'#dbeafe':'white'}}
                 onMouseEnter={e=>{if(value!==c.id)e.currentTarget.style.background='#f8fafc'}}
                 onMouseLeave={e=>{if(value!==c.id)e.currentTarget.style.background='white'}}>
-                {c.nombre} {c.apellido||''}
+                {getNombre(c)}
               </div>
             ))}
           </div>
@@ -91,7 +92,7 @@ export default function Vehiculos() {
     setLoading(true)
     const [{ data: vData }, { data: cData }] = await Promise.all([
       supabase.from('vehiculos').select('*, clientes(nombre, apellido), polizas(numero_poliza, activa)').eq('activo', true).order('created_at', { ascending: false }),
-      supabase.from('clientes').select('id, nombre, apellido').eq('activo', true).order('nombre')
+      supabase.from('clientes').select('id, nombre, apellido, tipo, razon_social, nombre_empresa').eq('activo', true).order('nombre')
     ])
     setVehiculos(vData || [])
     setClientes(cData || [])
