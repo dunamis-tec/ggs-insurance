@@ -60,7 +60,9 @@ function SearchSelect({ value, onChange, options, placeholder, labelKey='nombre'
   const [open, setOpen] = useState(false)
   const selected = options.find(o => o[valueKey] === value)
   const filtered = options.filter(o => {
-    const label = renderOption ? renderOption(o) : (o[labelKey]||'')
+    const label = renderOption
+      ? `${o.nombre||''} ${o.apellido||''} ${o.razon_social||''} ${o.nombre_empresa||''}`
+      : (o[labelKey]||'')
     return label.toLowerCase().includes(search.toLowerCase())
   })
   return (
