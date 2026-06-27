@@ -35,15 +35,24 @@ const polizaEstados = {
 const estadoFlujo  = { solicitud:'enviada', en_reproceso:'enviada' }
 const estadoFlujoLabel = { solicitud:'Enviada a la aseguradora', en_reproceso:'Re-enviada a la aseguradora' }
 
-const camposClienteReq = [
-  { key:'nombre',          label:'Nombre' },
-  { key:'nit',             label:'NIT' },
-  { key:'email',           label:'Correo' },
-  { key:'telefono',        label:'Teléfono' },
-  { key:'dpi',             label:'DPI' },
-  { key:'fecha_nacimiento',label:'Fecha de nacimiento' },
-  { key:'direccion',       label:'Dirección' },
-]
+const getCamposReq = (tipo) => tipo === 'empresa'
+  ? [
+      { key:'nit',                        label:'NIT empresa' },
+      { key:'rep_legal_nombre',            label:'Nombre rep. legal' },
+      { key:'rep_legal_nit',              label:'NIT rep. legal' },
+      { key:'rep_legal_fecha_nacimiento', label:'Fecha nac. rep. legal' },
+      { key:'dpi',                        label:'DPI rep. legal' },
+      { key:'fecha_constitucion',         label:'Fecha de constitución' },
+    ]
+  : [
+      { key:'nombre',          label:'Nombre' },
+      { key:'nit',             label:'NIT' },
+      { key:'email',           label:'Correo' },
+      { key:'telefono',        label:'Teléfono' },
+      { key:'dpi',             label:'DPI' },
+      { key:'fecha_nacimiento',label:'Fecha de nacimiento' },
+      { key:'direccion',       label:'Dirección' },
+    ]
 
 const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const emisionTipos = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion', modificacion:'Modificacion' }
@@ -168,7 +177,7 @@ function CompletarClienteModal({ clienteId, campos, onClose, onSaved }) {
         {/* Campos faltantes */}
         {campos.length > 0 && (
           <div style={{marginBottom:'20px'}}>
-            <p style={{fontSize:'12px',fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px',margin:'0 0 12px'}}>Datos del perfil</p>
+            <p style={{fontSize:'12px',fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px',margin:'0 0 12px'}}>{clienteTipo === 'empresa' ? 'Datos de la empresa' : 'Datos del perfil'}</p>
             <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
               {campos.map(c => (
                 <div key={c.key}>
@@ -183,10 +192,10 @@ function CompletarClienteModal({ clienteId, campos, onClose, onSaved }) {
                     />
                   ) : (
                     <input
-                      type={c.key==='email'?'email':c.key==='fecha_nacimiento'?'date':'text'}
+                      type={c.key==='email'?'email':['fecha_nacimiento','rep_legal_fecha_nacimiento','fecha_constitucion'].includes(c.key)?'date':'text'}
                       value={vform[c.key]||''}
                       onChange={e=>setVform(f=>({...f,[c.key]:e.target.value}))}
-                      placeholder={c.key==='nit'?'CF / 1234567-8':c.key==='telefono'?'5555-5555':c.key==='email'?'correo@ejemplo.com':c.key==='dpi'?'0000 00000 0000':''}
+                      placeholder={({'nit':'CF / 1234567-8','rep_legal_nit':'1234567-8','telefono':'5555-5555','email':'correo@ejemplo.com','dpi':'0000 00000 0000','rep_legal_nombre':'Nombre completo'})[c.key]||''}
                       style={_inpV}
                     />
                   )}
@@ -451,7 +460,7 @@ export default function Polizas() {
     setPersonasFacturables([])
     if (!id) return
     const { data: c } = await supabase.from('clientes').select('*').eq('id', id).single()
-    const missing = camposClienteReq.filter(f => !c?.[f.key])
+    const missing = getCamposReq(c?.tipo).filter(f => !c?.[f.key])
     setClienteValidation(missing)
     const [{ data: vData }, { data: pfData }] = await Promise.all([
       supabase.from('vehiculos').select('*').eq('cliente_id', id).eq('activo', true).order('marca'),
@@ -1328,7 +1337,7 @@ export default function Polizas() {
           onSaved={async () => {
             setShowCompletarClienteModal(false)
             const { data: c } = await supabase.from('clientes').select('*').eq('id', form.cliente_id).single()
-            const missing = camposClienteReq.filter(f => !c?.[f.key])
+            const missing = getCamposReq(c?.tipo).filter(f => !c?.[f.key])
             setClienteValidation(missing)
             if (missing.length === 0) toast.success('Cliente listo — ya puedes continuar')
           }}
