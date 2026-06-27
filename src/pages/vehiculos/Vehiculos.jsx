@@ -55,6 +55,8 @@ function ClienteSearchSelect({ value, onChange, clientes }) {
   )
 }
 
+const getNombreCliente = (c) => c?.tipo === 'empresa' ? (c.razon_social || c.nombre_empresa || c.nombre || '') : `${c?.nombre||''} ${c?.apellido||''}`.trim()
+
 export default function Vehiculos() {
   const [vehiculos, setVehiculos] = useState([])
   const [clientes, setClientes] = useState([])
@@ -91,7 +93,7 @@ export default function Vehiculos() {
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: vData }, { data: cData }] = await Promise.all([
-      supabase.from('vehiculos').select('*, clientes(nombre, apellido), polizas(numero_poliza, activa)').eq('activo', true).order('created_at', { ascending: false }),
+      supabase.from('vehiculos').select('*, clientes(nombre, apellido, tipo, razon_social, nombre_empresa), polizas(numero_poliza, activa)').eq('activo', true).order('created_at', { ascending: false }),
       supabase.from('clientes').select('id, nombre, apellido, tipo, razon_social, nombre_empresa').eq('activo', true).order('nombre')
     ])
     setVehiculos(vData || [])
@@ -167,7 +169,7 @@ export default function Vehiculos() {
   }
 
   const filtered = vehiculos.filter(v =>
-    (v.marca+' '+v.modelo+' '+v.anio+' '+fp(v)+' '+(v.clientes?.nombre||'')).toLowerCase().includes(search.toLowerCase())
+    (v.marca+' '+v.modelo+' '+v.anio+' '+fp(v)+' '+getNombreCliente(v.clientes)).toLowerCase().includes(search.toLowerCase())
   )
 
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
@@ -310,7 +312,7 @@ export default function Vehiculos() {
                 </div>
                 <div style={{flex:1,minWidth:0,textAlign:'left'}}>
                   <p style={{fontWeight:700,color:'#111111',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {fp(v)} · {v.tipo}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{getNombreCliente(v.clientes)} · Placa: {fp(v)} · {v.tipo}</p>
                 </div>
                 <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>handleEdit(v)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color='#64748b'/></button>
@@ -449,7 +451,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
             </div>
             <div>
               <h1 style={{fontSize:'20px',fontWeight:700,color:'#111111',margin:0}}>{vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}</h1>
-              <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>{vehiculo.clientes?.nombre} {vehiculo.clientes?.apellido||''} · {vehiculo.tipo}</p>
+              <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>{getNombreCliente(vehiculo.clientes)} · {vehiculo.tipo}</p>
             </div>
           </div>
           <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
