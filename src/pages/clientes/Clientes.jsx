@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car, Upload, CheckCircle } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car, Upload, CheckCircle, Download, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ReclamoModal, ReclamosMiniList } from '../reclamos/Reclamos'
@@ -679,6 +679,11 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
   const [reclamos, setReclamos] = useState([])
   const [loadingReclamos, setLoadingReclamos] = useState(true)
   const [showReclamoModal, setShowReclamoModal] = useState(false)
+  const [documentos, setDocumentos] = useState([])
+  const [loadingDocs, setLoadingDocs] = useState(false)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [renamingDocId, setRenamingDocId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(initialTab || 'polizas')
   const [showPFForm, setShowPFForm] = useState(false)
@@ -686,7 +691,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
   const [editingPF, setEditingPF] = useState(null)
   const [filtroReqEstado, setFiltroReqEstado] = useState('todos')
 
-  useEffect(() => { fetchData(); fetchReclamos() }, [cliente.id])
+  useEffect(() => { fetchData(); fetchReclamos(); fetchDocumentos() }, [cliente.id])
 
   const fetchData = async () => {
     setLoading(true)
@@ -709,6 +714,57 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
       setReqs([])
     }
     setLoading(false)
+  }
+
+  const fetchDocumentos = async () => {
+    setLoadingDocs(true)
+    const { data } = await supabase.from('clientes_documentos')
+      .select('*').eq('cliente_id', cliente.id).order('created_at', { ascending: false })
+    setDocumentos(data || [])
+    setLoadingDocs(false)
+  }
+
+  const handleUploadDoc = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingDoc(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: myRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
+      const empresaId = myRow?.empresa_id
+      const ext = file.name.split('.').pop()
+      const path = `${empresaId}/${cliente.id}/${Date.now()}_${file.name}`
+      const { error: upErr } = await supabase.storage.from('cliente-docs').upload(path, file, { upsert: false })
+      if (upErr) { toast.error('Error al subir archivo'); setUploadingDoc(false); return }
+      const { data: { publicUrl } } = supabase.storage.from('cliente-docs').getPublicUrl(path)
+      const nombre = file.name.replace(`.${ext}`, '')
+      await supabase.from('clientes_documentos').insert({ cliente_id: cliente.id, empresa_id: empresaId, nombre, url: path, created_by: user.id })
+      toast.success('Documento agregado')
+      fetchDocumentos()
+    } catch { toast.error('Error al subir documento') }
+    setUploadingDoc(false)
+    e.target.value = ''
+  }
+
+  const handleRenameDoc = async (id) => {
+    if (!renameValue.trim()) return
+    await supabase.from('clientes_documentos').update({ nombre: renameValue.trim() }).eq('id', id)
+    setRenamingDocId(null); setRenameValue('')
+    fetchDocumentos()
+  }
+
+  const handleDeleteDoc = async (doc) => {
+    if (!window.confirm(`¿Eliminar "${doc.nombre}"?`)) return
+    await supabase.storage.from('cliente-docs').remove([doc.url])
+    await supabase.from('clientes_documentos').delete().eq('id', doc.id)
+    toast.success('Documento eliminado')
+    fetchDocumentos()
+  }
+
+  const handleDownloadDoc = async (doc) => {
+    const { data, error } = await supabase.storage.from('cliente-docs').createSignedUrl(doc.url, 3600)
+    if (error || !data?.signedUrl) { toast.error('No se pudo obtener el enlace'); return }
+    window.open(data.signedUrl, '_blank')
   }
 
   const fetchReclamos = async () => {
@@ -814,7 +870,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['reclamos',`Reclamos (${reclamos.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['reclamos',`Reclamos (${reclamos.length})`],['documentos',`Documents (${documentos.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#111111' : 'white',
@@ -1038,8 +1094,77 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
             clienteData: cliente,
           }}
           onClose={() => setShowReclamoModal(false)}
-          onSaved={(r) => { setShowReclamoModal(false); fetchReclamos(); navigate('/reclamos', { state: { openReclamoId: r.id } }) }}
+          onSaved={(r) => { setShowReclamoModal(false); fetchReclamos(); navigate('/reclamos', { state: { openReclamoId: r.id, fromClienteId: cliente.id } }) }}
         />
+      )}
+
+      {/* ─── TAB: Documentos ─── */}
+      {activeTab === 'documentos' && (
+        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+          {/* Header */}
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              <Paperclip size={16} color='#C4A96B'/>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Documents</p>
+            </div>
+            <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor: uploadingDoc ? 'not-allowed' : 'pointer', opacity: uploadingDoc ? 0.6 : 1 }}>
+              <Upload size={13}/>
+              {uploadingDoc ? 'Uploading...' : 'Upload document'}
+              <input type='file' accept='.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx' style={{ display:'none' }} onChange={handleUploadDoc} disabled={uploadingDoc}/>
+            </label>
+          </div>
+
+          {/* List */}
+          {loadingDocs ? (
+            <p style={{ padding:'24px', color:'#64748b', fontSize:'13px' }}>Loading...</p>
+          ) : documentos.length === 0 ? (
+            <div style={{ padding:'48px', textAlign:'center' }}>
+              <Paperclip size={28} color='#cbd5e1' style={{ marginBottom:'10px' }}/>
+              <p style={{ color:'#94a3b8', margin:0, fontSize:'13px' }}>No documents uploaded yet</p>
+            </div>
+          ) : documentos.map((doc, i) => (
+            <div key={doc.id} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 20px', borderBottom: i < documentos.length-1 ? '1px solid #f1f5f9' : 'none' }}>
+              <FileText size={18} color='#C4A96B' style={{ flexShrink:0 }}/>
+              <div style={{ flex:1, minWidth:0 }}>
+                {renamingDocId === doc.id ? (
+                  <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+                    <input
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => { if (e.key==='Enter') handleRenameDoc(doc.id); if (e.key==='Escape') { setRenamingDocId(null); setRenameValue('') } }}
+                      autoFocus
+                      style={{ flex:1, padding:'4px 8px', border:'1.5px solid #C4A96B', borderRadius:'6px', fontSize:'13px', color:'#111111' }}
+                    />
+                    <button onClick={() => handleRenameDoc(doc.id)} style={{ padding:'4px 10px', background:'#111111', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>Save</button>
+                    <button onClick={() => { setRenamingDocId(null); setRenameValue('') }} style={{ padding:'4px 10px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <p style={{ fontWeight:600, color:'#111111', fontSize:'13px', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{doc.nombre}</p>
+                )}
+                <p style={{ fontSize:'11px', color:'#94a3b8', margin:'2px 0 0' }}>
+                  {new Date(doc.created_at).toLocaleDateString('es-GT', { day:'2-digit', month:'short', year:'numeric' })}
+                </p>
+              </div>
+              <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
+                <button onClick={() => handleDownloadDoc(doc)}
+                  style={{ padding:'6px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center' }}
+                  title='Download'>
+                  <Download size={14} color='#64748b'/>
+                </button>
+                <button onClick={() => { setRenamingDocId(doc.id); setRenameValue(doc.nombre) }}
+                  style={{ padding:'6px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center' }}
+                  title='Rename'>
+                  <Edit2 size={14} color='#64748b'/>
+                </button>
+                <button onClick={() => handleDeleteDoc(doc)}
+                  style={{ padding:'6px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center' }}
+                  title='Delete'>
+                  <Trash2 size={14} color='#ef4444'/>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )

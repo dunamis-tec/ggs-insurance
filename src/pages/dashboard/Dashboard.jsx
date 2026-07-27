@@ -17,7 +17,7 @@ const diasHasta = (fecha) => {
   if (!fecha) return null
   return Math.ceil((new Date(fecha + 'T12:00:00') - new Date()) / 864e5)
 }
-const nombreCliente = (c) => c ? [c.nombre, c.apellido].filter(Boolean).join(' ') : '—'
+const nombreCliente = (c) => { if (!c) return '—'; if (c.tipo === 'empresa') return c.razon_social || c.nombre_empresa || c.nombre || '—'; return [c.nombre, c.apellido].filter(Boolean).join(' ') || '—' }
 
 const estadoLabel = { solicitud: 'Solicitud', solicitada: 'Solicitada', enviada: 'Enviada', en_reproceso: 'En reproceso', reproceso: 'En reproceso' }
 const estadoBadge = {
@@ -147,7 +147,7 @@ export default function Dashboard() {
       { count: cntNuevasAnio },
     ] = await Promise.all([
       supabase.from('polizas')
-        .select('id, prima_neta, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido), aseguradoras(nombre)')
+        .select('id, prima_neta, prima_total, fecha_vencimiento, numero_poliza, estado, clientes(nombre,apellido,tipo,razon_social,nombre_empresa), aseguradoras(nombre)')
         .eq('activa', true),
       supabase.from('requerimientos_pago')
         .select('monto')
@@ -155,33 +155,33 @@ export default function Dashboard() {
         .gte('fecha_vencimiento', primerDiaMes)
         .lte('fecha_vencimiento', ultimoDiaMes),
       supabase.from('requerimientos_pago')
-        .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido))')
+        .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido,tipo,razon_social,nombre_empresa))')
         .eq('estado', 'pendiente'),
       supabase.from('requerimientos_pago')
-        .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido))')
+        .select('monto, codigo, fecha_vencimiento, polizas(numero_poliza, clientes(nombre,apellido,tipo,razon_social,nombre_empresa))')
         .eq('estado', 'pendiente')
         .lt('fecha_vencimiento', new Date().toISOString().split('T')[0])
         .order('fecha_vencimiento', { ascending: true })
         .limit(5),
       supabase.from('polizas')
-        .select('id, numero_poliza, fecha_vencimiento, prima_total, clientes(nombre,apellido), aseguradoras(nombre)')
+        .select('id, numero_poliza, fecha_vencimiento, prima_total, clientes(nombre,apellido,tipo,razon_social,nombre_empresa), aseguradoras(nombre)')
         .eq('activa', true)
         .lte('fecha_vencimiento', en30)
         .gte('fecha_vencimiento', hoy)
         .order('fecha_vencimiento', { ascending: true }),
       supabase.from('polizas')
-        .select('id, numero_poliza, fecha_vencimiento, clientes(nombre,apellido)')
+        .select('id, numero_poliza, fecha_vencimiento, clientes(nombre,apellido,tipo,razon_social,nombre_empresa)')
         .eq('activa', true)
         .lte('fecha_vencimiento', en60)
         .gte('fecha_vencimiento', hoy)
         .order('fecha_vencimiento', { ascending: true }),
       supabase.from('emisiones')
-        .select('id, numero_emision, tipo, estado, prima_emision, created_at, polizas(id, numero_poliza, clientes(nombre,apellido), aseguradoras(nombre))')
+        .select('id, numero_emision, tipo, estado, prima_emision, created_at, polizas(id, numero_poliza, clientes(nombre,apellido,tipo,razon_social,nombre_empresa), aseguradoras(nombre))')
         .not('estado', 'in', '("emitida","completado","cancelada")')
         .order('created_at', { ascending: false })
         .limit(20),
       supabase.from('polizas')
-        .select('id, numero_poliza, numero_solicitud, prima_total, created_at, clientes(nombre,apellido), aseguradoras(nombre)')
+        .select('id, numero_poliza, numero_solicitud, prima_total, created_at, clientes(nombre,apellido,tipo,razon_social,nombre_empresa), aseguradoras(nombre)')
         .eq('estado', 'solicitud')
         .order('created_at', { ascending: false })
         .limit(20),

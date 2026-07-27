@@ -421,7 +421,7 @@ export default function Polizas() {
     const { data: myRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
     const empresaId = myRow?.empresa_id || null
     const [{ data: polizasData }, { data: clientesData }, { data: aseguradorasData }, { data: usuariosData }] = await Promise.all([
-      supabase.from('polizas').select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), emisiones(tipo,estado,prima_emision)')
+      supabase.from('polizas').select('*, clientes(nombre,apellido,tipo,razon_social,nombre_empresa,nit,email,telefono,dpi), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), emisiones(tipo,estado,prima_emision)')
         .eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('clientes').select('id,nombre,apellido,tipo,nit,email,telefono,dpi,razon_social,nombre_empresa').eq('activo', true).order('nombre'),
       supabase.from('aseguradoras').select('id,nombre,logo_url,porcentaje_gasto_emision,productos(id,nombre,activo,producto_comisiones(porcentaje))').eq('activa', true).order('nombre'),
@@ -570,7 +570,7 @@ export default function Polizas() {
       toast.success('Póliza actualizada')
       const backId = editing
       const { data: updatedPoliza } = await supabase.from('polizas')
-        .select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+        .select('*, clientes(nombre,apellido,tipo,razon_social,nombre_empresa,nit,email,telefono,dpi), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
         .eq('id', backId).single()
       if (updatedPoliza) setSelected(updatedPoliza)
       setEditing(null); setReturnToPolizaId(null); setEditingPolizaEstado(null)
@@ -674,7 +674,7 @@ export default function Polizas() {
       // Return to detail view if we came from there
       if (returnToPolizaId) {
         const { data: updatedPoliza } = await supabase.from('polizas')
-          .select('*, clientes(nombre,apellido,nit,email,telefono,dpi), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
+          .select('*, clientes(nombre,apellido,tipo,razon_social,nombre_empresa,nit,email,telefono,dpi), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza)')
           .eq('id', returnToPolizaId).single()
         if (updatedPoliza) setSelected(updatedPoliza)
         setView('detalle')
@@ -1542,6 +1542,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [reqForm, setReqForm]         = useState(emptyReq)
   const [reqAjustar, setReqAjustar]   = useState(false)
   const [expandedEmision, setExpandedEmision] = useState(null)
+  const [isHistorialOpen, setIsHistorialOpen] = useState(true)
   const [vehiculoSearch, setVehiculoSearch]   = useState('')
   const [showCambiarEstadoModal, setShowCambiarEstadoModal] = useState(false)
   const [estadoOpcion, setEstadoOpcion] = useState(null)   // 'enviar' | 'emitir' | 'reproceso' | 'reenviar'
@@ -1581,7 +1582,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const reloadPoliza = async () => {
     const { data } = await supabase.from('polizas')
-      .select('*, clientes(nombre,apellido,nit,email,telefono,dpi,direccion,fecha_nacimiento), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), personas_facturables:persona_facturable_id(id,nombre,apellido,nit,direccion), emisiones(tipo,estado,prima_emision)')
+      .select('*, clientes(nombre,apellido,tipo,razon_social,nombre_empresa,nit,email,telefono,dpi,direccion,fecha_nacimiento), aseguradoras(nombre,logo_url,codigo_agente), productos(nombre), poliza_origen:poliza_origen_id(id,numero_poliza), personas_facturables:persona_facturable_id(id,nombre,apellido,nit,direccion), emisiones(tipo,estado,prima_emision)')
       .eq('id', poliza.id).single()
     if (data) setPoliza(data)
   }
@@ -2545,8 +2546,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           {[
             ['Prima total',   'Q '+primaTotal.toLocaleString(),  '#C4A96B'],
             ['Tipo de pago',  poliza.tipo_pago==='financiado'?`Fraccionado · ${poliza.numero_cuotas||1} cuotas`:'Contado', '#111111'],
-            ['Inicio',        poliza.fecha_inicio ? new Date(poliza.fecha_inicio).toLocaleDateString('es-GT') : '—', '#374151'],
-            ['Vencimiento',   vencDate ? new Date(poliza.fecha_vencimiento).toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#374151'],
+            ['Inicio',        poliza.fecha_inicio ? new Date(poliza.fecha_inicio+'T12:00:00').toLocaleDateString('es-GT') : '—', '#374151'],
+            ['Vencimiento',   vencDate ? new Date(poliza.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT') : '—', vencEst==='vencida'?'#ef4444':vencEst==='por_vencer'?'#a16207':'#374151'],
           ].map(([label,val,color],i)=>(
             <div key={label} style={{padding:isMobile?'12px 16px':'16px 24px',borderRight:isMobile?(i%2===0?'1px solid #f1f5f9':'none'):(i<3?'1px solid #f1f5f9':'none'),borderBottom:isMobile&&i<2?'1px solid #f1f5f9':'none'}}>
               <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.05em',fontWeight:500}}>{label}</p>
@@ -2653,8 +2654,10 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         const diasColor = diasRestantes === null ? '#64748b' : diasRestantes < 0 ? '#ef4444' : diasRestantes <= 30 ? '#f59e0b' : diasRestantes <= 60 ? '#a16207' : '#15803d'
         const diasBg    = diasRestantes === null ? '#f1f5f9' : diasRestantes < 0 ? '#fef2f2' : diasRestantes <= 30 ? '#fef2f2' : diasRestantes <= 60 ? '#fef9c3' : '#dcfce7'
         const diasLabel = diasRestantes === null ? '—' : diasRestantes < 0 ? `Venció hace ${Math.abs(diasRestantes)} días` : diasRestantes === 0 ? 'Vence hoy' : `${diasRestantes} días restantes`
-        const nombreCliente = [cli.nombre, cli.apellido].filter(Boolean).join(' ')
-        const initials = [cli.nombre?.[0], cli.apellido?.[0]].filter(Boolean).join('').toUpperCase() || '?'
+        const nombreCliente = cli.tipo === 'empresa'
+          ? (cli.razon_social || cli.nombre_empresa || cli.nombre || '—')
+          : [cli.nombre, cli.apellido].filter(Boolean).join(' ') || '—'
+        const initials = nombreCliente !== '—' ? nombreCliente.charAt(0).toUpperCase() : '?'
 
         const SectionLabel = ({children}) => (
           <p style={{fontSize:'11px',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.5px',margin:'0 0 12px'}}>{children}</p>
@@ -2924,30 +2927,39 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
              )}
 
             {/* ── Histórico de cambios ── */}
-            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'20px 24px'}}>
-              <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:'0 0 16px',textTransform:'uppercase',letterSpacing:'0.5px'}}>Histórico de cambios</p>
-              {bitacora.length === 0 ? (
-                <p style={{fontSize:'13px',color:'#94a3b8',margin:0}}>Sin cambios registrados</p>
-              ) : (
-                <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-                  {[...bitacora].reverse().map((entry, i) => {
-                    const userMatch = usuariosPoliza.find(u => u.id === entry.created_by)
-                    const nombre = userMatch?.nombre || 'Sistema'
-                    const fecha = new Date(entry.created_at).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
-                    const desc = entry.descripcion?.startsWith('[Gestión]') ? entry.descripcion.replace('[Gestión] ','') : (entry.descripcion||'')
-                    return (
-                      <div key={entry.id||i} style={{display:'flex',gap:'10px',alignItems:'flex-start',paddingBottom:'10px',borderBottom:i<bitacora.length-1?'1px solid #f1f5f9':'none'}}>
-                        <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:'1px'}}>
-                          <span style={{fontSize:'10px',fontWeight:700,color:'#64748b'}}>{nombre.charAt(0).toUpperCase()}</span>
-                        </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <p style={{margin:'0 0 2px',fontSize:'12px',fontWeight:600,color:'#111111'}}>{nombre}</p>
-                          <p style={{margin:'0 0 2px',fontSize:'12px',color:'#374151',wordBreak:'break-word'}}>{desc}</p>
-                          <p style={{margin:0,fontSize:'11px',color:'#94a3b8'}}>{fecha}</p>
-                        </div>
-                      </div>
-                    )
-                  })}
+            <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+              <div onClick={()=>setIsHistorialOpen(v=>!v)}
+                style={{padding:'14px 20px',cursor:'pointer',display:'flex',alignItems:'center',gap:'10px',borderBottom:isHistorialOpen?'1px solid #f1f5f9':'none'}}>
+                <p style={{fontSize:'13px',fontWeight:700,color:'#111111',margin:0,textTransform:'uppercase',letterSpacing:'0.5px',flex:1}}>Histórico de cambios</p>
+                <span style={{fontSize:'11px',color:'#94a3b8',marginRight:'4px'}}>{bitacora.length} evento(s)</span>
+                {isHistorialOpen ? <ChevronUp size={14} color="#94a3b8"/> : <ChevronDown size={14} color="#94a3b8"/>}
+              </div>
+              {isHistorialOpen && (
+                <div style={{padding:'16px 20px'}}>
+                  {bitacora.length === 0 ? (
+                    <p style={{fontSize:'13px',color:'#94a3b8',margin:0}}>Sin cambios registrados</p>
+                  ) : (
+                    <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+                      {[...bitacora].reverse().map((entry, i) => {
+                        const userMatch = usuariosPoliza.find(u => u.id === entry.created_by)
+                        const nombre = userMatch?.nombre || 'Sistema'
+                        const fecha = new Date(entry.created_at).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+                        const desc = entry.descripcion?.startsWith('[Gestión]') ? entry.descripcion.replace('[Gestión] ','') : (entry.descripcion||'')
+                        return (
+                          <div key={entry.id||i} style={{display:'flex',gap:'10px',alignItems:'flex-start',paddingBottom:'10px',borderBottom:i<bitacora.length-1?'1px solid #f1f5f9':'none'}}>
+                            <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:'1px'}}>
+                              <span style={{fontSize:'10px',fontWeight:700,color:'#64748b'}}>{nombre.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <p style={{margin:'0 0 2px',fontSize:'12px',fontWeight:600,color:'#111111'}}>{nombre}</p>
+                              <p style={{margin:'0 0 2px',fontSize:'12px',color:'#374151',wordBreak:'break-word'}}>{desc}</p>
+                              <p style={{margin:0,fontSize:'11px',color:'#94a3b8'}}>{fecha}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -3961,7 +3973,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             clienteData: poliza.clientes,
           }}
           onClose={() => setShowReclamoModal(false)}
-          onSaved={(r) => { setShowReclamoModal(false); fetchReclamos(); navigate('/reclamos', { state: { openReclamoId: r.id } }) }}
+          onSaved={(r) => { setShowReclamoModal(false); fetchReclamos(); navigate('/reclamos', { state: { openReclamoId: r.id, fromPolizaId: poliza.id } }) }}
         />
       )}
 

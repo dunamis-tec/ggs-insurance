@@ -29,13 +29,19 @@ export default function Reclamos() {
   const [selected, setSelected]     = useState(null)
   const [showModal, setShowModal]   = useState(false)
   const [createCtx, setCreateCtx]   = useState(null)
+  const [fromPolizaId, setFromPolizaId] = useState(null)
+  const [fromClienteId, setFromClienteId] = useState(null)
 
   useEffect(() => { fetchAll() }, [])
 
   useEffect(() => {
     if (location.state?.openReclamoId && reclamos.length > 0) {
       const r = reclamos.find(x => x.id === location.state.openReclamoId)
-      if (r) { setSelected(r); setView('detalle') }
+      if (r) {
+        setSelected(r); setView('detalle')
+        setFromPolizaId(location.state?.fromPolizaId || null)
+        setFromClienteId(location.state?.fromClienteId || null)
+      }
     }
     if (location.state?.createContext) {
       setCreateCtx(location.state.createContext)
@@ -68,7 +74,11 @@ export default function Reclamos() {
     return (
       <ReclamoDetalle
         reclamo={selected}
-        onBack={() => { setSelected(null); setView('list'); fetchAll() }}
+        onBack={() => {
+          if (fromPolizaId) { navigate('/polizas', { state: { openPolizaId: fromPolizaId } }); return }
+          if (fromClienteId) { navigate('/clientes', { state: { openClienteId: fromClienteId } }); return }
+          setSelected(null); setView('list'); fetchAll()
+        }}
         onUpdate={(updated) => setSelected(updated)}
       />
     )
