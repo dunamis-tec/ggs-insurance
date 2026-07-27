@@ -74,6 +74,7 @@ export default function Reclamos() {
     return (
       <ReclamoDetalle
         reclamo={selected}
+        backLabel={fromPolizaId ? 'Volver a la póliza' : fromClienteId ? 'Volver al cliente' : 'Volver a reclamos'}
         onBack={() => {
           if (fromPolizaId) { navigate('/polizas', { state: { openPolizaId: fromPolizaId } }); return }
           if (fromClienteId) { navigate('/clientes', { state: { openClienteId: fromClienteId } }); return }
@@ -169,7 +170,7 @@ export default function Reclamos() {
 }
 
 /* ─── Detalle de reclamo ─── */
-function ReclamoDetalle({ reclamo: reclamoInit, onBack, onUpdate }) {
+function ReclamoDetalle({ reclamo: reclamoInit, onBack, onUpdate, backLabel = 'Volver a reclamos' }) {
   const [reclamo, setReclamo]               = useState(reclamoInit)
   const [bitacora, setBitacora]             = useState([])
   const [documentos, setDocumentos]         = useState([])
@@ -306,7 +307,7 @@ function ReclamoDetalle({ reclamo: reclamoInit, onBack, onUpdate }) {
     <div>
       <button onClick={onBack}
         style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', marginBottom: '20px', padding: '0' }}>
-        <ArrowLeft size={16} /> Volver a reclamos
+        <ArrowLeft size={16} /> {backLabel}
       </button>
 
       {/* Header */}

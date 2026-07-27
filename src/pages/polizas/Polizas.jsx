@@ -878,7 +878,7 @@ export default function Polizas() {
   const esVigente = (p) => p.estado === 'emitida' && (!p.fecha_vencimiento || p.fecha_vencimiento >= hoyStr)
 
   const filtered = polizas.filter(p => {
-    const matchSearch = ((p.numero_poliza||'')+' '+(p.numero_solicitud||'')+' '+(p.clientes?.nombre||'')+' '+(p.clientes?.apellido||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
+    const matchSearch = ((p.numero_poliza||'')+' '+(p.numero_solicitud||'')+' '+(p.clientes?.nombre||'')+' '+(p.clientes?.apellido||'')+' '+(p.clientes?.razon_social||'')+' '+(p.clientes?.nombre_empresa||'')+' '+(p.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
     let matchEstado = true
     if (filtroEstado === 'vigentes')         matchEstado = esVigente(p)
     else if (filtroEstado === 'solicitud')    matchEstado = p.estado === 'solicitud'
@@ -1462,7 +1462,7 @@ export default function Polizas() {
                     )}
                   </div>
                   <p style={{fontSize:'12px',color:'#64748b',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                    {p.clientes?.nombre} {p.clientes?.apellido||''} · {p.aseguradoras?.nombre}
+                    {p.clientes?.tipo === 'empresa' ? (p.clientes?.razon_social || p.clientes?.nombre_empresa || p.clientes?.nombre || '') : `${p.clientes?.nombre||''} ${p.clientes?.apellido||''}`.trim()} · {p.aseguradoras?.nombre}
                   </p>
                 </div>
                 {(() => {
@@ -2476,7 +2476,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                 {isEmitida && vencEst==='por_vencer' && <span style={{fontSize:'12px',padding:'3px 10px',borderRadius:'20px',background:'#fef9c3',color:'#a16207',fontWeight:600}}>Por vencer ({diasRestantes}d)</span>}
               </div>
               <p style={{fontSize:'13px',color:'#6B6B62',margin:'5px 0 0',overflow:'hidden',textOverflow:isMobile?'clip':'ellipsis',whiteSpace:isMobile?'normal':'nowrap'}}>
-                {poliza.clientes?.nombre} {poliza.clientes?.apellido||''} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}
+                {poliza.clientes?.tipo === 'empresa' ? (poliza.clientes?.razon_social || poliza.clientes?.nombre_empresa || poliza.clientes?.nombre || '') : `${poliza.clientes?.nombre||''} ${poliza.clientes?.apellido||''}`.trim()} · {poliza.aseguradoras?.nombre} · {poliza.productos?.nombre}
               </p>
               {isEmitida && poliza.numero_solicitud && (
                 <p style={{fontSize:'11px',color:'#94a3b8',margin:'2px 0 0'}}>

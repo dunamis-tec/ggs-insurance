@@ -229,14 +229,14 @@ export default function Vehiculos() {
               <div>
                 <label style={labelStyle}>No. Chasis / VIN</label>
                 <input value={form.chasis}
-                  onChange={e=>{ setForm({...form,chasis:e.target.value}); setChasisError('') }}
+                  onChange={e=>{ setForm({...form,chasis:e.target.value.toUpperCase()}); setChasisError('') }}
                   onBlur={e=>checkChasisDuplicado(e.target.value)}
-                  style={{...inp, borderColor: chasisError ? '#ef4444' : '#e2e8f0', background: chasisError ? '#fef2f2' : 'white'}}/>
+                  style={{...inp, borderColor: chasisError ? '#ef4444' : '#e2e8f0', background: chasisError ? '#fef2f2' : 'white', textTransform:'uppercase'}}/>
                 {chasisError && <p style={{color:'#ef4444',fontSize:'12px',margin:'4px 0 0'}}>{chasisError}</p>}
               </div>
               <div>
                 <label style={labelStyle}>No. Motor</label>
-                <input value={form.motor} onChange={e=>setForm({...form,motor:e.target.value})} style={inp}/>
+                <input value={form.motor} onChange={e=>setForm({...form,motor:e.target.value.toUpperCase()})} style={{...inp, textTransform:'uppercase'}}/>
               </div>
               <div>
                 <label style={labelStyle}>Color</label>

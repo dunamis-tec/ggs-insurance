@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car, Upload, CheckCircle, Download, Paperclip } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car, Upload, Download, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ReclamoModal, ReclamosMiniList } from '../reclamos/Reclamos'
@@ -26,7 +26,6 @@ export default function Clientes() {
   const [editing, setEditing] = useState(null)
   const [conglomeradoSearch, setConglomeradoSearch] = useState('')
   const [showConglomeradoDropdown, setShowConglomeradoDropdown] = useState(false)
-  const [docsFiles, setDocsFiles] = useState({ recibo: null, dpi: null, patente: null })
   const [activeMainTab, setActiveMainTab] = useState('clientes')
   const [congTabSearch, setCongTabSearch] = useState('')
   const [congForm, setCongForm] = useState(emptyCong)
@@ -110,32 +109,9 @@ export default function Clientes() {
       clienteId = inserted.id
     }
 
-    // Upload documents
-    const docMap = [
-      { key: 'recibo', col: 'doc_recibo_url', label: 'Recibo' },
-      { key: 'dpi',    col: 'doc_dpi_url',    label: 'DPI' },
-      { key: 'patente',col: 'doc_patente_url', label: 'Patente' },
-    ]
-    const docUpdates = {}
-    for (const { key, col } of docMap) {
-      const file = docsFiles[key]
-      if (!file) continue
-      const ext = file.name.split('.').pop()
-      const path = `${empresaId}/${clienteId}/${key}.${ext}`
-      const { error: upErr } = await supabase.storage.from('cliente-docs').upload(path, file, { upsert: true })
-      if (!upErr) {
-        const { data: { publicUrl } } = supabase.storage.from('cliente-docs').getPublicUrl(path)
-        docUpdates[col] = publicUrl
-      }
-    }
-    if (Object.keys(docUpdates).length > 0) {
-      await supabase.from('clientes').update(docUpdates).eq('id', clienteId)
-    }
-
     toast.success(editing ? 'Cliente actualizado' : 'Cliente creado')
     setForm(emptyCliente)
     setEditing(null)
-    setDocsFiles({ recibo: null, dpi: null, patente: null })
     setView('list')
     fetchAll()
   }
@@ -418,35 +394,11 @@ export default function Clientes() {
             ))}
           </div>
 
-          {/* ── Documentos ── */}
-          <div style={{ marginBottom:'20px' }}>
-            <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Documentos</p>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'12px' }}>
-              {[
-                { key:'recibo', label:'Recibo de servicios' },
-                { key:'dpi',    label:'DPI / Pasaporte' },
-                { key:'patente',label:'Patente' },
-              ].map(({ key, label }) => (
-                <div key={key}>
-                  <label style={labelStyle}>{label}</label>
-                  <label style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 12px', border:'1.5px dashed ' + (docsFiles[key] ? '#C4A96B' : '#e2e8f0'), borderRadius:'8px', cursor:'pointer', background: docsFiles[key] ? '#FDF8EE' : '#f8fafc' }}>
-                    {docsFiles[key] ? <CheckCircle size={15} color='#C4A96B' /> : <Upload size={15} color='#94a3b8' />}
-                    <span style={{ fontSize:'12px', color: docsFiles[key] ? '#C4A96B' : '#94a3b8', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {docsFiles[key] ? docsFiles[key].name : 'Seleccionar archivo'}
-                    </span>
-                    <input type='file' accept='.pdf,.jpg,.jpeg,.png' style={{ display:'none' }}
-                      onChange={e => setDocsFiles({ ...docsFiles, [key]: e.target.files[0] || null })} />
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div style={{ display:'flex', gap:'8px', paddingTop:'16px', borderTop:'1px solid #f1f5f9' }}>
             <button type='submit' style={{ padding:'11px 24px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
               {editing ? 'Actualizar cliente' : 'Crear cliente'}
             </button>
-            <button type='button' onClick={() => { setView('list'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch(''); setDocsFiles({ recibo:null, dpi:null, patente:null }) }}
+            <button type='button' onClick={() => { setView('list'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
               style={{ padding:'11px 24px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', cursor:'pointer' }}>
               Cancelar
             </button>
