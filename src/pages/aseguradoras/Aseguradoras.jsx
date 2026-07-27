@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Building2, Plus, ChevronDown, ChevronUp, Trash2, Edit2, X, Upload } from 'lucide-react'
+import { Building2, Plus, ChevronDown, ChevronUp, Trash2, Edit2, X, Upload, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const emptyForm = { nombre:'', nit:'', direccion:'', telefono:'', email:'', contacto_nombre:'', logo_url:'' }
@@ -14,6 +14,7 @@ export default function Aseguradoras() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [logoPreview, setLogoPreview] = useState(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => { fetchAseguradoras() }, [])
 
@@ -75,15 +76,19 @@ export default function Aseguradoras() {
 
   return (
     <div>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'24px'}}>
-        <div>
-          <h1 style={{fontSize:'24px',fontWeight:700,color:'#0C1E3D'}}>Aseguradoras</h1>
-          <p style={{color:'#64748b',fontSize:'14px',marginTop:'4px'}}>{aseguradoras.length} aseguradoras registradas</p>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Aseguradoras</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+              {aseguradoras.length} aseguradoras registradas
+            </p>
+          </div>
+          <button onClick={()=>{setShowForm(!showForm);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
+            style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+            <Plus size={16}/> Nueva aseguradora
+          </button>
         </div>
-        <button onClick={()=>{setShowForm(!showForm);setEditing(null);setForm(emptyForm);setLogoPreview(null)}}
-          style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-          <Plus size={16}/> Nueva aseguradora
-        </button>
       </div>
 
       {showForm && (
@@ -91,7 +96,6 @@ export default function Aseguradoras() {
           <h2 style={{fontSize:'16px',fontWeight:600,color:'#0C1E3D',marginBottom:'16px'}}>{editing?'Editar aseguradora':'Nueva aseguradora'}</h2>
           <form onSubmit={handleSubmit}>
             <div style={{marginBottom:'20px'}}>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'8px'}}>Logo de la aseguradora</label>
               <div style={{display:'flex',alignItems:'center',gap:'16px'}}>
                 <div style={{width:'80px',height:'80px',borderRadius:'10px',border:'2px dashed #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#f8fafc'}}>
                   {logoPreview ? <img src={logoPreview} alt="logo" style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <Building2 size={28} color="#cbd5e1"/>}
@@ -106,12 +110,12 @@ export default function Aseguradoras() {
                 </div>
               </div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
               {[['nombre','Nombre *','text',true],['nit','NIT','text',false],['telefono','Teléfono','text',false],['email','Email','email',false],['contacto_nombre','Contacto principal','text',false],['direccion','Dirección','text',false]].map(([key,label,type,req])=>(
                 <div key={key}>
                   <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>
-                  <input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} required={req}
-                    style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box'}}/>
+                  <input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:['nombre','contacto_nombre','direccion'].includes(key)?e.target.value.toUpperCase():e.target.value})} required={req}
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',textTransform:['nombre','contacto_nombre','direccion'].includes(key)?'uppercase':'none'}}/>
                 </div>
               ))}
             </div>
@@ -128,10 +132,18 @@ export default function Aseguradoras() {
         </div>
       )}
 
+      <div style={{background:'white',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e2e8f0',marginBottom:'16px'}}>
+        <div style={{position:'relative'}}>
+          <Search size={16} color='#94a3b8' style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)'}}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder='Buscar aseguradora...'
+            style={{width:'100%',padding:'9px 12px 9px 36px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
+        </div>
+      </div>
+
       {loading ? <p style={{color:'#64748b'}}>Cargando...</p> : (
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-          {aseguradoras.length===0 && <div style={{background:'white',borderRadius:'12px',padding:'48px',textAlign:'center',border:'1px solid #e2e8f0'}}><Building2 size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/><p style={{color:'#94a3b8'}}>No hay aseguradoras registradas</p></div>}
-          {aseguradoras.map(a=>(
+          {aseguradoras.filter(a=>a.nombre.toLowerCase().includes(search.toLowerCase())).length===0 && <div style={{background:'white',borderRadius:'12px',padding:'48px',textAlign:'center',border:'1px solid #e2e8f0'}}><Building2 size={32} color="#cbd5e1" style={{marginBottom:'12px'}}/><p style={{color:'#94a3b8'}}>No hay aseguradoras registradas</p></div>}
+          {aseguradoras.filter(a=>a.nombre.toLowerCase().includes(search.toLowerCase())).map(a=>(
             <div key={a.id} style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
               <div style={{display:'flex',alignItems:'center',padding:'16px 20px',cursor:'pointer'}} onClick={()=>setExpanded(expanded===a.id?null:a.id)}>
                 <div style={{width:'44px',height:'44px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc'}}>
@@ -181,8 +193,8 @@ function ProductosSection({ aseguradora, onRefresh }) {
       </div>
       {showForm && (
         <form onSubmit={addProducto} style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre del producto" required
-            style={{flex:1,padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px'}}/>
+          <input value={nombre} onChange={e=>setNombre(e.target.value.toUpperCase())} placeholder="Nombre del producto" required
+            style={{flex:1,padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',textTransform:'uppercase'}}/>
           <button type="submit" style={{padding:'8px 12px',background:'#1A6BBA',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',fontSize:'13px'}}>Agregar</button>
           <button type="button" onClick={()=>setShowForm(false)} style={{padding:'8px',background:'white',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer'}}><X size={14}/></button>
         </form>
@@ -225,8 +237,8 @@ function CoberturasSection({ producto, onRefresh }) {
       </div>
       {showForm && (
         <form onSubmit={addCobertura} style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de cobertura" required
-            style={{flex:1,padding:'6px 10px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px'}}/>
+          <input value={nombre} onChange={e=>setNombre(e.target.value.toUpperCase())} placeholder="Nombre de cobertura" required
+            style={{flex:1,padding:'6px 10px',border:'1px solid #e2e8f0',borderRadius:'4px',fontSize:'12px',textTransform:'uppercase'}}/>
           <button type="submit" style={{padding:'6px 10px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'4px',cursor:'pointer',fontSize:'12px'}}>OK</button>
         </form>
       )}

@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Car, Plus, Edit2, Trash2, Search, ArrowLeft, FileText, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
-const emptyForm = { marca:'', modelo:'', anio:'', placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
+const tiposPlaca = ['M','C','P','CD','A','MI','TC']
+const emptyForm = { marca:'', modelo:'', anio:'', placa:'', tipo_placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
+const placaRegex = /^\d{3}[A-Z]{3}$/
+const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
 const tipoLabels = { emision:'Emision', inclusion:'Inclusion', exclusion:'Exclusion', renovacion:'Renovacion' }
 
@@ -60,8 +63,21 @@ export default function Vehiculos() {
   const [form, setForm] = useState(emptyForm)
   const [clienteId, setClienteId] = useState('')
   const [editing, setEditing] = useState(null)
+  const [placaError, setPlacaError] = useState('')
+  const [chasisError, setChasisError] = useState('')
+  const location = useLocation()
+  const fromClienteId = location.state?.fromClienteId || null
+  const fromPolizaId  = location.state?.fromPolizaId  || null
 
   useEffect(() => { fetchAll() }, [])
+
+  // Auto-open vehicle detail when navigated from a client
+  useEffect(() => {
+    if (location.state?.openVehiculoId && vehiculos.length > 0) {
+      const v = vehiculos.find(x => x.id === location.state.openVehiculoId)
+      if (v) { setSelected(v); setView('detalle') }
+    }
+  }, [location.state, vehiculos])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -74,20 +90,35 @@ export default function Vehiculos() {
     setLoading(false)
   }
 
+  const checkPlacaDuplicado = async (placa) => {
+    if (!placa) return
+    if (!placaRegex.test(placa)) { setPlacaError('Formato inválido. Usa 3 números seguidos de 3 letras (ej: 123ABC)'); return }
+    const { data } = await supabase.from('vehiculos').select('id').eq('placa', placa).eq('activo', true).neq('id', editing || '')
+    setPlacaError(data?.length > 0 ? 'Esta placa ya está registrada' : '')
+  }
+
+  const checkChasisDuplicado = async (chasis) => {
+    if (!chasis) { setChasisError(''); return }
+    const { data } = await supabase.from('vehiculos').select('id').eq('chasis', chasis).eq('activo', true).neq('id', editing || '')
+    setChasisError(data?.length > 0 ? 'Este número de chasis/VIN ya está registrado' : '')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!clienteId) { toast.error('Selecciona un cliente'); return }
     if (!form.marca) { toast.error('La marca es obligatoria'); return }
     if (!form.modelo) { toast.error('El modelo es obligatorio'); return }
     if (!form.placa) { toast.error('La placa es obligatoria'); return }
+    if (!placaRegex.test(form.placa)) { toast.error('Formato de placa inválido. Usa 123ABC (3 números + 3 letras)'); return }
+    if (placaError || chasisError) { toast.error('Corrige los errores antes de continuar'); return }
 
     if (form.placa) {
       const { data: existePlaca } = await supabase.from('vehiculos').select('id').eq('placa', form.placa).eq('activo', true).neq('id', editing || '')
-      if (existePlaca?.length > 0) { toast.error('Ya existe un vehiculo con esa placa'); return }
+      if (existePlaca?.length > 0) { setPlacaError('Esta placa ya está registrada'); return }
     }
     if (form.chasis) {
       const { data: existeChasis } = await supabase.from('vehiculos').select('id').eq('chasis', form.chasis).eq('activo', true).neq('id', editing || '')
-      if (existeChasis?.length > 0) { toast.error('Ya existe un vehiculo con ese numero de chasis (VIN)'); return }
+      if (existeChasis?.length > 0) { setChasisError('Este número de chasis/VIN ya está registrado'); return }
     }
 
     const payload = { ...form, cliente_id: clienteId, anio: parseInt(form.anio), valor_asegurado: parseFloat(form.valor_asegurado || 0) }
@@ -103,14 +134,18 @@ export default function Vehiculos() {
     setForm(emptyForm)
     setClienteId('')
     setEditing(null)
+    setPlacaError('')
+    setChasisError('')
     setView('list')
     fetchAll()
   }
 
   const handleEdit = (v) => {
-    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'sedan', valor_asegurado:v.valor_asegurado||'' })
+    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', tipo_placa:v.tipo_placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'sedan', valor_asegurado:v.valor_asegurado||'' })
     setClienteId(v.cliente_id)
     setEditing(v.id)
+    setPlacaError('')
+    setChasisError('')
     setView('form')
     window.scrollTo(0,0)
   }
@@ -123,19 +158,19 @@ export default function Vehiculos() {
   }
 
   const filtered = vehiculos.filter(v =>
-    (v.marca+' '+v.modelo+' '+v.anio+' '+(v.placa||'')+' '+(v.clientes?.nombre||'')).toLowerCase().includes(search.toLowerCase())
+    (v.marca+' '+v.modelo+' '+v.anio+' '+fp(v)+' '+(v.clientes?.nombre||'')).toLowerCase().includes(search.toLowerCase())
   )
 
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
   const labelStyle = { display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }
 
   if (view === 'detalle' && selected) return (
-    <VehiculoDetalle vehiculo={selected} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
+    <VehiculoDetalle vehiculo={selected} fromClienteId={fromClienteId} fromPolizaId={fromPolizaId} onBack={()=>{ setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
     <div>
-      <button onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId('') }}
+      <button onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId(''); setPlacaError(''); setChasisError('') }}
         style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
         <ArrowLeft size={16}/> Volver a vehiculos
       </button>
@@ -150,18 +185,31 @@ export default function Vehiculos() {
               <label style={labelStyle}>Cliente propietario *</label>
               <ClienteSearchSelect value={clienteId} onChange={setClienteId} clientes={clientes} />
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
               <div>
                 <label style={labelStyle}>Marca *</label>
-                <input value={form.marca} onChange={e=>setForm({...form,marca:e.target.value})} required style={inp} placeholder="Ej: Toyota"/>
+                <input value={form.marca} onChange={e=>setForm({...form,marca:e.target.value.toUpperCase()})} required style={{...inp, textTransform:'uppercase'}} placeholder="Ej: Toyota"/>
               </div>
               <div>
                 <label style={labelStyle}>Modelo *</label>
-                <input value={form.modelo} onChange={e=>setForm({...form,modelo:e.target.value})} required style={inp} placeholder="Ej: Hilux"/>
+                <input value={form.modelo} onChange={e=>setForm({...form,modelo:e.target.value.toUpperCase()})} required style={{...inp, textTransform:'uppercase'}} placeholder="Ej: Hilux"/>
               </div>
               <div>
-                <label style={labelStyle}>Placa *</label>
-                <input value={form.placa} onChange={e=>setForm({...form,placa:e.target.value})} required style={inp} placeholder="Ej: P-123ABC"/>
+                <label style={labelStyle}>Tipo de placa *</label>
+                <select value={form.tipo_placa} onChange={e=>setForm({...form,tipo_placa:e.target.value})} required style={inp}>
+                  <option value="">Selecciona tipo...</option>
+                  {tiposPlaca.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Placa * <span style={{color:'#94a3b8',fontWeight:400,fontSize:'12px'}}>(formato: 123ABC)</span></label>
+                <input value={form.placa}
+                  onChange={e=>{ const v=e.target.value.toUpperCase().replace(/[^0-9A-Z]/g,''); setForm({...form,placa:v}); setPlacaError('') }}
+                  onBlur={e=>checkPlacaDuplicado(e.target.value)}
+                  required maxLength={6}
+                  style={{...inp, borderColor: placaError ? '#ef4444' : '#e2e8f0', background: placaError ? '#fef2f2' : 'white'}}
+                  placeholder="Ej: 123ABC"/>
+                {placaError && <p style={{color:'#ef4444',fontSize:'12px',margin:'4px 0 0'}}>{placaError}</p>}
               </div>
               <div>
                 <label style={labelStyle}>Año</label>
@@ -169,7 +217,11 @@ export default function Vehiculos() {
               </div>
               <div>
                 <label style={labelStyle}>No. Chasis / VIN</label>
-                <input value={form.chasis} onChange={e=>setForm({...form,chasis:e.target.value})} style={inp}/>
+                <input value={form.chasis}
+                  onChange={e=>{ setForm({...form,chasis:e.target.value}); setChasisError('') }}
+                  onBlur={e=>checkChasisDuplicado(e.target.value)}
+                  style={{...inp, borderColor: chasisError ? '#ef4444' : '#e2e8f0', background: chasisError ? '#fef2f2' : 'white'}}/>
+                {chasisError && <p style={{color:'#ef4444',fontSize:'12px',margin:'4px 0 0'}}>{chasisError}</p>}
               </div>
               <div>
                 <label style={labelStyle}>No. Motor</label>
@@ -177,7 +229,7 @@ export default function Vehiculos() {
               </div>
               <div>
                 <label style={labelStyle}>Color</label>
-                <input value={form.color} onChange={e=>setForm({...form,color:e.target.value})} style={inp}/>
+                <input value={form.color} onChange={e=>setForm({...form,color:e.target.value.toUpperCase()})} style={{...inp, textTransform:'uppercase'}}/>
               </div>
               <div>
                 <label style={labelStyle}>Valor asegurado (Q)</label>
@@ -194,7 +246,7 @@ export default function Vehiculos() {
               <button type='submit' style={{padding:'11px 24px',background:'#0C1E3D',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
                 {editing ? 'Actualizar' : 'Crear vehiculo'}
               </button>
-              <button type='button' onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId('') }}
+              <button type='button' onClick={()=>{ setView('list'); setEditing(null); setForm(emptyForm); setClienteId(''); setPlacaError(''); setChasisError('') }}
                 style={{padding:'11px 24px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
                 Cancelar
               </button>
@@ -247,14 +299,10 @@ export default function Vehiculos() {
                 <div style={{width:'40px',height:'40px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',flexShrink:0}}>
                   <Car size={18} color='#1A6BBA'/>
                 </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0}}>{v.marca} {v.modelo} {v.anio}</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {v.placa||'N/A'} · {v.tipo}</p>
+                <div style={{flex:1,minWidth:0,textAlign:'left'}}>
+                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {fp(v)} · {v.tipo}</p>
                 </div>
-                {v.valor_asegurado > 0 && <p style={{fontSize:'13px',fontWeight:600,color:'#1A6BBA',marginRight:'12px',margin:0,flexShrink:0}}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
-                <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',marginRight:'12px',background:enPoliza?'#dcfce7':'#f1f5f9',color:enPoliza?'#15803d':'#64748b',fontWeight:500,flexShrink:0}}>
-                  {enPoliza ? 'En poliza activa' : 'Disponible'}
-                </span>
                 <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>handleEdit(v)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color='#64748b'/></button>
                   <button onClick={()=>handleDelete(v.id)} disabled={!!enPoliza}
@@ -270,10 +318,20 @@ export default function Vehiculos() {
   )
 }
 
-function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
+function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId }) {
   const navigate = useNavigate()
   const [historial, setHistorial] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const handleBack = () => {
+    if (fromPolizaId) {
+      navigate('/polizas', { state: { openPolizaId: fromPolizaId } })
+    } else if (fromClienteId) {
+      navigate('/clientes', { state: { openClienteId: fromClienteId, fromVehiculo: true } })
+    } else {
+      onBack()
+    }
+  }
 
   useEffect(() => { fetchHistorial() }, [vehiculo.id])
 
@@ -289,8 +347,8 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
-        <ArrowLeft size={16}/> Volver a vehiculos
+      <button onClick={handleBack} style={{display:'flex',alignItems:'center',gap:'6px',color:'#64748b',background:'none',border:'none',cursor:'pointer',fontSize:'14px',marginBottom:'20px',padding:'0'}}>
+        <ArrowLeft size={16}/> {fromPolizaId ? 'Volver a la póliza' : fromClienteId ? 'Volver al cliente' : 'Volver a vehiculos'}
       </button>
 
       <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
@@ -304,12 +362,12 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit }) {
               <p style={{fontSize:'13px',color:'rgba(255,255,255,0.7)',margin:'4px 0 0'}}>{vehiculo.clientes?.nombre} {vehiculo.clientes?.apellido||''} · {vehiculo.tipo}</p>
             </div>
           </div>
-          <button onClick={()=>onEdit(vehiculo)} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
+          <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
             <Edit2 size={13}/> Editar
           </button>
         </div>
-        <div style={{padding:'16px 24px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px'}}>
-          {[['Placa',vehiculo.placa||'N/A'],['Chasis / VIN',vehiculo.chasis||'N/A'],['Motor',vehiculo.motor||'N/A'],['Color',vehiculo.color||'N/A']].map(([label,val])=>(
+        <div style={{padding:'16px 24px',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'12px'}}>
+          {[['Placa',fp(vehiculo)],['Chasis / VIN',vehiculo.chasis||'N/A'],['Motor',vehiculo.motor||'N/A'],['Color',vehiculo.color||'N/A']].map(([label,val])=>(
             <div key={label} style={{background:'#f8fafc',borderRadius:'8px',padding:'10px 14px'}}>
               <p style={{fontSize:'11px',color:'#64748b',margin:0}}>{label}</p>
               <p style={{fontSize:'14px',fontWeight:600,color:'#1e293b',margin:'3px 0 0'}}>{val}</p>

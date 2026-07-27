@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
-const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
+const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
 const emptyPF = { nombre:'', apellido:'', nit:'', email:'', telefono:'', direccion:'' }
 
 const tipoColors = { prospecto:{ bg:'#fef9c3', color:'#a16207' }, individual:{ bg:'#dbeafe', color:'#1d4ed8' }, empresa:{ bg:'#fef3c7', color:'#d97706' } }
 const tipoIcons = { prospecto: User, individual: User, empresa: Building2 }
+
+const emptyCong = { nombre: '' }
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([])
@@ -23,8 +25,26 @@ export default function Clientes() {
   const [editing, setEditing] = useState(null)
   const [conglomeradoSearch, setConglomeradoSearch] = useState('')
   const [showConglomeradoDropdown, setShowConglomeradoDropdown] = useState(false)
+  const [activeMainTab, setActiveMainTab] = useState('clientes')
+  const [congTabSearch, setCongTabSearch] = useState('')
+  const [congForm, setCongForm] = useState(emptyCong)
+  const [editingCong, setEditingCong] = useState(null)
+  const [showCongForm, setShowCongForm] = useState(false)
+  const [expandedCong, setExpandedCong] = useState(null)
+  const location = useLocation()
+  const fromReqId = location.state?.fromReqId || null
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (location.state?.openClienteId && clientes.length > 0) {
+      const c = clientes.find(c => c.id === location.state.openClienteId)
+      if (c) { setSelected(c); setView('detalle') }
+    }
+  }, [location.state, clientes])
+
+  // Pass the desired tab to ClienteDetalle when coming back from a vehicle
+  const initialTab = location.state?.openClienteId && location.state?.fromVehiculo ? 'vehiculos' : undefined
 
   const fetchAll = async () => {
     setLoading(true)
@@ -55,7 +75,7 @@ export default function Clientes() {
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       nombre: form.nombre, apellido: form.apellido || null, tipo: form.tipo,
-      email: form.email || null, telefono: form.telefono || null, nit: form.nit || null,
+      email: form.email || null, telefono: form.telefono || null, nit: form.nit || null, dpi: form.dpi || null,
       direccion: form.direccion || null, conglomerado_id: form.conglomerado_id || null,
       razon_social: form.razon_social || null, nombre_empresa: form.nombre_empresa || null,
       contacto_nombre: form.contacto_nombre || null, contacto_apellido: form.contacto_apellido || null,
@@ -85,7 +105,7 @@ export default function Clientes() {
       razon_social: c.razon_social || '', nombre_empresa: c.nombre_empresa || '',
       contacto_nombre: c.contacto_nombre || '', contacto_apellido: c.contacto_apellido || '',
       contacto_telefono: c.contacto_telefono || '', contacto_email: c.contacto_email || '',
-      contacto_cargo: c.contacto_cargo || ''
+      contacto_cargo: c.contacto_cargo || '', dpi: c.dpi || ''
     })
     const cong = conglomerados.find(x => x.id === c.conglomerado_id)
     setConglomeradoSearch(cong?.nombre || '')
@@ -101,6 +121,39 @@ export default function Clientes() {
     fetchAll()
   }
 
+  const handleCongSubmit = async (e) => {
+    e.preventDefault()
+    if (!congForm.nombre.trim()) return
+    if (editingCong) {
+      const { error } = await supabase.from('conglomerados').update({ nombre: congForm.nombre.trim() }).eq('id', editingCong)
+      if (error) { toast.error('Error: ' + error.message); return }
+      toast.success('Conglomerado actualizado')
+    } else {
+      const { error } = await supabase.from('conglomerados').insert({ nombre: congForm.nombre.trim(), activo: true })
+      if (error) { toast.error('Error: ' + error.message); return }
+      toast.success('Conglomerado creado')
+    }
+    setCongForm(emptyCong)
+    setEditingCong(null)
+    setShowCongForm(false)
+    fetchAll()
+  }
+
+  const handleCongEdit = (cg) => {
+    setCongForm({ nombre: cg.nombre })
+    setEditingCong(cg.id)
+    setShowCongForm(true)
+  }
+
+  const handleCongDelete = async (id) => {
+    const inUse = clientes.some(c => c.conglomerado_id === id)
+    if (inUse) { toast.error('No se puede eliminar: tiene clientes asignados'); return }
+    if (!confirm('Eliminar conglomerado?')) return
+    await supabase.from('conglomerados').update({ activo: false }).eq('id', id)
+    toast.success('Conglomerado eliminado')
+    fetchAll()
+  }
+
   const filtered = clientes.filter(c => {
     const pfTexto = (c.personas_facturables || []).map(p => `${p.nombre} ${p.apellido||''} ${p.nit||''}`).join(' ')
     const matchSearch = ((c.nombre||'') + ' ' + (c.apellido||'') + ' ' + (c.email||'') + ' ' + (c.nit||'') + ' ' + (c.telefono||'') + ' ' + (c.razon_social||'') + ' ' + (c.nombre_empresa||'') + ' ' + (c.conglomerados?.nombre||'') + ' ' + pfTexto).toLowerCase().includes(search.toLowerCase())
@@ -109,6 +162,7 @@ export default function Clientes() {
   })
 
   const congFiltered = conglomerados.filter(c => c.nombre.toLowerCase().includes(conglomeradoSearch.toLowerCase()))
+  const congTabFiltered = conglomerados.filter(c => c.nombre.toLowerCase().includes(congTabSearch.toLowerCase()))
   const selectedCong = conglomerados.find(c => c.id === form.conglomerado_id)
 
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
@@ -117,7 +171,7 @@ export default function Clientes() {
   const getNombreDisplay = (c) => c.tipo === 'empresa' ? (c.razon_social || c.nombre_empresa || c.nombre) : `${c.nombre} ${c.apellido||''}`.trim()
 
   if (view === 'detalle' && selected) return (
-    <ClienteDetalle cliente={selected} conglomerados={conglomerados} onBack={() => { setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
+    <ClienteDetalle cliente={selected} conglomerados={conglomerados} fromReqId={fromReqId} initialTab={initialTab} onBack={() => { setSelected(null); setView('list'); fetchAll() }} onEdit={handleEdit} />
   )
 
   if (view === 'form') return (
@@ -151,18 +205,22 @@ export default function Clientes() {
           {form.tipo === 'empresa' ? (
             <>
               <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Datos de la empresa</p>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={labelStyle}>Razon social *</label>
-                  <input value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value })} required style={inp} placeholder='Ej: Empresa S.A.' />
+                  <input value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value.toUpperCase() })} required style={{...inp, textTransform:'uppercase'}} placeholder='Ej: Empresa S.A.' />
                 </div>
                 <div>
                   <label style={labelStyle}>Nombre comercial</label>
-                  <input value={form.nombre_empresa} onChange={e => setForm({ ...form, nombre_empresa: e.target.value })} style={inp} />
+                  <input value={form.nombre_empresa} onChange={e => setForm({ ...form, nombre_empresa: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>NIT *</label>
                   <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} required style={inp} />
+                </div>
+                <div>
+                  <label style={labelStyle}>DPI representante</label>
+                  <input value={form.dpi} onChange={e => setForm({ ...form, dpi: e.target.value })} style={inp} placeholder='Número de identificación' />
                 </div>
                 <div>
                   <label style={labelStyle}>Telefono</label>
@@ -174,22 +232,22 @@ export default function Clientes() {
                 </div>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={labelStyle}>Direccion</label>
-                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
+                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
               </div>
               <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
-                  <input value={form.contacto_nombre} onChange={e => setForm({ ...form, contacto_nombre: e.target.value })} required style={inp} />
+                  <input value={form.contacto_nombre} onChange={e => setForm({ ...form, contacto_nombre: e.target.value.toUpperCase() })} required style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Apellido</label>
-                  <input value={form.contacto_apellido} onChange={e => setForm({ ...form, contacto_apellido: e.target.value })} style={inp} />
+                  <input value={form.contacto_apellido} onChange={e => setForm({ ...form, contacto_apellido: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Cargo</label>
-                  <input value={form.contacto_cargo} onChange={e => setForm({ ...form, contacto_cargo: e.target.value })} style={inp} />
+                  <input value={form.contacto_cargo} onChange={e => setForm({ ...form, contacto_cargo: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Telefono directo</label>
@@ -203,18 +261,22 @@ export default function Clientes() {
             </>
           ) : (
             <>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
-                  <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} required style={inp} />
+                  <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value.toUpperCase() })} required style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Apellido</label>
-                  <input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value })} style={inp} />
+                  <input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>NIT</label>
                   <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} style={inp} />
+                </div>
+                <div>
+                  <label style={labelStyle}>DPI</label>
+                  <input value={form.dpi} onChange={e => setForm({ ...form, dpi: e.target.value })} style={inp} placeholder='Número de identificación' />
                 </div>
                 <div>
                   <label style={labelStyle}>Telefono</label>
@@ -226,7 +288,7 @@ export default function Clientes() {
                 </div>
                 <div>
                   <label style={labelStyle}>Direccion</label>
-                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
+                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
               </div>
             </>
@@ -274,83 +336,226 @@ export default function Clientes() {
 
   return (
     <div>
+      {/* Header */}
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ textAlign:'left' }}>
-            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Clientes</h1>
-            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>{clientes.length} clientes · {clientes.filter(c=>c.tipo==='empresa').length} empresas · {clientes.filter(c=>c.tipo==='prospecto').length} prospectos</p>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>
+              {activeMainTab === 'clientes' ? 'Clientes' : 'Conglomerados'}
+            </h1>
+            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
+              {activeMainTab === 'clientes'
+                ? `${clientes.length} clientes · ${clientes.filter(c=>c.tipo==='empresa').length} empresas · ${clientes.filter(c=>c.tipo==='prospecto').length} prospectos`
+                : `${conglomerados.length} conglomerados`}
+            </p>
           </div>
-          <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
-            style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
-            <Plus size={16} /> Nuevo cliente
+          {activeMainTab === 'clientes'
+            ? <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                <Plus size={16} /> Nuevo cliente
+              </button>
+            : <button onClick={() => { setShowCongForm(true); setCongForm(emptyCong); setEditingCong(null) }}
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                <Plus size={16} /> Nuevo conglomerado
+              </button>
+          }
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:'8px', marginBottom:'20px' }}>
+        {[['clientes','Clientes'],['conglomerados','Conglomerados']].map(([tab, label]) => (
+          <button key={tab} onClick={() => setActiveMainTab(tab)}
+            style={{ padding:'8px 20px', borderRadius:'8px', fontSize:'14px', fontWeight:500, cursor:'pointer',
+              background: activeMainTab === tab ? '#0C1E3D' : 'white',
+              color: activeMainTab === tab ? 'white' : '#64748b',
+              border: `1px solid ${activeMainTab === tab ? '#0C1E3D' : '#e2e8f0'}` }}>
+            {label}{tab === 'clientes' ? ` (${clientes.length})` : ` (${conglomerados.length})`}
           </button>
-        </div>
+        ))}
       </div>
-      <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px', display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center' }}>
-        <div style={{ flex:1, minWidth:'200px', position:'relative' }}>
-          <Search size={16} color='#94a3b8' style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder='Buscar por nombre, NIT, telefono, conglomerado...'
-            style={{ width:'100%', padding:'9px 12px 9px 36px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
-        </div>
-        <div style={{ display:'flex', gap:'6px' }}>
-          {['todos', ...tiposCliente].map(t => (
-            <button key={t} onClick={() => setFiltroTipo(t)}
-              style={{ padding:'7px 14px', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:500,
-                background: filtroTipo === t ? '#0C1E3D' : 'white',
-                color: filtroTipo === t ? 'white' : '#64748b',
-                border: `1px solid ${filtroTipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
-        {loading ? <p style={{ padding:'24px', color:'#64748b' }}>Cargando...</p> :
-          filtered.length === 0 ? (
-            <div style={{ padding:'48px', textAlign:'center' }}>
-              <Users size={32} color='#cbd5e1' style={{ marginBottom:'12px' }} />
-              <p style={{ color:'#94a3b8' }}>No hay clientes registrados</p>
+
+      {/* ─── TAB CLIENTES ─── */}
+      {activeMainTab === 'clientes' && (
+        <>
+          <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px', display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center' }}>
+            <div style={{ flex:1, minWidth:'200px', position:'relative' }}>
+              <Search size={16} color='#94a3b8' style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder='Buscar por nombre, NIT, telefono, conglomerado...'
+                style={{ width:'100%', padding:'9px 12px 9px 36px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
             </div>
-          ) : filtered.map((c, i) => {
-            const Icon = tipoIcons[c.tipo] || User
-            const colors = tipoColors[c.tipo] || tipoColors.individual
-            return (
-              <div key={c.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i < filtered.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
-                onClick={() => { setSelected(c); setView('detalle') }}
-                onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
-                onMouseLeave={e => e.currentTarget.style.background='white'}>
-                <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:colors.bg, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                  <Icon size={18} color={colors.color} />
+            <div style={{ display:'flex', gap:'6px' }}>
+              {['todos', ...tiposCliente].map(t => (
+                <button key={t} onClick={() => setFiltroTipo(t)}
+                  style={{ padding:'7px 14px', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:500,
+                    background: filtroTipo === t ? '#0C1E3D' : 'white',
+                    color: filtroTipo === t ? 'white' : '#64748b',
+                    border: `1px solid ${filtroTipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+            {loading ? <p style={{ padding:'24px', color:'#64748b' }}>Cargando...</p> :
+              filtered.length === 0 ? (
+                <div style={{ padding:'48px', textAlign:'center' }}>
+                  <Users size={32} color='#cbd5e1' style={{ marginBottom:'12px' }} />
+                  <p style={{ color:'#94a3b8' }}>No hay clientes registrados</p>
                 </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{getNombreDisplay(c)}</p>
-                  <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {c.tipo === 'empresa' && c.contacto_nombre ? `Contacto: ${c.contacto_nombre} ${c.contacto_apellido||''} · ` : ''}
-                    {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}{c.conglomerados ? ` · ${c.conglomerados.nombre}` : ''}
-                  </p>
+              ) : filtered.map((c, i) => {
+                const Icon = tipoIcons[c.tipo] || User
+                const colors = tipoColors[c.tipo] || tipoColors.individual
+                return (
+                  <div key={c.id} style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i < filtered.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
+                    onClick={() => { setSelected(c); setView('detalle') }}
+                    onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background='white'}>
+                    <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:colors.bg, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                      <Icon size={18} color={colors.color} />
+                    </div>
+                    <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                      <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
+                      <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>
+                        {c.tipo === 'empresa' && c.contacto_nombre ? `Contacto: ${c.contacto_nombre} ${c.contacto_apellido||''} · ` : ''}
+                        {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}{c.conglomerados ? ` · ${c.conglomerados.nombre}` : ''}
+                      </p>
+                    </div>
+                    <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'12px', background:colors.bg, color:colors.color, fontWeight:500, flexShrink:0 }}>
+                      {c.tipo.charAt(0).toUpperCase() + c.tipo.slice(1)}
+                    </span>
+                    <div style={{ display:'flex', gap:'6px', flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => handleEdit(c)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
+                      <button onClick={() => handleDelete(c.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </>
+      )}
+
+      {/* ─── TAB CONGLOMERADOS ─── */}
+      {activeMainTab === 'conglomerados' && (
+        <>
+          <div style={{ background:'white', borderRadius:'12px', padding:'14px 16px', border:'1px solid #e2e8f0', marginBottom:'16px' }}>
+            <div style={{ position:'relative' }}>
+              <Search size={16} color='#94a3b8' style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)' }} />
+              <input value={congTabSearch} onChange={e => setCongTabSearch(e.target.value)} placeholder='Buscar conglomerado...'
+                style={{ width:'100%', padding:'9px 12px 9px 36px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
+            </div>
+          </div>
+
+          {/* Inline form */}
+          {showCongForm && (
+            <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', padding:'20px 24px', marginBottom:'16px' }}>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#0C1E3D', margin:'0 0 14px', textAlign:'left' }}>
+                {editingCong ? 'Editar conglomerado' : 'Nuevo conglomerado'}
+              </p>
+              <form onSubmit={handleCongSubmit} style={{ display:'flex', gap:'10px', alignItems:'flex-end' }}>
+                <div style={{ flex:1 }}>
+                  <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Nombre *</label>
+                  <input value={congForm.nombre} onChange={e => setCongForm({ nombre: e.target.value.toUpperCase() })} required
+                    placeholder='Nombre del conglomerado'
+                    style={{ width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box', textTransform:'uppercase' }} />
                 </div>
-                <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'20px', marginRight:'12px', background:colors.bg, color:colors.color, fontWeight:500, flexShrink:0 }}>
-                  {c.tipo.charAt(0).toUpperCase() + c.tipo.slice(1)}
-                </span>
-                <div style={{ display:'flex', gap:'6px', flexShrink:0 }} onClick={e => e.stopPropagation()}>
-                  <button onClick={() => handleEdit(c)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
-                  <button onClick={() => handleDelete(c.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
+                <button type='submit' style={{ padding:'10px 20px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  {editingCong ? 'Actualizar' : 'Crear'}
+                </button>
+                <button type='button' onClick={() => { setShowCongForm(false); setCongForm(emptyCong); setEditingCong(null) }}
+                  style={{ padding:'10px 16px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>
+                  Cancelar
+                </button>
+              </form>
+            </div>
+          )}
+
+          <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+            {loading ? <p style={{ padding:'24px', color:'#64748b' }}>Cargando...</p> :
+              congTabFiltered.length === 0 ? (
+                <div style={{ padding:'48px', textAlign:'center' }}>
+                  <Building2 size={32} color='#cbd5e1' style={{ marginBottom:'12px' }} />
+                  <p style={{ color:'#94a3b8' }}>No hay conglomerados registrados</p>
                 </div>
-              </div>
-            )
-          })}
-      </div>
+              ) : congTabFiltered.map((cg, i) => {
+                const cgClientes = clientes.filter(c => c.conglomerado_id === cg.id)
+                const isExpanded = expandedCong === cg.id
+                return (
+                  <div key={cg.id} style={{ borderBottom: i < congTabFiltered.length-1 ? '1px solid #f1f5f9' : 'none' }}>
+                    {/* Fila conglomerado */}
+                    <div style={{ display:'flex', alignItems:'center', padding:'14px 20px', cursor:'pointer', background:'white' }}
+                      onClick={() => setExpandedCong(prev => prev === cg.id ? null : cg.id)}
+                      onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background='white'}>
+                      <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                        <Building2 size={18} color='#1d4ed8' />
+                      </div>
+                      <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                        <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
+                        <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>
+                          {cgClientes.length === 0 ? 'Sin clientes asignados' : `${cgClientes.length} cliente${cgClientes.length !== 1 ? 's' : ''}`}
+                        </p>
+                      </div>
+                      <div style={{ display:'flex', gap:'6px', flexShrink:0, marginRight:'10px' }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => handleCongEdit(cg)} style={{ padding:'6px', background:'#f1f5f9', border:'none', borderRadius:'6px', cursor:'pointer' }}><Edit2 size={14} color='#64748b' /></button>
+                        <button onClick={() => handleCongDelete(cg.id)} style={{ padding:'6px', background:'#fef2f2', border:'none', borderRadius:'6px', cursor:'pointer' }}><Trash2 size={14} color='#ef4444' /></button>
+                      </div>
+                      {isExpanded ? <ChevronUp size={16} color='#64748b' /> : <ChevronDown size={16} color='#64748b' />}
+                    </div>
+
+                    {/* Clientes del conglomerado */}
+                    {isExpanded && (
+                      <div style={{ background:'#f8fafc', borderTop:'1px solid #f1f5f9' }}>
+                        {cgClientes.length === 0 ? (
+                          <p style={{ padding:'14px 20px 14px 72px', fontSize:'13px', color:'#94a3b8', margin:0 }}>Sin clientes asignados a este conglomerado</p>
+                        ) : cgClientes.map((c, ci) => {
+                          const Icon = tipoIcons[c.tipo] || User
+                          const colors = tipoColors[c.tipo] || tipoColors.individual
+                          const nombreDisplay = c.tipo === 'empresa' ? (c.razon_social || c.nombre_empresa || c.nombre) : `${c.nombre} ${c.apellido||''}`.trim()
+                          return (
+                            <div key={c.id}
+                              style={{ display:'flex', alignItems:'center', padding:'11px 20px 11px 72px', borderBottom: ci < cgClientes.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
+                              onClick={() => { setSelected(c); setView('detalle') }}
+                              onMouseEnter={e => e.currentTarget.style.background='#eff6ff'}
+                              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                              <div style={{ width:'32px', height:'32px', borderRadius:'8px', background:colors.bg, display:'flex', alignItems:'center', justifyContent:'center', marginRight:'10px', flexShrink:0 }}>
+                                <Icon size={15} color={colors.color} />
+                              </div>
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0, textAlign:'left' }}>{nombreDisplay}</p>
+                                <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                  {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}
+                                </p>
+                              </div>
+                              <span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'20px', background:colors.bg, color:colors.color, fontWeight:500, flexShrink:0, marginRight:'8px' }}>
+                                {c.tipo.charAt(0).toUpperCase() + c.tipo.slice(1)}
+                              </span>
+                              <ChevronRight size={14} color='#94a3b8' />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
-function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
+const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
+
+function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, initialTab }) {
   const navigate = useNavigate()
   const [polizas, setPolizas] = useState([])
   const [personas, setPersonas] = useState([])
   const [reqs, setReqs] = useState([])
+  const [vehiculos, setVehiculos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('polizas')
+  const [activeTab, setActiveTab] = useState(initialTab || 'polizas')
   const [showPFForm, setShowPFForm] = useState(false)
   const [pfForm, setPfForm] = useState(emptyPF)
   const [editingPF, setEditingPF] = useState(null)
@@ -360,12 +565,14 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: pData }, { data: pfData }] = await Promise.all([
+    const [{ data: pData }, { data: pfData }, { data: vData }] = await Promise.all([
       supabase.from('polizas').select('*, aseguradoras(nombre, logo_url), productos(nombre)').eq('cliente_id', cliente.id).eq('activa', true).order('created_at', { ascending: false }),
       supabase.from('personas_facturables').select('*').eq('cliente_id', cliente.id).eq('activa', true).order('nombre'),
+      supabase.from('vehiculos').select('*').eq('cliente_id', cliente.id).eq('activo', true).order('created_at', { ascending: false }),
     ])
     setPolizas(pData || [])
     setPersonas(pfData || [])
+    setVehiculos(vData || [])
     const polizaIds = (pData || []).map(p => p.id)
     if (polizaIds.length > 0) {
       const { data: reqData } = await supabase.from('requerimientos_pago')
@@ -429,8 +636,8 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ display:'flex', alignItems:'center', gap:'6px', color:'#64748b', background:'none', border:'none', cursor:'pointer', fontSize:'14px', marginBottom:'20px', padding:'0' }}>
-        <ArrowLeft size={16} /> Volver a clientes
+      <button onClick={()=>{ if (fromReqId) navigate('/requerimientos', { state: { openReqId: fromReqId } }); else onBack() }} style={{ display:'flex', alignItems:'center', gap:'6px', color:'#64748b', background:'none', border:'none', cursor:'pointer', fontSize:'14px', marginBottom:'20px', padding:'0' }}>
+        <ArrowLeft size={16} /> {fromReqId ? 'Volver al requerimiento' : 'Volver a clientes'}
       </button>
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'16px' }}>
         <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -464,6 +671,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
           ) : (
             <>
               {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='NIT' value={cliente.nit} />}
+              {cliente.dpi && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='DPI' value={cliente.dpi} />}
               {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Telefono' value={cliente.telefono} />}
               {cliente.email && <InfoCard icon={<Mail size={14} color='#1A6BBA'/>} label='Email' value={cliente.email} />}
             </>
@@ -471,7 +679,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#0C1E3D' : 'white',
@@ -513,9 +721,45 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
         </div>
       )}
 
+      {activeTab === 'vehiculos' && (
+        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
+            <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Vehiculos del cliente</p>
+          </div>
+          {loading ? <p style={{ padding:'20px', color:'#64748b' }}>Cargando...</p> :
+            vehiculos.length === 0 ? (
+              <div style={{ padding:'32px', textAlign:'center' }}>
+                <Car size={28} color='#cbd5e1' style={{ marginBottom:'10px' }} />
+                <p style={{ color:'#94a3b8', margin:0 }}>Sin vehiculos registrados</p>
+              </div>
+            ) : vehiculos.map((v, i) => (
+              <div key={v.id}
+                style={{ display:'flex', alignItems:'center', padding:'14px 20px', borderBottom: i<vehiculos.length-1 ? '1px solid #f1f5f9' : 'none', cursor:'pointer' }}
+                onClick={() => navigate('/vehiculos', { state: { openVehiculoId: v.id, fromClienteId: cliente.id } })}
+                onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                onMouseLeave={e => e.currentTarget.style.background='white'}>
+                <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                  <Car size={18} color='#1A6BBA' />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>Placa: {fp(v)} · {v.tipo} {v.color ? `· ${v.color}` : ''}</p>
+                </div>
+                {v.valor_asegurado > 0 && (
+                  <div style={{ textAlign:'right', marginRight:'12px' }}>
+                    <p style={{ fontSize:'12px', color:'#1A6BBA', fontWeight:600, margin:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>
+                    <p style={{ fontSize:'11px', color:'#94a3b8', margin:0 }}>Valor asegurado</p>
+                  </div>
+                )}
+                <ChevronRight size={16} color='#94a3b8' />
+              </div>
+            ))}
+        </div>
+      )}
+
       {activeTab === 'estado_cuenta' && (
         <div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'16px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'12px', marginBottom:'16px' }}>
             {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#1A6BBA']].map(([l,v,c])=>(
               <div key={l} style={{ background:'white', borderRadius:'10px', padding:'14px', border:'1px solid #e2e8f0', borderLeft:`4px solid ${c}` }}>
                 <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{l}</p>
@@ -601,11 +845,11 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit }) {
           {showPFForm && (
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
               <form onSubmit={handlePFSubmit}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'12px', marginBottom:'12px' }}>
                   {[['nombre','Nombre *',true],['apellido','Apellido',false],['nit','NIT *',true],['email','Email',false],['telefono','Telefono',false],['direccion','Direccion',false]].map(([key,label,req])=>(
                     <div key={key}>
                       <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>{label}</label>
-                      <input value={pfForm[key]} onChange={e => setPfForm({ ...pfForm, [key]: e.target.value })} required={req} style={inp} />
+                      <input value={pfForm[key]} onChange={e => setPfForm({ ...pfForm, [key]: ['nombre','apellido','direccion'].includes(key) ? e.target.value.toUpperCase() : e.target.value })} required={req} style={{...inp, textTransform:['nombre','apellido','direccion'].includes(key)?'uppercase':'none'}} />
                     </div>
                   ))}
                 </div>
