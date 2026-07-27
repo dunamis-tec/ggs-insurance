@@ -199,11 +199,11 @@ export default function Vehiculos() {
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'16px',marginBottom:'16px'}}>
               <div>
                 <label style={labelStyle}>Marca *</label>
-                <input value={form.marca} onChange={e=>setForm({...form,marca:e.target.value})} required style={inp} placeholder="Ej: Toyota"/>
+                <input value={form.marca} onChange={e=>setForm({...form,marca:e.target.value.toUpperCase()})} required style={{...inp, textTransform:'uppercase'}} placeholder="Ej: Toyota"/>
               </div>
               <div>
                 <label style={labelStyle}>Modelo *</label>
-                <input value={form.modelo} onChange={e=>setForm({...form,modelo:e.target.value})} required style={inp} placeholder="Ej: Hilux"/>
+                <input value={form.modelo} onChange={e=>setForm({...form,modelo:e.target.value.toUpperCase()})} required style={{...inp, textTransform:'uppercase'}} placeholder="Ej: Hilux"/>
               </div>
               <div>
                 <label style={labelStyle}>Tipo de placa *</label>
@@ -240,7 +240,7 @@ export default function Vehiculos() {
               </div>
               <div>
                 <label style={labelStyle}>Color</label>
-                <input value={form.color} onChange={e=>setForm({...form,color:e.target.value})} style={inp}/>
+                <input value={form.color} onChange={e=>setForm({...form,color:e.target.value.toUpperCase()})} style={{...inp, textTransform:'uppercase'}}/>
               </div>
               <div>
                 <label style={labelStyle}>Valor asegurado (Q)</label>

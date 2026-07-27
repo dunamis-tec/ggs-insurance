@@ -208,8 +208,8 @@ export default function Aseguradoras() {
                 {[['nombre','Nombre *','text',true],['nit','NIT','text',false],['telefono','Teléfono','text',false],['email','Email','email',false],['contacto_nombre','Contacto principal','text',false],['direccion','Dirección','text',false]].map(([key,label,type,req])=>(
                   <div key={key} style={key==='direccion'?{gridColumn:'1/-1'}:{}}>
                     <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>{label}</label>
-                    <input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} required={req}
-                      style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b'}}/>
+                    <input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:['nombre','contacto_nombre','direccion'].includes(key)?e.target.value.toUpperCase():e.target.value})} required={req}
+                      style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',textTransform:['nombre','contacto_nombre','direccion'].includes(key)?'uppercase':'none'}}/>
                   </div>
                 ))}
                 <div>
@@ -374,8 +374,8 @@ function ProductosTab({ aseguradora, onRefresh }) {
 
       {showForm && (
         <form onSubmit={addProducto} style={{display:'flex',gap:'8px',marginBottom:'16px',background:'#f8fafc',padding:'12px',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre del producto" required autoFocus
-            style={{flex:1,padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white'}}/>
+          <input value={nombre} onChange={e=>setNombre(e.target.value.toUpperCase())} placeholder="Nombre del producto" required autoFocus
+            style={{flex:1,padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',textTransform:'uppercase'}}/>
           <button type="submit" style={{padding:'9px 16px',background:'#C4A96B',color:'white',border:'none',borderRadius:'8px',cursor:'pointer',fontSize:'14px',fontWeight:500}}>
             Agregar
           </button>
@@ -569,7 +569,7 @@ function CatalogoCoberturasTab({ aseguradora, onRefresh }) {
 
       {showForm && (
         <form onSubmit={add} style={{display:'grid', gridTemplateColumns:'1fr 140px auto auto', gap:'8px', marginBottom:'16px', background:'#f8fafc', padding:'12px', borderRadius:'8px', border:'1px solid #e2e8f0', alignItems:'center'}}>
-          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre de la cobertura" required autoFocus style={inpStyle}/>
+          <input value={nombre} onChange={e=>setNombre(e.target.value.toUpperCase())} placeholder="Nombre de la cobertura" required autoFocus style={{...inpStyle, textTransform:'uppercase'}}/>
           <input value={monto} onChange={e=>setMonto(e.target.value)} placeholder="Monto (Q) — opcional" type="number" min="0" step="0.01" style={inpStyle}/>
           <button type="submit" style={{padding:'8px 14px', background:'#C4A96B', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:500, whiteSpace:'nowrap'}}>
             Agregar

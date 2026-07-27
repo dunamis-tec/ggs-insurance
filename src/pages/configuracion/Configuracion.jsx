@@ -168,14 +168,14 @@ function TabEmpresa({ isAdmin }) {
         ].map(([key, label, type]) => (
           <div key={key}>
             <label style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>{label}</label>
-            <input type={type} value={form[key] || ''} onChange={e => setForm({ ...form, [key]: e.target.value })}
-              readOnly={!editing} style={editing ? inp : readOnly} />
+            <input type={type} value={form[key] || ''} onChange={e => setForm({ ...form, [key]: ['nombre','nombre_corto'].includes(key) ? e.target.value.toUpperCase() : e.target.value })}
+              readOnly={!editing} style={editing ? {...inp, textTransform:['nombre','nombre_corto'].includes(key)?'uppercase':'none'} : {...readOnly, textTransform:['nombre','nombre_corto'].includes(key)?'uppercase':'none'}} />
           </div>
         ))}
         <div style={{ gridColumn:'1/-1' }}>
           <label style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Dirección</label>
-          <input value={form.direccion || ''} onChange={e => setForm({ ...form, direccion: e.target.value })}
-            readOnly={!editing} style={editing ? inp : readOnly} />
+          <input value={form.direccion || ''} onChange={e => setForm({ ...form, direccion: e.target.value.toUpperCase() })}
+            readOnly={!editing} style={editing ? {...inp, textTransform:'uppercase'} : {...readOnly, textTransform:'uppercase'}} />
         </div>
       </div>
 
@@ -377,7 +377,7 @@ function InviteModal({ onClose, onSuccess }) {
         <div style={{ display:'flex', flexDirection:'column', gap:'14px', marginBottom:'20px' }}>
           <div>
             <label style={lbl}>Nombre completo</label>
-            <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder='Ej. María García' style={inp} />
+            <input value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())} placeholder='Ej. María García' style={{...inp, textTransform:'uppercase'}} />
           </div>
           <div>
             <label style={lbl}>Correo electrónico *</label>
@@ -502,7 +502,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
           <div style={{ display:'flex', flexDirection:'column', gap:'14px', marginBottom:'20px' }}>
             <div>
               <label style={lbl}>Nombre completo</label>
-              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder='Nombre completo' style={inp} />
+              <input value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())} placeholder='Nombre completo' style={{...inp, textTransform:'uppercase'}} />
             </div>
             <div>
               <label style={lbl}>Correo electrónico</label>
@@ -605,7 +605,7 @@ function TabMiPerfil({ currentUser, onUpdate }) {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
         <div>
           <label style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Nombre completo</label>
-          <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder='Tu nombre' style={inp} />
+          <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value.toUpperCase() })} placeholder='Tu nombre' style={{...inp, textTransform:'uppercase'}} />
         </div>
         <div>
           <label style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Teléfono</label>

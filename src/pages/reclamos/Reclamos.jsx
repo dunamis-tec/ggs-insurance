@@ -436,10 +436,10 @@ function ReclamoDetalle({ reclamo: reclamoInit, onBack, onUpdate }) {
           <form onSubmit={handleAgregarComentario} style={{ display: 'flex', gap: '8px' }}>
             <textarea
               value={nuevoComentario}
-              onChange={e => setNuevoComentario(e.target.value)}
+              onChange={e => setNuevoComentario(e.target.value.toUpperCase())}
               placeholder='Agregar comentario o nota...'
               rows={2}
-              style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', background: 'white', color: '#1e293b', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+              style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', background: 'white', color: '#1e293b', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', textTransform: 'uppercase' }}
             />
             <button type='submit' disabled={savingComentario || !nuevoComentario.trim()}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 14px', background: nuevoComentario.trim() ? '#111111' : '#e2e8f0', border: 'none', borderRadius: '8px', cursor: nuevoComentario.trim() ? 'pointer' : 'not-allowed', flexShrink: 0, minWidth: '44px' }}>
@@ -689,9 +689,9 @@ export function ReclamoModal({ context, onClose, onSaved }) {
             {/* Descripción */}
             <div>
               <label style={lbl}>Descripción (opcional)</label>
-              <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3}
+              <textarea value={descripcion} onChange={e => setDescripcion(e.target.value.toUpperCase())} rows={3}
                 placeholder='Describe brevemente el reclamo...'
-                style={{ ...inp, resize: 'vertical', minHeight: '72px', fontFamily: 'inherit' }} />
+                style={{ ...inp, resize: 'vertical', minHeight: '72px', fontFamily: 'inherit', textTransform: 'uppercase' }} />
             </div>
           </div>
 

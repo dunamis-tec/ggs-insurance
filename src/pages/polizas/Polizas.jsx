@@ -959,9 +959,9 @@ export default function Polizas() {
                   <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
                     Observaciones <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span>
                   </label>
-                  <textarea value={form.observaciones} onChange={e=>setForm({...form,observaciones:e.target.value})}
+                  <textarea value={form.observaciones} onChange={e=>setForm({...form,observaciones:e.target.value.toUpperCase()})}
                     rows={4} placeholder="Observaciones sobre la póliza..."
-                    style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',resize:'vertical',fontFamily:'inherit'}}/>
+                    style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',resize:'vertical',fontFamily:'inherit',textTransform:'uppercase'}}/>
                 </div>
                 <div style={{marginBottom:'28px'}}>
                   <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
@@ -1282,9 +1282,9 @@ export default function Polizas() {
               <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
                 Observaciones <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span>
               </label>
-              <textarea value={form.observaciones} onChange={e=>setForm({...form,observaciones:e.target.value})}
+              <textarea value={form.observaciones} onChange={e=>setForm({...form,observaciones:e.target.value.toUpperCase()})}
                 rows={3} placeholder="Observaciones adicionales sobre la solicitud..."
-                style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',resize:'vertical',fontFamily:'inherit'}}/>
+                style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',background:'white',color:'#1e293b',resize:'vertical',fontFamily:'inherit',textTransform:'uppercase'}}/>
             </div>
 
             {/* ─ Dueño Ejecutivo ─ */}

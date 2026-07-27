@@ -256,11 +256,11 @@ export default function Clientes() {
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={labelStyle}>Razon social *</label>
-                  <input value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value })} required style={inp} placeholder='Ej: Empresa S.A.' />
+                  <input value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value.toUpperCase() })} required style={{...inp, textTransform:'uppercase'}} placeholder='Ej: Empresa S.A.' />
                 </div>
                 <div>
                   <label style={labelStyle}>Nombre comercial</label>
-                  <input value={form.nombre_empresa} onChange={e => setForm({ ...form, nombre_empresa: e.target.value })} style={inp} />
+                  <input value={form.nombre_empresa} onChange={e => setForm({ ...form, nombre_empresa: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>NIT *</label>
@@ -280,7 +280,7 @@ export default function Clientes() {
                 </div>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={labelStyle}>Direccion</label>
-                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
+                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Fecha de constitución</label>
@@ -291,7 +291,7 @@ export default function Clientes() {
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre del rep. legal</label>
-                  <input value={form.rep_legal_nombre} onChange={e => setForm({ ...form, rep_legal_nombre: e.target.value })} style={inp} />
+                  <input value={form.rep_legal_nombre} onChange={e => setForm({ ...form, rep_legal_nombre: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>NIT del rep. legal</label>
@@ -306,15 +306,15 @@ export default function Clientes() {
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
-                  <input value={form.contacto_nombre} onChange={e => setForm({ ...form, contacto_nombre: e.target.value })} required style={inp} />
+                  <input value={form.contacto_nombre} onChange={e => setForm({ ...form, contacto_nombre: e.target.value.toUpperCase() })} required style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Apellido</label>
-                  <input value={form.contacto_apellido} onChange={e => setForm({ ...form, contacto_apellido: e.target.value })} style={inp} />
+                  <input value={form.contacto_apellido} onChange={e => setForm({ ...form, contacto_apellido: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Cargo</label>
-                  <input value={form.contacto_cargo} onChange={e => setForm({ ...form, contacto_cargo: e.target.value })} style={inp} />
+                  <input value={form.contacto_cargo} onChange={e => setForm({ ...form, contacto_cargo: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Telefono directo</label>
@@ -331,11 +331,11 @@ export default function Clientes() {
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
-                  <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} required style={inp} />
+                  <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value.toUpperCase() })} required style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Apellido</label>
-                  <input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value })} style={inp} />
+                  <input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>NIT</label>
@@ -355,7 +355,7 @@ export default function Clientes() {
                 </div>
                 <div>
                   <label style={labelStyle}>Direccion</label>
-                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={inp} />
+                  <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
                 <div>
                   <label style={labelStyle}>Fecha de nacimiento</label>
@@ -577,9 +577,9 @@ export default function Clientes() {
               <form onSubmit={handleCongSubmit} style={{ display:'flex', gap:'10px', alignItems:'flex-end' }}>
                 <div style={{ flex:1 }}>
                   <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>Nombre *</label>
-                  <input value={congForm.nombre} onChange={e => setCongForm({ nombre: e.target.value })} required
+                  <input value={congForm.nombre} onChange={e => setCongForm({ nombre: e.target.value.toUpperCase() })} required
                     placeholder='Nombre del conglomerado'
-                    style={{ width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }} />
+                    style={{ width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box', textTransform:'uppercase' }} />
                 </div>
                 <button type='submit' style={{ padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
                   {editingCong ? 'Actualizar' : 'Crear'}
