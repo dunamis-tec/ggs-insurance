@@ -679,23 +679,30 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
   const handleUploadDoc = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    const inputEl = e.target
     setUploadingDoc(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const { data: myRow } = await supabase.from('users').select('empresa_id').eq('id', user.id).single()
       const empresaId = myRow?.empresa_id
       const ext = file.name.split('.').pop()
-      const path = `${empresaId}/${cliente.id}/${Date.now()}_${file.name}`
-      const { error: upErr } = await supabase.storage.from('cliente-docs').upload(path, file, { upsert: false })
-      if (upErr) { toast.error('Error al subir archivo'); setUploadingDoc(false); return }
-      const { data: { publicUrl } } = supabase.storage.from('cliente-docs').getPublicUrl(path)
-      const nombre = file.name.replace(`.${ext}`, '')
-      await supabase.from('clientes_documentos').insert({ cliente_id: cliente.id, empresa_id: empresaId, nombre, url: path, created_by: user.id })
+      const safeName = file.name.replace(/\s+/g, '_')
+      const path = `${empresaId}/${cliente.id}/${Date.now()}_${safeName}`
+      const uploadPromise = supabase.storage.from('cliente-docs').upload(path, file, { upsert: false })
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Tiempo de espera agotado al subir archivo')), 30000))
+      const { error: upErr } = await Promise.race([uploadPromise, timeout])
+      if (upErr) throw new Error(upErr.message)
+      const nombre = file.name.replace(new RegExp(`\\.${ext}$`), '')
+      const { error: insErr } = await supabase.from('clientes_documentos').insert({ cliente_id: cliente.id, empresa_id: empresaId, nombre, url: path, created_by: user.id })
+      if (insErr) throw new Error(insErr.message)
       toast.success('Documento agregado')
       fetchDocumentos()
-    } catch { toast.error('Error al subir documento') }
-    setUploadingDoc(false)
-    e.target.value = ''
+    } catch (err) {
+      toast.error(err.message || 'Error al subir documento')
+    } finally {
+      setUploadingDoc(false)
+      inputEl.value = ''
+    }
   }
 
   const handleRenameDoc = async (id) => {
