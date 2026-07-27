@@ -822,7 +822,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['reclamos',`Reclamos (${reclamos.length})`],['documentos',`Documents (${documentos.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['reclamos',`Reclamos (${reclamos.length})`],['documentos',`Documentos (${documentos.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#111111' : 'white',
@@ -1034,6 +1034,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
             loading={loadingReclamos}
             sinPolizaVigente={false}
             onNuevo={() => setShowReclamoModal(true)}
+            fromClienteId={cliente.id}
           />
         </div>
       )}
@@ -1057,22 +1058,21 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
           <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
               <Paperclip size={16} color='#C4A96B'/>
-              <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Documents</p>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#374151', margin:0 }}>Documentos</p>
             </div>
             <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#111111', color:'white', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor: uploadingDoc ? 'not-allowed' : 'pointer', opacity: uploadingDoc ? 0.6 : 1 }}>
               <Upload size={13}/>
-              {uploadingDoc ? 'Uploading...' : 'Upload document'}
+              {uploadingDoc ? 'Subiendo...' : 'Subir documento'}
               <input type='file' accept='.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx' style={{ display:'none' }} onChange={handleUploadDoc} disabled={uploadingDoc}/>
             </label>
           </div>
 
-          {/* List */}
           {loadingDocs ? (
-            <p style={{ padding:'24px', color:'#64748b', fontSize:'13px' }}>Loading...</p>
+            <p style={{ padding:'24px', color:'#64748b', fontSize:'13px' }}>Cargando...</p>
           ) : documentos.length === 0 ? (
             <div style={{ padding:'48px', textAlign:'center' }}>
               <Paperclip size={28} color='#cbd5e1' style={{ marginBottom:'10px' }}/>
-              <p style={{ color:'#94a3b8', margin:0, fontSize:'13px' }}>No documents uploaded yet</p>
+              <p style={{ color:'#94a3b8', margin:0, fontSize:'13px' }}>Sin documentos cargados</p>
             </div>
           ) : documentos.map((doc, i) => (
             <div key={doc.id} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 20px', borderBottom: i < documentos.length-1 ? '1px solid #f1f5f9' : 'none' }}>
@@ -1087,8 +1087,8 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                       autoFocus
                       style={{ flex:1, padding:'4px 8px', border:'1.5px solid #C4A96B', borderRadius:'6px', fontSize:'13px', color:'#111111' }}
                     />
-                    <button onClick={() => handleRenameDoc(doc.id)} style={{ padding:'4px 10px', background:'#111111', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>Save</button>
-                    <button onClick={() => { setRenamingDocId(null); setRenameValue('') }} style={{ padding:'4px 10px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>Cancel</button>
+                    <button onClick={() => handleRenameDoc(doc.id)} style={{ padding:'4px 10px', background:'#111111', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>Guardar</button>
+                    <button onClick={() => { setRenamingDocId(null); setRenameValue('') }} style={{ padding:'4px 10px', background:'white', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>Cancelar</button>
                   </div>
                 ) : (
                   <p style={{ fontWeight:600, color:'#111111', fontSize:'13px', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{doc.nombre}</p>
@@ -1100,17 +1100,17 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
               <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
                 <button onClick={() => handleDownloadDoc(doc)}
                   style={{ padding:'6px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center' }}
-                  title='Download'>
+                  title='Descargar'>
                   <Download size={14} color='#64748b'/>
                 </button>
                 <button onClick={() => { setRenamingDocId(doc.id); setRenameValue(doc.nombre) }}
                   style={{ padding:'6px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center' }}
-                  title='Rename'>
+                  title='Renombrar'>
                   <Edit2 size={14} color='#64748b'/>
                 </button>
                 <button onClick={() => handleDeleteDoc(doc)}
                   style={{ padding:'6px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center' }}
-                  title='Delete'>
+                  title='Eliminar'>
                   <Trash2 size={14} color='#ef4444'/>
                 </button>
               </div>

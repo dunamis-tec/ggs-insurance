@@ -3959,6 +3959,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
             loading={loadingReclamos}
             sinPolizaVigente={poliza.estado !== 'emitida'}
             onNuevo={poliza.estado === 'emitida' ? () => setShowReclamoModal(true) : null}
+            fromPolizaId={poliza.id}
           />
         </div>
       )}

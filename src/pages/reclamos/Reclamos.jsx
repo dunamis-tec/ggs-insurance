@@ -713,7 +713,7 @@ export function ReclamoModal({ context, onClose, onSaved }) {
 }
 
 /* ─── Mini-lista de reclamos (para tabs en poliza/cliente/vehiculo) ─── */
-export function ReclamosMiniList({ reclamos, loading, onOpen, onNuevo, sinPolizaVigente }) {
+export function ReclamosMiniList({ reclamos, loading, onOpen, onNuevo, sinPolizaVigente, fromPolizaId, fromClienteId }) {
   const navigate = useNavigate()
   if (loading) return <p style={{ padding: '20px', color: '#64748b', fontSize: '13px' }}>Cargando...</p>
   return (
@@ -741,7 +741,7 @@ export function ReclamosMiniList({ reclamos, loading, onOpen, onNuevo, sinPoliza
         const est = estadoConfig[r.estado] || estadoConfig.en_proceso
         return (
           <div key={r.id}
-            onClick={() => navigate('/reclamos', { state: { openReclamoId: r.id } })}
+            onClick={() => navigate('/reclamos', { state: { openReclamoId: r.id, fromPolizaId: fromPolizaId || null, fromClienteId: fromClienteId || null } })}
             style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: i < reclamos.length - 1 ? '1px solid #f1f5f9' : 'none', cursor: 'pointer' }}
             onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
             onMouseLeave={e => e.currentTarget.style.background = 'white'}>
