@@ -5,9 +5,9 @@ import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ReclamoModal, ReclamosMiniList } from '../reclamos/Reclamos'
 
-const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
+const DEFAULT_TIPOS_VEHICULO = ['sedan','pickup','suv','van','moto','camion','otro']
 const tiposPlaca = ['M','C','P','CD','A','MI','TC']
-const emptyForm = { marca:'', modelo:'', anio:'', placa:'', tipo_placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
+const emptyForm = { marca:'', modelo:'', anio:'', placa:'', tipo_placa:'', chasis:'', motor:'', color:'', tipo:'', valor_asegurado:'' }
 const placaRegex = /^\d{3}[A-Z]{3}$/
 const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
@@ -60,6 +60,7 @@ const getNombreCliente = (c) => c?.tipo === 'empresa' ? (c.razon_social || c.nom
 export default function Vehiculos() {
   const [vehiculos, setVehiculos] = useState([])
   const [clientes, setClientes] = useState([])
+  const [tiposVehiculo, setTiposVehiculo] = useState(DEFAULT_TIPOS_VEHICULO)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [view, setView] = useState('list')
@@ -92,12 +93,14 @@ export default function Vehiculos() {
 
   const fetchAll = async () => {
     setLoading(true)
-    const [{ data: vData }, { data: cData }] = await Promise.all([
+    const [{ data: vData }, { data: cData }, { data: tData }] = await Promise.all([
       supabase.from('vehiculos').select('*, clientes(nombre, apellido, tipo, razon_social, nombre_empresa), polizas(numero_poliza, activa)').eq('activo', true).order('created_at', { ascending: false }),
-      supabase.from('clientes').select('id, nombre, apellido, tipo, razon_social, nombre_empresa').eq('activo', true).order('nombre')
+      supabase.from('clientes').select('id, nombre, apellido, tipo, razon_social, nombre_empresa').eq('activo', true).order('nombre'),
+      supabase.from('tipos_vehiculo').select('nombre').order('orden'),
     ])
     setVehiculos(vData || [])
     setClientes(cData || [])
+    if (tData && tData.length > 0) setTiposVehiculo(tData.map(t => t.nombre.toLowerCase()))
     setLoading(false)
   }
 
@@ -152,7 +155,7 @@ export default function Vehiculos() {
   }
 
   const handleEdit = (v) => {
-    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', tipo_placa:v.tipo_placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'sedan', valor_asegurado:v.valor_asegurado||'' })
+    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', tipo_placa:v.tipo_placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'', valor_asegurado:v.valor_asegurado||'' })
     setClienteId(v.cliente_id)
     setEditing(v.id)
     setPlacaError('')
@@ -249,7 +252,8 @@ export default function Vehiculos() {
               <div>
                 <label style={labelStyle}>Tipo</label>
                 <select value={form.tipo} onChange={e=>setForm({...form,tipo:e.target.value})} style={inp}>
-                  {tiposVehiculo.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+                  <option value=''>— Selecciona tipo —</option>
+                  {tiposVehiculo.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1).toLowerCase()}</option>)}
                 </select>
               </div>
             </div>

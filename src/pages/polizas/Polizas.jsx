@@ -9,6 +9,7 @@ import { generateModificacionPdf } from '../../lib/generateModificacionPdf'
 import { FileText, Plus, Minus, Search, ArrowLeft, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight,
   CheckCircle, Clock, AlertCircle, Car, X, RefreshCw, SendHorizonal, GitMerge,
   AlertTriangle, Download, History, CheckSquare, Square, Upload, Lock, Check, Paperclip, ExternalLink } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { calcularPrima } from '../../lib/calcularPrima'
 import { notifyTaskAssigned } from '../../lib/notifyTaskAssigned'
 import toast from 'react-hot-toast'
@@ -1536,6 +1537,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [reqGestionNotas, setReqGestionNotas] = useState('')
   const [reqComprobanteFile, setReqComprobanteFile] = useState(null)
   const [expandedReqGroups, setExpandedReqGroups] = useState(new Set())
+  const [selectedReqs, setSelectedReqs] = useState(new Set())
   const [expandedVehiculos, setExpandedVehiculos] = useState(new Set())
   const [showAsignarVehiculo, setShowAsignarVehiculo] = useState(null)
   const [emisionForm, setEmisionForm] = useState(emptyEmision)
@@ -2181,16 +2183,31 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     })
     const { error } = await supabase.from('requerimientos_pago').insert(requerimientos)
     if (error) { toast.error('Error: ' + error.message); return }
+    await addBitacora(null, null, `[Cobro] ${totalCuotas} requerimiento(s) creado(s) — códigos ${codigosAGenerar[0]}–${codigosAGenerar[codigosAGenerar.length-1]}`)
     toast.success(`${totalCuotas} requerimiento(s) creado(s)`)
     setReqForm(emptyReq); setShowReqModal(false); setReqAjustar(false); fetchData()
   }
 
   const eliminarReq = async (id) => {
     if (!confirm('¿Eliminar este requerimiento de pago?')) return
+    const req = reqs.find(r => r.id === id)
     const { error } = await supabase.from('requerimientos_pago').delete().eq('id', id)
     if (error) { toast.error('Error: ' + error.message); return }
+    await addBitacora(null, null, `[Cobro] Requerimiento ${req?.codigo || id} eliminado`)
     toast.success('Requerimiento eliminado')
     setShowReqGestion(false); setReqGestionTarget(null); fetchData()
+  }
+
+  const eliminarReqSeleccionados = async () => {
+    if (selectedReqs.size === 0) return
+    if (!confirm(`¿Eliminar ${selectedReqs.size} requerimiento(s) seleccionado(s)?`)) return
+    const ids = [...selectedReqs]
+    const labels = reqs.filter(r => ids.includes(r.id)).map(r => r.codigo).join(', ')
+    const { error } = await supabase.from('requerimientos_pago').delete().in('id', ids)
+    if (error) { toast.error('Error: ' + error.message); return }
+    await addBitacora(null, null, `[Cobro] ${ids.length} requerimiento(s) eliminado(s): ${labels}`)
+    toast.success(`${ids.length} requerimiento(s) eliminado(s)`)
+    setSelectedReqs(new Set()); fetchData()
   }
 
   const closeReqGestion = () => {
@@ -2218,6 +2235,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     }).eq('id', reqGestionTarget.id)
     toast.dismiss(toastId)
     if (error) { toast.error('Error: ' + error.message); return }
+    await addBitacora(null, null, `[Cobro] Requerimiento ${reqGestionTarget.codigo} marcado como pagado — fecha: ${reqGestionFechaPago}`)
     toast.success('Pago registrado')
     closeReqGestion(); fetchData()
   }
@@ -2255,9 +2273,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       if (poliza.incluir_coberturas_pdf && poliza.producto_id) {
         const { data: pcc } = await supabase
           .from('producto_coberturas_catalogo')
-          .select('coberturas_catalogo(nombre, monto)')
+          .select('cobertura_catalogo_id')
           .eq('producto_id', poliza.producto_id)
-        coberturas = (pcc || []).map(r => r.coberturas_catalogo).filter(Boolean)
+        const ids = (pcc || []).map(r => r.cobertura_catalogo_id).filter(Boolean)
+        if (ids.length > 0) {
+          const { data: cobs } = await supabase
+            .from('coberturas_catalogo')
+            .select('nombre, monto')
+            .in('id', ids)
+            .eq('activa', true)
+          coberturas = cobs || []
+        } else {
+          coberturas = []
+        }
       }
       await generateSolicitudPdf({
         poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
@@ -2302,9 +2330,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         if (em.incluir_coberturas_pdf && poliza.producto_id) {
           const { data: pcc } = await supabase
             .from('producto_coberturas_catalogo')
-            .select('coberturas_catalogo(nombre, monto)')
+            .select('cobertura_catalogo_id')
             .eq('producto_id', poliza.producto_id)
-          coberturas = (pcc || []).map(r => r.coberturas_catalogo).filter(Boolean)
+          const ids = (pcc || []).map(r => r.cobertura_catalogo_id).filter(Boolean)
+          if (ids.length > 0) {
+            const { data: cobs } = await supabase
+              .from('coberturas_catalogo')
+              .select('nombre, monto')
+              .in('id', ids)
+              .eq('activa', true)
+            coberturas = cobs || []
+          } else {
+            coberturas = []
+          }
         }
         await generateInclusionPdf({
           emision: em,
@@ -2322,13 +2360,67 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     }
   }
 
+  const exportVehiculosExcel = () => {
+    let rows = []
+    if (!isEmitida) {
+      rows = solicitudVehiculos.map(sv => {
+        const v = sv.vehiculos || {}
+        return {
+          Marca: v.marca || '', Modelo: v.modelo || '', Año: v.anio || '',
+          Placa: v.placa || '', Color: v.color || '', Tipo: v.tipo || '',
+          'No. Chasis': v.no_chasis || '', 'No. Motor': v.no_motor || '',
+          'Valor Asegurado': v.valor_asegurado || 0,
+        }
+      })
+    } else {
+      const vehicleMap = new Map()
+      const sortedEm = [...emisiones].sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
+      sortedEm.forEach(em => {
+        (em.emision_vehiculos || []).forEach(ev => {
+          if (!ev.vehiculos?.id) return
+          const vid = ev.vehiculos.id
+          if (!vehicleMap.has(vid)) vehicleMap.set(vid, { v: ev.vehiculos, history: [] })
+          vehicleMap.get(vid).history.push({ em, ev })
+        })
+      })
+      vehicleMap.forEach(({ v, history }) => {
+        const activeHistory = history.filter(h => h.em.estado !== 'cancelada')
+        let status = 'Cancelado'
+        if (activeHistory.length > 0) {
+          const last = activeHistory[activeHistory.length - 1]
+          status = (last.em.tipo === 'exclusion' && (last.em.estado === 'emitida' || last.em.estado === 'completado')) ? 'Excluido' : 'Activo'
+        }
+        const currentPrimaEv = [...activeHistory].reverse().find(h => h.em.tipo !== 'exclusion' && parseFloat(h.ev?.prima_total || 0) > 0)?.ev || null
+        rows.push({
+          Marca: v.marca || '', Modelo: v.modelo || '', Año: v.anio || '',
+          Placa: v.placa || '', Color: v.color || '', Tipo: v.tipo || '',
+          'No. Chasis': v.no_chasis || '', 'No. Motor': v.no_motor || '',
+          'Valor Asegurado': v.valor_asegurado || 0,
+          'Prima Total': parseFloat(currentPrimaEv?.prima_total || 0),
+          Estado: status,
+        })
+      })
+    }
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Vehículos')
+    const filename = `vehiculos-poliza-${poliza?.numero_poliza || poliza?.id || 'export'}.xlsx`
+    XLSX.writeFile(wb, filename)
+    toast.success('Excel exportado')
+  }
+
   const handleEstadoCuenta = async () => {
     const toastId = toast.loading('Generando estado de cuenta…')
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
       const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
-      await generateEstadoCuentaPdf({ poliza, reqs, usuario: usuarioNombre })
+      let personaFacturable = null
+      if (poliza.persona_facturable_id) {
+        const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', poliza.persona_facturable_id).single()
+        personaFacturable = pfData || null
+      }
+      await generateEstadoCuentaPdf({ poliza, reqs, usuario: usuarioNombre, personaFacturable })
       toast.success('Estado de cuenta generado', { id: toastId })
     } catch (err) {
       console.error(err)
@@ -2971,11 +3063,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       {/* ─ TAB: Vehículos ─ */}
       {activeTab === 'vehiculos_sol' && (
         <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-          <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'8px'}}>
-            <Car size={16} color='#C4A96B'/>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>
-              {isEmitida ? 'Vehículos de la póliza' : 'Vehículos de la solicitud'}
-            </h3>
+          <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              <Car size={16} color='#C4A96B'/>
+              <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>
+                {isEmitida ? 'Vehículos de la póliza' : 'Vehículos de la solicitud'}
+              </h3>
+            </div>
+            {(isEmitida ? emisiones.some(em=>(em.emision_vehiculos||[]).length>0) : solicitudVehiculos.length>0) && (
+              <button onClick={exportVehiculosExcel}
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:500}}>
+                <Download size={13}/> Exportar Excel
+              </button>
+            )}
           </div>
           {loading ? <p style={{padding:'20px',color:'#64748b'}}>Cargando...</p> :
            !isEmitida ? (
@@ -3771,9 +3871,24 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           </div>
 
           {/* ── Header row ── */}
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',gap:'8px',flexWrap:'wrap'}}>
             <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Requerimientos de pago</h3>
-            <div style={{display:'flex',gap:'8px'}}>
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center'}}>
+              {selectedReqs.size > 0 && (
+                <>
+                  <span style={{fontSize:'12px',color:'#64748b'}}>{selectedReqs.size} seleccionado(s)</span>
+                  <button onClick={eliminarReqSeleccionados}
+                    style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 14px',background:'#fef2f2',color:'#ef4444',border:'1px solid #fecaca',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
+                    <Trash2 size={13}/> Eliminar seleccionados
+                  </button>
+                </>
+              )}
+              {reqs.length > 0 && (
+                <button onClick={()=>setSelectedReqs(selectedReqs.size===reqs.length ? new Set() : new Set(reqs.map(r=>r.id)))}
+                  style={{padding:'7px 14px',background:'white',color:'#374151',border:'1px solid #e2e8f0',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:500}}>
+                  {selectedReqs.size===reqs.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                </button>
+              )}
               <button onClick={handleEstadoCuenta}
                 style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#C4A96B',color:'#111111',border:'none',borderRadius:'6px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
                 Estado de cuenta
@@ -3850,9 +3965,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                           <div key={r.id} onClick={()=>{ setReqGestionTarget(r); setReqGestionFechaPago(''); setReqGestionNotas(r.notas||''); setReqComprobanteFile(null); setShowReqGestion(true) }}
                             style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 20px',
                               borderBottom: ri < grp.reqs.length-1 ? '1px solid #f8fafc' : 'none',
-                              cursor:'pointer', background: r.estado==='vencido' ? '#fff8f8' : 'white'}}
-                            onMouseEnter={e=>e.currentTarget.style.background=r.estado==='vencido'?'#fef2f2':'#f8fafc'}
-                            onMouseLeave={e=>e.currentTarget.style.background=r.estado==='vencido'?'#fff8f8':'white'}>
+                              cursor:'pointer', background: selectedReqs.has(r.id) ? '#f0f9ff' : r.estado==='vencido' ? '#fff8f8' : 'white'}}
+                            onMouseEnter={e=>e.currentTarget.style.background=selectedReqs.has(r.id)?'#e0f2fe':r.estado==='vencido'?'#fef2f2':'#f8fafc'}
+                            onMouseLeave={e=>e.currentTarget.style.background=selectedReqs.has(r.id)?'#f0f9ff':r.estado==='vencido'?'#fff8f8':'white'}>
+                            <input type='checkbox' checked={selectedReqs.has(r.id)}
+                              onClick={e=>e.stopPropagation()}
+                              onChange={e=>{ e.stopPropagation(); setSelectedReqs(prev=>{ const s=new Set(prev); s.has(r.id)?s.delete(r.id):s.add(r.id); return s }) }}
+                              style={{width:'16px',height:'16px',cursor:'pointer',flexShrink:0,accentColor:'#111111'}}/>
                             <div style={{flex:1,minWidth:0}}>
                               <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
                                 <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>{r.codigo}</span>

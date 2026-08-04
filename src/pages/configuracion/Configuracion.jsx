@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
-import { Settings, Building2, Users, Save, Edit2, Plus, Shield, User, Upload, X } from 'lucide-react'
+import { Settings, Building2, Users, Save, Edit2, Plus, Shield, User, Upload, X, Car, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Configuracion() {
@@ -34,7 +34,12 @@ export default function Configuracion() {
       </div>
 
       <div style={{ display:'flex', gap:'8px', marginBottom:'20px', flexWrap:'wrap' }}>
-        {[['empresa', Building2, 'Empresa'], ['usuarios', Users, 'Usuarios'], ['miPerfil', User, 'Mi perfil']].map(([tab, Icon, label]) => (
+        {[
+          ['empresa', Building2, 'Empresa'],
+          ['usuarios', Users, 'Usuarios'],
+          ['miPerfil', User, 'Mi perfil'],
+          ...(isAdmin ? [['vehiculos', Car, 'Vehículos']] : []),
+        ].map(([tab, Icon, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ display:'flex', alignItems:'center', gap:'7px', padding:'8px 18px', borderRadius:'8px', fontSize:'14px', fontWeight:500, cursor:'pointer', background:activeTab===tab?'#111111':'white', color:activeTab===tab?'white':'#64748b', border:'1px solid '+(activeTab===tab?'#111111':'#e2e8f0') }}>
             <Icon size={15} /> {label}
@@ -45,6 +50,7 @@ export default function Configuracion() {
       {activeTab === 'empresa'   && <TabEmpresa isAdmin={isAdmin} />}
       {activeTab === 'usuarios'  && <TabUsuarios isAdmin={isAdmin} currentUser={currentUser} />}
       {activeTab === 'miPerfil'  && <TabMiPerfil currentUser={currentUser} onUpdate={setCurrentUser} />}
+      {activeTab === 'vehiculos' && isAdmin && <TabVehiculos />}
     </div>
   )
 }
@@ -621,6 +627,101 @@ function TabMiPerfil({ currentUser, onUpdate }) {
         style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
         <Save size={14} /> {saving ? 'Guardando...' : 'Guardar cambios'}
       </button>
+    </div>
+  )
+}
+
+/* ─── TAB VEHÍCULOS ─────────────────────────────────────────────── */
+const DEFAULT_TIPOS = ['Sedan', 'Pickup', 'SUV', 'Van', 'Moto', 'Camion', 'Otro']
+
+function TabVehiculos() {
+  const [tipos, setTipos]     = useState([])
+  const [loading, setLoading] = useState(true)
+  const [newNombre, setNewNombre] = useState('')
+  const [saving, setSaving]   = useState(false)
+  const [empresaId, setEmpresaId] = useState(null)
+
+  useEffect(() => { init() }, [])
+
+  const init = async () => {
+    const eid = await getMyEmpresaId()
+    setEmpresaId(eid)
+    const { data } = await supabase.from('tipos_vehiculo').select('*').eq('empresa_id', eid).order('orden')
+    if (!data || data.length === 0) {
+      // Seed defaults on first load
+      const inserts = DEFAULT_TIPOS.map((nombre, i) => ({ empresa_id: eid, nombre, orden: i + 1 }))
+      const { data: seeded } = await supabase.from('tipos_vehiculo').insert(inserts).select().order('orden')
+      setTipos(seeded || [])
+    } else {
+      setTipos(data)
+    }
+    setLoading(false)
+  }
+
+  const handleAdd = async () => {
+    const nombre = newNombre.trim().toUpperCase()
+    if (!nombre) return
+    if (tipos.some(t => t.nombre.toUpperCase() === nombre)) { toast.error('Ya existe ese tipo'); return }
+    setSaving(true)
+    const orden = tipos.length > 0 ? Math.max(...tipos.map(t => t.orden)) + 1 : 1
+    const { data, error } = await supabase.from('tipos_vehiculo').insert({ empresa_id: empresaId, nombre, orden }).select().single()
+    if (error) { toast.error('Error: ' + error.message) }
+    else { setTipos(prev => [...prev, data]); setNewNombre(''); toast.success('Tipo agregado') }
+    setSaving(false)
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Eliminar este tipo de vehículo?')) return
+    const { error } = await supabase.from('tipos_vehiculo').delete().eq('id', id)
+    if (error) { toast.error('Error: ' + error.message) }
+    else { setTipos(prev => prev.filter(t => t.id !== id)); toast.success('Tipo eliminado') }
+  }
+
+  const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', outline:'none', boxSizing:'border-box', background:'white' }
+
+  if (loading) return <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',padding:'32px',textAlign:'center',color:'#94a3b8'}}>Cargando...</div>
+
+  return (
+    <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden' }}>
+      <div style={{ padding:'20px 24px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', gap:'8px' }}>
+        <Car size={16} color='#C4A96B'/>
+        <div>
+          <h2 style={{ fontSize:'16px', fontWeight:700, color:'#111111', margin:0 }}>Tipos de vehículo</h2>
+          <p style={{ fontSize:'13px', color:'#64748b', margin:'2px 0 0' }}>Catálogo de tipos disponibles al registrar un vehículo</p>
+        </div>
+      </div>
+
+      <div style={{ padding:'20px 24px' }}>
+        {/* Add new */}
+        <div style={{ display:'flex', gap:'8px', marginBottom:'20px' }}>
+          <input value={newNombre} onChange={e => setNewNombre(e.target.value.toUpperCase())}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            placeholder='Nuevo tipo (ej. CAMIONETA)'
+            style={{ ...inp, textTransform:'uppercase', flex:1 }} />
+          <button onClick={handleAdd} disabled={saving || !newNombre.trim()}
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 18px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer', flexShrink:0, opacity: !newNombre.trim()?0.5:1 }}>
+            <Plus size={14}/> Agregar
+          </button>
+        </div>
+
+        {/* List */}
+        {tipos.length === 0 ? (
+          <p style={{ color:'#94a3b8', textAlign:'center', padding:'20px 0' }}>Sin tipos configurados</p>
+        ) : (
+          <div style={{ border:'1px solid #f1f5f9', borderRadius:'8px', overflow:'hidden' }}>
+            {tipos.map((t, i) => (
+              <div key={t.id} style={{ display:'flex', alignItems:'center', padding:'12px 16px', borderBottom: i<tipos.length-1?'1px solid #f1f5f9':'none', background:'white' }}>
+                <Car size={14} color='#C4A96B' style={{ marginRight:'10px', flexShrink:0 }}/>
+                <span style={{ flex:1, fontSize:'14px', color:'#111111', fontWeight:500 }}>{t.nombre}</span>
+                <button onClick={() => handleDelete(t.id)}
+                  style={{ display:'flex', alignItems:'center', gap:'4px', padding:'5px 10px', background:'#fef2f2', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'6px', fontSize:'12px', cursor:'pointer', fontWeight:500 }}>
+                  <Trash2 size={12}/> Eliminar
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
