@@ -316,7 +316,7 @@ export default function Vehiculos() {
                 </div>
                 <div style={{flex:1,minWidth:0,textAlign:'left'}}>
                   <p style={{fontWeight:700,color:'#111111',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{getNombreCliente(v.clientes)} · Placa: {fp(v)} · {v.tipo}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{getNombreCliente(v.clientes)} · Placa: {fp(v)}{v.tipo ? ` · ${v.tipo.charAt(0).toUpperCase()+v.tipo.slice(1).toLowerCase()}` : ''}</p>
                 </div>
                 <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>handleEdit(v)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color='#64748b'/></button>
@@ -455,7 +455,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
             </div>
             <div>
               <h1 style={{fontSize:'20px',fontWeight:700,color:'#111111',margin:0}}>{vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}</h1>
-              <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>{getNombreCliente(vehiculo.clientes)} · {vehiculo.tipo}</p>
+              <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>{getNombreCliente(vehiculo.clientes)}{vehiculo.tipo ? ` · ${vehiculo.tipo.charAt(0).toUpperCase()+vehiculo.tipo.slice(1).toLowerCase()}` : ''}</p>
             </div>
           </div>
           <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
