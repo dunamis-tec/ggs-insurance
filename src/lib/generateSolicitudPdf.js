@@ -148,19 +148,40 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
 
   /* ══════════════ DATOS DEL CLIENTE ══════════════ */
   const cli = poliza.clientes || {}
-  const nombreCliente = [cli.nombre, cli.apellido].filter(Boolean).join(' ').toUpperCase()
-  y = sectionTable('DATOS DEL CLIENTE', [
-    { label: 'Nombre completo',   value: fmt(nombreCliente) },
-    { label: 'DPI',               value: fmt(cli.dpi) },
-    { label: 'Fecha de nacimiento', value: fmtDate(cli.fecha_nacimiento) },
-    { label: 'Dirección',         value: fmt(cli.direccion) },
-    { label: 'NIT',               value: fmt(cli.nit) },
-    { label: 'Teléfono / Celular',value: fmt(cli.telefono) },
-    { label: 'Email',             value: fmt(cli.email) },
-    { label: '¿Es o ha sido PEP (últimos 2 años)?',             value: cli.pep            === true ? 'Sí' : cli.pep            === false ? 'No' : 'No indicado' },
-    { label: '¿Tiene parentesco o relación con un PEP?',        value: cli.pep_parentesco === true ? 'Sí' : cli.pep_parentesco === false ? 'No' : 'No indicado' },
-    { label: '¿Es o ha sido CPE (Contratista/Proveedor Estado)?', value: cli.cpe          === true ? 'Sí' : cli.cpe          === false ? 'No' : 'No indicado' },
-  ], y)
+  const esEmpresa = cli.tipo === 'empresa'
+  const nombreCliente = esEmpresa
+    ? (cli.razon_social || cli.nombre_empresa || cli.nombre || '').toUpperCase()
+    : [cli.nombre, cli.apellido].filter(Boolean).join(' ').toUpperCase()
+  const clienteRows = esEmpresa
+    ? [
+        { label: 'Nombre de empresa',   value: fmt(cli.razon_social || cli.nombre_empresa || cli.nombre) },
+        { label: 'Razón social',        value: fmt(cli.razon_social) },
+        { label: 'Nombre comercial',    value: fmt(cli.nombre_empresa) },
+        { label: 'Fecha de constitución', value: fmtDate(cli.fecha_constitucion) },
+        { label: 'NIT',                 value: fmt(cli.nit) },
+        { label: 'Dirección',           value: fmt(cli.direccion) },
+        { label: 'Teléfono',            value: fmt(cli.telefono) },
+        { label: 'Email',               value: fmt(cli.email) },
+        { label: 'Rep. Legal',          value: fmt(cli.rep_legal_nombre) },
+        { label: 'Contacto',            value: fmt([cli.contacto_nombre, cli.contacto_apellido].filter(Boolean).join(' ')) },
+        { label: 'Cargo contacto',      value: fmt(cli.contacto_cargo) },
+        { label: '¿Es o ha sido PEP (últimos 2 años)?',             value: cli.pep            === true ? 'Sí' : cli.pep            === false ? 'No' : 'No indicado' },
+        { label: '¿Tiene parentesco o relación con un PEP?',        value: cli.pep_parentesco === true ? 'Sí' : cli.pep_parentesco === false ? 'No' : 'No indicado' },
+        { label: '¿Es o ha sido CPE (Contratista/Proveedor Estado)?', value: cli.cpe          === true ? 'Sí' : cli.cpe          === false ? 'No' : 'No indicado' },
+      ]
+    : [
+        { label: 'Nombre completo',   value: fmt(nombreCliente) },
+        { label: 'DPI',               value: fmt(cli.dpi) },
+        { label: 'Fecha de nacimiento', value: fmtDate(cli.fecha_nacimiento) },
+        { label: 'Dirección',         value: fmt(cli.direccion) },
+        { label: 'NIT',               value: fmt(cli.nit) },
+        { label: 'Teléfono / Celular',value: fmt(cli.telefono) },
+        { label: 'Email',             value: fmt(cli.email) },
+        { label: '¿Es o ha sido PEP (últimos 2 años)?',             value: cli.pep            === true ? 'Sí' : cli.pep            === false ? 'No' : 'No indicado' },
+        { label: '¿Tiene parentesco o relación con un PEP?',        value: cli.pep_parentesco === true ? 'Sí' : cli.pep_parentesco === false ? 'No' : 'No indicado' },
+        { label: '¿Es o ha sido CPE (Contratista/Proveedor Estado)?', value: cli.cpe          === true ? 'Sí' : cli.cpe          === false ? 'No' : 'No indicado' },
+      ]
+  y = sectionTable('DATOS DEL CLIENTE', clienteRows, y)
 
   /* ══════════════ RESPONSABLE DE PAGO (si aplica) ══════════════ */
   if (personaFacturable) {

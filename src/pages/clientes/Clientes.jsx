@@ -298,7 +298,7 @@ export default function Clientes() {
                 </div>
                 <div>
                   <label style={labelStyle}>Email directo</label>
-                  <input type='email' value={form.contacto_email} onChange={e => setForm({ ...form, contacto_email: e.target.value })} style={inp} />
+                  <input type='text' value={form.contacto_email} onChange={e => setForm({ ...form, contacto_email: e.target.value })} style={inp} />
                 </div>
               </div>
             </>

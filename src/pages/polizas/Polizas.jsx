@@ -1131,7 +1131,7 @@ export default function Polizas() {
                           </div>
                           <div style={{flex:1}}>
                             <p style={{fontWeight:600,color:'#111111',fontSize:'13px',margin:0}}>{v.marca} {v.modelo} {v.anio}</p>
-                            <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(v)} · {v.tipo}</p>
+                            <p style={{fontSize:'12px',color:'#64748b',margin:0}}>Placa: {fp(v)}{v.tipo ? ` · ${v.tipo.charAt(0).toUpperCase()+v.tipo.slice(1).toLowerCase()}` : ''}</p>
                           </div>
                           {v.valor_asegurado > 0 && <p style={{fontSize:'12px',fontWeight:600,color:'#C4A96B',margin:0,flexShrink:0}}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>}
                         </div>
@@ -2126,11 +2126,15 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     e.preventDefault()
     if (editingReq) {
       // Edit mode — update single req
+      const changes = []
+      if (parseFloat(reqForm.monto) !== parseFloat(editingReq.monto)) changes.push(`monto: Q${parseFloat(editingReq.monto).toLocaleString()} → Q${parseFloat(reqForm.monto).toLocaleString()}`)
+      if (reqForm.fecha_vencimiento !== editingReq.fecha_vencimiento) changes.push(`vencimiento: ${editingReq.fecha_vencimiento} → ${reqForm.fecha_vencimiento}`)
       const { error } = await supabase.from('requerimientos_pago').update({
         monto: parseFloat(reqForm.monto),
         fecha_vencimiento: reqForm.fecha_vencimiento,
       }).eq('id', editingReq.id)
       if (error) { toast.error('Error: ' + error.message); return }
+      await addBitacora(null, null, `[Cobro] Requerimiento ${editingReq.codigo} editado${changes.length ? ' — ' + changes.join(', ') : ''}`)
       toast.success('Requerimiento actualizado')
       setReqForm(emptyReq); setEditingReq(null); setShowReqModal(false); setReqAjustar(false); fetchData()
       return
@@ -2368,8 +2372,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         return {
           Marca: v.marca || '', Modelo: v.modelo || '', Año: v.anio || '',
           Placa: v.placa || '', Color: v.color || '', Tipo: v.tipo || '',
-          'No. Chasis': v.no_chasis || '', 'No. Motor': v.no_motor || '',
-          'Valor Asegurado': v.valor_asegurado || 0,
+          'No. Chasis': v.chasis || '', 'No. Motor': v.motor || '',
+          'Valor Asegurado': parseFloat(v.valor_asegurado || 0),
+          'Prima Neta': parseFloat(sv.prima_neta || 0),
+          'Gastos de Emisión': parseFloat(sv.monto_gasto_emision || 0),
+          'IVA': parseFloat(sv.monto_iva || 0),
+          'Gastos de Fraccionamiento': parseFloat(sv.monto_recargo || 0),
+          'Prima Total': parseFloat(sv.prima_total || 0),
         }
       })
     } else {
@@ -2390,12 +2399,19 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           const last = activeHistory[activeHistory.length - 1]
           status = (last.em.tipo === 'exclusion' && (last.em.estado === 'emitida' || last.em.estado === 'completado')) ? 'Excluido' : 'Activo'
         }
-        const currentPrimaEv = [...activeHistory].reverse().find(h => h.em.tipo !== 'exclusion' && parseFloat(h.ev?.prima_total || 0) > 0)?.ev || null
+        const currentEntry = [...activeHistory].reverse().find(h => h.em.tipo !== 'exclusion' && parseFloat(h.ev?.prima_total || 0) > 0) || null
+        const currentPrimaEv = currentEntry?.ev || null
+        const currentEm = currentEntry?.em || null
         rows.push({
+          '# Gestión': currentEm?.numero_emision || '',
           Marca: v.marca || '', Modelo: v.modelo || '', Año: v.anio || '',
           Placa: v.placa || '', Color: v.color || '', Tipo: v.tipo || '',
-          'No. Chasis': v.no_chasis || '', 'No. Motor': v.no_motor || '',
-          'Valor Asegurado': v.valor_asegurado || 0,
+          'No. Chasis': v.chasis || '', 'No. Motor': v.motor || '',
+          'Valor Asegurado': parseFloat(v.valor_asegurado || 0),
+          'Prima Neta': parseFloat(currentPrimaEv?.prima_neta || 0),
+          'Gastos de Emisión': parseFloat(currentPrimaEv?.monto_gasto_emision || 0),
+          'IVA': parseFloat(currentPrimaEv?.monto_iva || 0),
+          'Gastos de Fraccionamiento': parseFloat(currentPrimaEv?.monto_recargo || 0),
           'Prima Total': parseFloat(currentPrimaEv?.prima_total || 0),
           Estado: status,
         })

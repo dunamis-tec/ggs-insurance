@@ -53,7 +53,7 @@ async function buildLogoDataUrl() {
  * @param {object[]} opts.reqs     — requerimientos_pago array (with emisiones join)
  * @param {string}   opts.usuario  — logged-in user name
  */
-export async function generateEstadoCuentaPdf({ poliza, reqs, usuario }) {
+export async function generateEstadoCuentaPdf({ poliza, reqs, usuario, personaFacturable }) {
   const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W      = doc.internal.pageSize.getWidth()
   const margin = 14
@@ -102,7 +102,9 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario }) {
 
   /* ══ DATOS DE LA PÓLIZA ══ */
   const cli         = poliza.clientes || {}
-  const nombreCliente = [cli.nombre, cli.apellido].filter(Boolean).join(' ').toUpperCase()
+  const nombreCliente = cli.tipo === 'empresa'
+    ? (cli.razon_social || cli.nombre_empresa || cli.nombre || '').toUpperCase()
+    : [cli.nombre, cli.apellido].filter(Boolean).join(' ').toUpperCase()
 
   autoTable(doc, {
     startY: y,
@@ -142,6 +144,36 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario }) {
   })
   y = doc.lastAutoTable.finalY + 5
 
+  /* ══ RESPONSABLE DE PAGO (si aplica) ══ */
+  if (personaFacturable) {
+    const pf = personaFacturable
+    const pfNombre = [pf.nombre, pf.apellido].filter(Boolean).join(' ').toUpperCase()
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      body: [
+        [
+          { content: 'RESPONSABLE DE PAGO', colSpan: 4, styles: { fillColor: GOLD, textColor: BLACK, fontStyle: 'bold', fontSize: 8, halign: 'center', cellPadding: { top: 3, bottom: 3 } } },
+        ],
+        [
+          { content: 'Nombre',  styles: { fontStyle: 'bold', fillColor: LIGHT, fontSize: 8 } },
+          { content: fmt(pfNombre), styles: { fontSize: 8 } },
+          { content: 'NIT',     styles: { fontStyle: 'bold', fillColor: LIGHT, fontSize: 8 } },
+          { content: fmt(pf.nit), styles: { fontSize: 8 } },
+        ],
+        [
+          { content: 'Dirección', styles: { fontStyle: 'bold', fillColor: LIGHT, fontSize: 8 } },
+          { content: fmt(pf.direccion), colSpan: 3, styles: { fontSize: 8 } },
+        ],
+      ],
+      theme: 'grid',
+      styles: { lineColor: BORDER, lineWidth: 0.2, textColor: BLACK, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, overflow: 'linebreak' },
+      showHead: false,
+      columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 32 }, 3: { cellWidth: 'auto' } },
+    })
+    y = doc.lastAutoTable.finalY + 5
+  }
+
   /* ══ RESUMEN DE CUENTA ══ */
   autoTable(doc, {
     startY: y,
@@ -151,16 +183,16 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario }) {
         { content: 'RESUMEN DE CUENTA', colSpan: 4, styles: { fillColor: GOLD, textColor: BLACK, fontStyle: 'bold', fontSize: 8, halign: 'center', cellPadding: { top: 3, bottom: 3 } } },
       ],
       [
-        { content: 'Total pagado',    styles: { fontStyle: 'bold', fillColor: [220, 252, 231], textColor: [21, 128, 61], fontSize: 9, halign: 'center' } },
-        { content: fmtQ(totalPagado), styles: { fontStyle: 'bold', fillColor: [220, 252, 231], textColor: [21, 128, 61], fontSize: 9, halign: 'center' } },
-        { content: 'Total pendiente', styles: { fontStyle: 'bold', fillColor: [254, 249, 195], textColor: [161, 98, 7],  fontSize: 9, halign: 'center' } },
-        { content: fmtQ(totalPendiente), styles: { fontStyle: 'bold', fillColor: [254, 249, 195], textColor: [161, 98, 7], fontSize: 9, halign: 'center' } },
+        { content: 'Total pagado',    styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
+        { content: fmtQ(totalPagado), styles: { fontStyle: 'bold', fillColor: WHITE, textColor: BLACK, fontSize: 9, halign: 'center' } },
+        { content: 'Total pendiente', styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
+        { content: fmtQ(totalPendiente), styles: { fontStyle: 'bold', fillColor: WHITE, textColor: BLACK, fontSize: 9, halign: 'center' } },
       ],
       [
-        { content: 'Total vencido',   styles: { fontStyle: 'bold', fillColor: [254, 226, 226], textColor: [185, 28, 28], fontSize: 9, halign: 'center' } },
-        { content: fmtQ(totalVencido), styles: { fontStyle: 'bold', fillColor: [254, 226, 226], textColor: [185, 28, 28], fontSize: 9, halign: 'center' } },
+        { content: 'Total vencido',   styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
+        { content: fmtQ(totalVencido), styles: { fontStyle: 'bold', fillColor: WHITE, textColor: BLACK, fontSize: 9, halign: 'center' } },
         { content: 'Total general',   styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
-        { content: fmtQ(totalGeneral), styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
+        { content: fmtQ(totalGeneral), styles: { fontStyle: 'bold', fillColor: WHITE, textColor: BLACK, fontSize: 9, halign: 'center' } },
       ],
     ],
     theme: 'grid',
@@ -196,8 +228,6 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario }) {
 
   const tableBody = sortedReqs.map(r => {
     const estadoLabel = r.estado === 'pagado' ? 'Pagado' : r.estado === 'vencido' ? 'Vencido' : 'Pendiente'
-    const estadoColor = r.estado === 'pagado' ? [21, 128, 61] : r.estado === 'vencido' ? [185, 28, 28] : [161, 98, 7]
-    const estadoBg    = r.estado === 'pagado' ? [220, 252, 231] : r.estado === 'vencido' ? [254, 226, 226] : [254, 249, 195]
     const cuota       = (r.numero_cuota && r.total_cuotas) ? `${r.numero_cuota}/${r.total_cuotas}` : (r.numero_cuota ? String(r.numero_cuota) : '—')
     const emisionNum  = r.emisiones?.numero_emision || '—'
     return [
@@ -207,7 +237,7 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario }) {
       { content: fmtDate(r.fecha_vencimiento),  styles: { fontSize: 7, halign: 'center' } },
       { content: fmtDate(r.fecha_pago),         styles: { fontSize: 7, halign: 'center' } },
       { content: fmtQ(r.monto),                styles: { fontSize: 7, halign: 'right' } },
-      { content: estadoLabel,                   styles: { fontSize: 7, fontStyle: 'bold', halign: 'center', textColor: estadoColor, fillColor: estadoBg } },
+      { content: estadoLabel,                   styles: { fontSize: 7, fontStyle: 'bold', halign: 'center' } },
     ]
   })
 
