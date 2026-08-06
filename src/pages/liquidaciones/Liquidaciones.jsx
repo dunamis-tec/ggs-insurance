@@ -91,7 +91,7 @@ export default function Liquidaciones() {
     const toastId = toast.loading('Generando PDF…')
     try {
       const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
-      const logoUrl = confEmp?.logo_url || null
+      const logoUrl = confEmp?.logo_url || '/ggs-logo-nav.png'
       const reqs = informeReqs[inf.id] || []
       await generateInformePdf({ informe: inf, reqs, logoUrl })
       toast.success('PDF generado', { id: toastId })

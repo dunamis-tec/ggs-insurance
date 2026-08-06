@@ -50,6 +50,14 @@ export default function Requerimientos() {
   const [showAddSeg, setShowAddSeg] = useState(false)
   const [obsSeg, setObsSeg] = useState('')
 
+  // Modal de registrar pago
+  const [showPagoModal, setShowPagoModal] = useState(false)
+  const [pagoTarget, setPagoTarget] = useState(null)
+  const [pagoFecha, setPagoFecha] = useState('')
+  const [pagoBoleta, setPagoBoleta] = useState('')
+  const [pagoNotas, setPagoNotas] = useState('')
+  const [pagoFile, setPagoFile] = useState(null)
+
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -119,11 +127,38 @@ export default function Requerimientos() {
     setSavingSeg(false)
   }
 
-  const marcarPagado = async (id) => {
-    await supabase.from('requerimientos_pago').update({ estado: 'pagado', fecha_pago: new Date().toISOString().split('T')[0] }).eq('id', id)
-    toast.success('Marcado como pagado')
-    fetchReqs()
-    if (selected?.id === id) setSelected(r => ({ ...r, estado:'pagado', fecha_pago: new Date().toISOString().split('T')[0] }))
+  const openPagoModal = (r) => {
+    setPagoTarget(r); setPagoFecha(''); setPagoBoleta(r.numero_boleta||''); setPagoNotas(''); setPagoFile(null); setShowPagoModal(true)
+  }
+
+  const closePagoModal = () => {
+    setShowPagoModal(false); setPagoTarget(null); setPagoFecha(''); setPagoBoleta(''); setPagoNotas(''); setPagoFile(null)
+  }
+
+  const confirmarPago = async () => {
+    if (!pagoTarget) return
+    if (!pagoFecha) { toast.error('Ingresa la fecha de pago'); return }
+    const toastId = toast.loading('Registrando pago…')
+    let comprobante_url = pagoTarget.comprobante_url || null
+    if (pagoFile) {
+      const eid = await getMyEmpresaId()
+      const ext = pagoFile.name.split('.').pop()
+      const path = `${eid}/comprobantes/${pagoTarget.polizas?.id||'req'}/${pagoTarget.id}.${ext}`
+      const { error: upErr } = await supabase.storage.from('polizas-pdfs').upload(path, pagoFile, { upsert: true })
+      if (upErr) { toast.dismiss(toastId); toast.error('Error subiendo comprobante: ' + upErr.message); return }
+      const { data: { publicUrl } } = supabase.storage.from('polizas-pdfs').getPublicUrl(path)
+      comprobante_url = publicUrl
+    }
+    const { error } = await supabase.from('requerimientos_pago').update({
+      estado: 'pagado', fecha_pago: pagoFecha,
+      comprobante_url, notas: pagoNotas || null,
+      numero_boleta: pagoBoleta || null,
+    }).eq('id', pagoTarget.id)
+    toast.dismiss(toastId)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Pago registrado')
+    closePagoModal(); fetchReqs()
+    if (selected?.id === pagoTarget.id) setSelected(r => ({ ...r, estado:'pagado', fecha_pago: pagoFecha }))
   }
 
   const marcarPendiente = async (id) => {
@@ -319,7 +354,7 @@ export default function Requerimientos() {
                   <span style={{fontSize:'15px',fontWeight:700,color:estadoColors[displayEstado]}}>{estadoLabel[displayEstado]}</span>
                 </div>
                 {selected.estado !== 'pagado'
-                  ? <button onClick={()=>marcarPagado(selected.id)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'7px',width:'100%',padding:'11px',background:'#16a34a',color:'white',border:'none',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                  ? <button onClick={()=>openPagoModal(selected)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'7px',width:'100%',padding:'11px',background:'#16a34a',color:'white',border:'none',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                       <CheckCircle size={15}/> Marcar como pagado
                     </button>
                   : <button onClick={()=>marcarPendiente(selected.id)} style={{width:'100%',padding:'11px',background:'#fef9c3',color:'#a16207',border:'1px solid #fde68a',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
@@ -445,8 +480,60 @@ export default function Requerimientos() {
   }
 
   // ── LISTA ──
+  const inputSt = {width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',color:'#111111',background:'white',boxSizing:'border-box',outline:'none'}
+
   return (
     <div>
+      {/* Modal registrar pago */}
+      {showPagoModal && pagoTarget && (
+        <>
+          <div onClick={closePagoModal} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1100}}/>
+          <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',background:'white',borderRadius:'16px',padding:'0',width:'90%',maxWidth:'460px',zIndex:1101,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
+            <div style={{padding:'20px 24px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+                  <span style={{fontSize:'15px',fontWeight:700,color:'#111111'}}>{pagoTarget.codigo}</span>
+                </div>
+                <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
+                  <span style={{fontSize:'12px',color:'#64748b'}}>Cuota {pagoTarget.numero_cuota}/{pagoTarget.total_cuotas}</span>
+                  <span style={{fontSize:'12px',color:'#64748b'}}>Vence: {new Date(pagoTarget.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}</span>
+                  <span style={{fontSize:'13px',fontWeight:700,color:'#111111'}}>Q {parseFloat(pagoTarget.monto||0).toLocaleString()}</span>
+                </div>
+              </div>
+              <button onClick={closePagoModal} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8',flexShrink:0}}><X size={18}/></button>
+            </div>
+            <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
+              <p style={{fontSize:'13px',fontWeight:700,color:'#374151',margin:0}}>Registrar pago</p>
+              <div>
+                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de pago *</label>
+                <input type='date' value={pagoFecha} onChange={e=>setPagoFecha(e.target.value)} style={inputSt}/>
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Comprobante <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+                <input type='file' accept='.pdf,.jpg,.jpeg,.png' onChange={e=>setPagoFile(e.target.files[0]||null)} style={{fontSize:'12px',width:'100%'}}/>
+                {pagoFile && (
+                  <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px'}}>
+                    <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pagoFile.name}</p>
+                    <button onClick={()=>setPagoFile(null)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>No. Boleta <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+                <input value={pagoBoleta} onChange={e=>setPagoBoleta(e.target.value)} placeholder='Ej: 123456' style={inputSt}/>
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+                <input value={pagoNotas} onChange={e=>setPagoNotas(e.target.value)} placeholder='Ej: Pagado por transferencia...' style={inputSt}/>
+              </div>
+              <button onClick={confirmarPago} style={{padding:'11px',background:'#15803d',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+                Confirmar pago
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Modal gestión rápida */}
       {modalSeg && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}

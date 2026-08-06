@@ -2285,7 +2285,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
       const { data: clienteFull } = await supabase.from('clientes').select('*').eq('id', poliza.cliente_id).single()
       const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
-      const logoUrl = confEmp?.logo_url || null
+      const logoUrl = confEmp?.logo_url || '/ggs-logo-nav.png'
       let personaFacturable = null
       if (poliza.persona_facturable_id) {
         const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', poliza.persona_facturable_id).single()
@@ -2332,7 +2332,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       const usuarioNombre = userData ? `${userData.nombre||''} ${userData.apellido||''}`.trim() : (user.email?.split('@')[0]||'GGS')
       const { data: clienteFull } = await supabase.from('clientes').select('*').eq('id', poliza.cliente_id).single()
       const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
-      const logoUrl = confEmp?.logo_url || null
+      const logoUrl = confEmp?.logo_url || '/ggs-logo-nav.png'
       let personaFacturable = null
       if (em.persona_facturable_id) {
         const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', em.persona_facturable_id).single()
@@ -2455,7 +2455,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
       const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
       const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
-      const logoUrl = confEmp?.logo_url || null
+      const logoUrl = confEmp?.logo_url || '/ggs-logo-nav.png'
       let personaFacturable = null
       if (poliza.persona_facturable_id) {
         const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', poliza.persona_facturable_id).single()
@@ -3649,8 +3649,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                               onChange={e=>setReqComprobanteFile(e.target.files[0]||null)}
                               style={{fontSize:'12px',width:'100%'}}/>
                             {reqComprobanteFile && (
+                              <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px',marginBottom:'6px'}}>
+                                <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{reqComprobanteFile.name}</p>
+                                <button onClick={()=>setReqComprobanteFile(null)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
+                              </div>
+                            )}
+                            {reqComprobanteFile && (
                               <button onClick={subirComprobante}
-                                style={{marginTop:'8px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
+                                style={{padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
                                 Guardar comprobante
                               </button>
                             )}
@@ -3676,7 +3682,12 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                               <input type='file' accept='.pdf,.jpg,.jpeg,.png'
                                 onChange={e=>setReqComprobanteFile(e.target.files[0]||null)}
                                 style={{fontSize:'12px',width:'100%'}}/>
-                              {reqComprobanteFile && <p style={{fontSize:'11px',color:'#64748b',margin:'3px 0 0'}}>{reqComprobanteFile.name}</p>}
+                              {reqComprobanteFile && (
+                                <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px'}}>
+                                  <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{reqComprobanteFile.name}</p>
+                                  <button onClick={()=>setReqComprobanteFile(null)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
+                                </div>
+                              )}
                             </div>
                             <div>
                               <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>
