@@ -365,6 +365,7 @@ export default function Polizas() {
   const [editingPolizaEstado, setEditingPolizaEstado] = useState(null)
   const [productosFiltered, setProductosFiltered] = useState([])
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+  const [savingPoliza, setSavingPoliza] = useState(false)
   // Client validation & vehicle selection
   const [clienteVehiculos, setClienteVehiculos]     = useState([])
   const [vehiculosSeleccionados, setVehiculosSeleccionados] = useState([])
@@ -549,6 +550,9 @@ export default function Polizas() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (savingPoliza) return
+    setSavingPoliza(true)
+    try {
     const { data: { user } } = await supabase.auth.getUser()
 
     // Restricted edit for emitida polizas — only ejecutivo + observaciones
@@ -751,6 +755,9 @@ export default function Polizas() {
 
     resetForm()
     fetchAll()
+    } finally {
+      setSavingPoliza(false)
+    }
   }
 
   const resetForm = () => {
@@ -1317,9 +1324,9 @@ export default function Polizas() {
 
             {/* ─ Submit ─ */}
             <div style={{display:'flex',gap:'8px'}}>
-              <button type="submit" disabled={clienteValidation.length > 0}
-                style={{padding:'11px 28px',background:clienteValidation.length>0?'#94a3b8':'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:clienteValidation.length>0?'not-allowed':'pointer'}}>
-                {editing ? 'Actualizar solicitud' : 'Crear solicitud'}
+              <button type="submit" disabled={clienteValidation.length > 0 || savingPoliza}
+                style={{padding:'11px 28px',background:(clienteValidation.length>0||savingPoliza)?'#94a3b8':'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:(clienteValidation.length>0||savingPoliza)?'not-allowed':'pointer'}}>
+                {savingPoliza ? 'Guardando...' : editing ? 'Actualizar solicitud' : 'Crear solicitud'}
               </button>
               <button type="button" onClick={resetForm}
                 style={{padding:'11px 24px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',cursor:'pointer'}}>
