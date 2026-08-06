@@ -10,34 +10,17 @@ const BORDER = [226, 232, 240]
 const fmt     = (v) => v || '—'
 const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT') : '—'
 
-async function buildLogoDataUrl() {
+async function loadLogoFromUrl(url) {
+  if (!url) return null
   try {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 490 265">
-      <circle cx="115" cy="140" r="108" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
-      <circle cx="268" cy="140" r="108" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
-      <rect x="328" y="32" width="140" height="216" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
-      <text x="115" y="145" text-anchor="middle" dominant-baseline="central"
-            font-family="Arial,Helvetica,sans-serif" font-size="98" font-weight="300" fill="#C4A96B">G</text>
-      <text x="268" y="145" text-anchor="middle" dominant-baseline="central"
-            font-family="Arial,Helvetica,sans-serif" font-size="98" font-weight="300" fill="#C4A96B">G</text>
-      <text x="398" y="145" text-anchor="middle" dominant-baseline="central"
-            font-family="Arial,Helvetica,sans-serif" font-size="98" font-weight="300" fill="#C4A96B">S</text>
-    </svg>`
-    const blob   = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
-    const svgUrl = URL.createObjectURL(blob)
+    const resp = await fetch(url)
+    if (!resp.ok) return null
+    const blob = await resp.blob()
     return new Promise(resolve => {
-      const img = new Image()
-      img.onload = () => {
-        const scale  = 4
-        const canvas = document.createElement('canvas')
-        canvas.width  = 490 * scale
-        canvas.height = 265 * scale
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-        URL.revokeObjectURL(svgUrl)
-        resolve(canvas.toDataURL('image/png'))
-      }
-      img.onerror = () => { URL.revokeObjectURL(svgUrl); resolve(null) }
-      img.src = svgUrl
+      const reader = new FileReader()
+      reader.onload  = () => resolve(reader.result)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
     })
   } catch { return null }
 }
@@ -49,13 +32,13 @@ async function buildLogoDataUrl() {
  * @param {object} opts.poliza    — poliza with clientes, aseguradoras, productos joins
  * @param {string} opts.usuario   — logged-in user name
  */
-export async function generateModificacionPdf({ emision, poliza, usuario }) {
+export async function generateModificacionPdf({ emision, poliza, usuario, logoUrl }) {
   const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W      = doc.internal.pageSize.getWidth()
   const margin = 14
   let y        = 0
 
-  const logoDataUrl = await buildLogoDataUrl()
+  const logoDataUrl = await loadLogoFromUrl(logoUrl)
 
   function sectionTable(title, rows, startY) {
     doc.setFillColor(...GOLD)
@@ -90,11 +73,11 @@ export async function generateModificacionPdf({ emision, poliza, usuario }) {
   doc.setFillColor(...GOLD)
   doc.rect(0, 0, 4, HEADER_H, 'F')
 
-  const logoH = 19
-  const logoW = logoH * (490 / 265)
+  const logoH = 16
+  const logoW = 40
   if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 8, (HEADER_H - logoH) / 2, logoW, logoH)
 
-  const textX = 8 + logoW + 4
+  const textX = logoDataUrl ? (8 + logoW + 4) : 12
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(...WHITE)

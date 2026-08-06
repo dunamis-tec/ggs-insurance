@@ -14,34 +14,17 @@ const fmt     = (v) => v || '—'
 const fmtQ    = (v) => v ? `Q ${parseFloat(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : 'Q 0.00'
 const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT') : '—'
 
-async function buildLogoDataUrl() {
+async function loadLogoFromUrl(url) {
+  if (!url) return null
   try {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 490 265">
-      <circle cx="115" cy="140" r="108" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
-      <circle cx="268" cy="140" r="108" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
-      <rect x="328" y="32" width="140" height="216" fill="none" stroke="#C4A96B" stroke-width="10.5"/>
-      <text x="115" y="145" text-anchor="middle" dominant-baseline="central"
-            font-family="Arial,Helvetica,sans-serif" font-size="98" font-weight="300" fill="#C4A96B">G</text>
-      <text x="268" y="145" text-anchor="middle" dominant-baseline="central"
-            font-family="Arial,Helvetica,sans-serif" font-size="98" font-weight="300" fill="#C4A96B">G</text>
-      <text x="398" y="145" text-anchor="middle" dominant-baseline="central"
-            font-family="Arial,Helvetica,sans-serif" font-size="98" font-weight="300" fill="#C4A96B">S</text>
-    </svg>`
-    const blob   = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
-    const svgUrl = URL.createObjectURL(blob)
+    const resp = await fetch(url)
+    if (!resp.ok) return null
+    const blob = await resp.blob()
     return new Promise(resolve => {
-      const img = new Image()
-      img.onload = () => {
-        const scale  = 4
-        const canvas = document.createElement('canvas')
-        canvas.width  = 490 * scale
-        canvas.height = 265 * scale
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-        URL.revokeObjectURL(svgUrl)
-        resolve(canvas.toDataURL('image/png'))
-      }
-      img.onerror = () => { URL.revokeObjectURL(svgUrl); resolve(null) }
-      img.src = svgUrl
+      const reader = new FileReader()
+      reader.onload  = () => resolve(reader.result)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
     })
   } catch { return null }
 }
@@ -53,13 +36,13 @@ async function buildLogoDataUrl() {
  * @param {object[]} opts.reqs     — requerimientos_pago array (with emisiones join)
  * @param {string}   opts.usuario  — logged-in user name
  */
-export async function generateEstadoCuentaPdf({ poliza, reqs, usuario, personaFacturable }) {
+export async function generateEstadoCuentaPdf({ poliza, reqs, usuario, personaFacturable, logoUrl }) {
   const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W      = doc.internal.pageSize.getWidth()
   const margin = 14
   let y        = 0
 
-  const logoDataUrl = await buildLogoDataUrl()
+  const logoDataUrl = await loadLogoFromUrl(logoUrl)
 
   /* ── Totals ── */
   const totalPagado    = reqs.filter(r => r.estado === 'pagado').reduce((s, r) => s + parseFloat(r.monto || 0), 0)
@@ -75,11 +58,11 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario, personaFa
   doc.setFillColor(...GOLD)
   doc.rect(0, 0, 4, HEADER_H, 'F')
 
-  const logoH = 19
-  const logoW = logoH * (490 / 265)
-  if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 8, (HEADER_H - logoH) / 2, logoW, logoH)
+  const logoH = 16
+  const logoW = 40
+  if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 8, (HEADER_H - logoH) / 2, logoW, logoH, undefined, 'FAST')
 
-  const textX = 8 + logoW + 4
+  const textX = logoDataUrl ? (8 + logoW + 4) : 12
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(...WHITE)
@@ -185,7 +168,7 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario, personaFa
       [
         { content: 'Total pagado',    styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
         { content: fmtQ(totalPagado), styles: { fontStyle: 'bold', fillColor: WHITE, textColor: BLACK, fontSize: 9, halign: 'center' } },
-        { content: 'Total pendiente', styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
+        { content: 'Total no vencido', styles: { fontStyle: 'bold', fillColor: LIGHT, textColor: BLACK, fontSize: 9, halign: 'center' } },
         { content: fmtQ(totalPendiente), styles: { fontStyle: 'bold', fillColor: WHITE, textColor: BLACK, fontSize: 9, halign: 'center' } },
       ],
       [
@@ -227,7 +210,7 @@ export async function generateEstadoCuentaPdf({ poliza, reqs, usuario, personaFa
   })
 
   const tableBody = sortedReqs.map(r => {
-    const estadoLabel = r.estado === 'pagado' ? 'Pagado' : r.estado === 'vencido' ? 'Vencido' : 'Pendiente'
+    const estadoLabel = r.estado === 'pagado' ? 'Pagado' : r.estado === 'vencido' ? 'Vencido' : 'No Vencido'
     const cuota       = (r.numero_cuota && r.total_cuotas) ? `${r.numero_cuota}/${r.total_cuotas}` : (r.numero_cuota ? String(r.numero_cuota) : '—')
     const emisionNum  = r.emisiones?.numero_emision || '—'
     return [

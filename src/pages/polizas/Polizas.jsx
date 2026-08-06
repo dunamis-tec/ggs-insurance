@@ -1444,11 +1444,14 @@ export default function Polizas() {
             const pEst = polizaEstados[p.estado] || polizaEstados.solicitud
             const vencEst = p.estado === 'emitida' ? getVencimientoEstado(p) : null
             const vencBadge = vencEst === 'vencida' ? { bg:'#111111',color:'#ffffff',label:'Vencida' } : vencEst === 'por_vencer' ? { bg:'#F5F0E8',color:'#7A5A1E',label:'Por vencer' } : null
+            const dias = (p.fecha_vencimiento && vencEst !== 'vencida') ? Math.ceil((new Date(p.fecha_vencimiento+'T12:00:00') - hoy) / (1000*60*60*24)) : null
+            const rowBg = vencEst === 'vencida' ? '#fff5f5' : (dias !== null && dias <= 15) ? '#fff7ed' : 'white'
+            const rowHover = vencEst === 'vencida' ? '#fee2e2' : (dias !== null && dias <= 15) ? '#ffedd5' : '#f8fafc'
             return (
-              <div key={p.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
+              <div key={p.id} style={{display:'flex',alignItems:'center',padding:'14px 20px',borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer',background:rowBg}}
                 onClick={()=>{ setSelected(p); setView('detalle'); navigate('/polizas/'+p.id, {replace:true}) }}
-                onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
-                onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                onMouseEnter={e=>e.currentTarget.style.background=rowHover}
+                onMouseLeave={e=>e.currentTarget.style.background=rowBg}>
                 <div style={{width:'40px',height:'40px',borderRadius:'8px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'center',marginRight:'12px',overflow:'hidden',background:'#f8fafc',flexShrink:0}}>
                   {p.aseguradoras?.logo_url?<img src={p.aseguradoras.logo_url} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<FileText size={16} color="#C4A96B"/>}
                 </div>
@@ -1534,6 +1537,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [showReqGestion, setShowReqGestion]   = useState(false)
   const [reqGestionTarget, setReqGestionTarget] = useState(null)
   const [reqGestionFechaPago, setReqGestionFechaPago] = useState('')
+  const [reqGestionBoleta, setReqGestionBoleta] = useState('')
   const [reqGestionNotas, setReqGestionNotas] = useState('')
   const [reqComprobanteFile, setReqComprobanteFile] = useState(null)
   const [expandedReqGroups, setExpandedReqGroups] = useState(new Set())
@@ -2216,7 +2220,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const closeReqGestion = () => {
     setShowReqGestion(false); setReqGestionTarget(null)
-    setReqGestionFechaPago(''); setReqGestionNotas(''); setReqComprobanteFile(null)
+    setReqGestionFechaPago(''); setReqGestionBoleta(''); setReqGestionNotas(''); setReqComprobanteFile(null)
   }
 
   const marcarPagado = async () => {
@@ -2236,12 +2240,24 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     const { error } = await supabase.from('requerimientos_pago').update({
       estado: 'pagado', fecha_pago: reqGestionFechaPago,
       comprobante_url, notas: reqGestionNotas || null,
+      numero_boleta: reqGestionBoleta || null,
     }).eq('id', reqGestionTarget.id)
     toast.dismiss(toastId)
     if (error) { toast.error('Error: ' + error.message); return }
     await addBitacora(null, null, `[Cobro] Requerimiento ${reqGestionTarget.codigo} marcado como pagado — fecha: ${reqGestionFechaPago}`)
     toast.success('Pago registrado')
     closeReqGestion(); fetchData()
+  }
+
+  const quitarComprobante = async () => {
+    if (!reqGestionTarget) return
+    const toastId = toast.loading('Quitando comprobante…')
+    const { error } = await supabase.from('requerimientos_pago').update({ comprobante_url: null }).eq('id', reqGestionTarget.id)
+    toast.dismiss(toastId)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Comprobante eliminado')
+    setReqGestionTarget(prev => ({ ...prev, comprobante_url: null }))
+    fetchData()
   }
 
   const subirComprobante = async () => {
@@ -2268,6 +2284,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
       const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
       const { data: clienteFull } = await supabase.from('clientes').select('*').eq('id', poliza.cliente_id).single()
+      const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
+      const logoUrl = confEmp?.logo_url || null
       let personaFacturable = null
       if (poliza.persona_facturable_id) {
         const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', poliza.persona_facturable_id).single()
@@ -2297,6 +2315,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
         personaFacturable,
         usuario: usuarioNombre,
         coberturas,
+        logoUrl,
       })
       toast.success('PDF generado', { id: toastId })
     } catch (err) {
@@ -2312,6 +2331,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
       const usuarioNombre = userData ? `${userData.nombre||''} ${userData.apellido||''}`.trim() : (user.email?.split('@')[0]||'GGS')
       const { data: clienteFull } = await supabase.from('clientes').select('*').eq('id', poliza.cliente_id).single()
+      const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
+      const logoUrl = confEmp?.logo_url || null
       let personaFacturable = null
       if (em.persona_facturable_id) {
         const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', em.persona_facturable_id).single()
@@ -2322,6 +2343,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           emision: em,
           poliza: { ...poliza, clientes: clienteFull || poliza.clientes },
           usuario: usuarioNombre,
+          logoUrl,
         })
       } else {
         const vehiculos = (em.emision_vehiculos || []).filter(ev => ev.vehiculos).map(ev => ({
@@ -2355,6 +2377,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
           personaFacturable,
           usuario: usuarioNombre,
           coberturas,
+          logoUrl,
         })
       }
       toast.success('PDF generado', { id: toastId })
@@ -2431,12 +2454,14 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
       const { data: { user } } = await supabase.auth.getUser()
       const { data: userData } = await supabase.from('users').select('nombre,apellido').eq('id', user.id).single()
       const usuarioNombre = userData ? `${userData.nombre || ''} ${userData.apellido || ''}`.trim() : (user.email?.split('@')[0] || 'GGS')
+      const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
+      const logoUrl = confEmp?.logo_url || null
       let personaFacturable = null
       if (poliza.persona_facturable_id) {
         const { data: pfData } = await supabase.from('personas_facturables').select('*').eq('id', poliza.persona_facturable_id).single()
         personaFacturable = pfData || null
       }
-      await generateEstadoCuentaPdf({ poliza, reqs, usuario: usuarioNombre, personaFacturable })
+      await generateEstadoCuentaPdf({ poliza, reqs, usuario: usuarioNombre, personaFacturable, logoUrl })
       toast.success('Estado de cuenta generado', { id: toastId })
     } catch (err) {
       console.error(err)
@@ -3598,7 +3623,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                               <p style={{fontSize:'13px',fontWeight:600,color:'#111111',margin:'2px 0 0'}}>Q {parseFloat(r.monto||0).toLocaleString()}</p>
                             </div>
                           </div>
-                          {r.notas && <p style={{fontSize:'12px',color:'#374151',marginTop:'8px',marginBottom:0}}>Nota: {r.notas}</p>}
+                          {r.numero_boleta && <p style={{fontSize:'12px',color:'#374151',marginTop:'8px',marginBottom:0}}>Boleta: <strong>{r.numero_boleta}</strong></p>}
+                          {r.notas && <p style={{fontSize:'12px',color:'#374151',marginTop:'4px',marginBottom:0}}>Nota: {r.notas}</p>}
                         </div>
 
                         <div>
@@ -3609,6 +3635,8 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                               <span style={{flex:1,fontSize:'13px',color:'#374151'}}>Comprobante adjunto</span>
                               <a href={r.comprobante_url} target='_blank' rel='noreferrer'
                                 style={{fontSize:'12px',color:'#1d4ed8',fontWeight:500,textDecoration:'none'}}>Ver</a>
+                              <button onClick={quitarComprobante}
+                                style={{fontSize:'11px',color:'#ef4444',background:'none',border:'none',cursor:'pointer',fontWeight:500,padding:'0'}}>Quitar</button>
                             </div>
                           ) : (
                             <p style={{fontSize:'12px',color:'#94a3b8',marginBottom:'8px'}}>Sin comprobante adjunto</p>
@@ -3649,6 +3677,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                                 onChange={e=>setReqComprobanteFile(e.target.files[0]||null)}
                                 style={{fontSize:'12px',width:'100%'}}/>
                               {reqComprobanteFile && <p style={{fontSize:'11px',color:'#64748b',margin:'3px 0 0'}}>{reqComprobanteFile.name}</p>}
+                            </div>
+                            <div>
+                              <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>
+                                No. Boleta <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span>
+                              </label>
+                              <input value={reqGestionBoleta} onChange={e=>setReqGestionBoleta(e.target.value)}
+                                placeholder='Ej: 123456' style={inputStyle}/>
                             </div>
                             <div>
                               <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>
@@ -3978,7 +4013,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                       {isExpanded && grp.reqs.map((r, ri) => {
                         const estColor = r.estado==='pagado' ? {bg:'#dcfce7',color:'#15803d'} : r.estado==='vencido' ? {bg:'#fef2f2',color:'#ef4444'} : {bg:'#fef9c3',color:'#a16207'}
                         return (
-                          <div key={r.id} onClick={()=>{ setReqGestionTarget(r); setReqGestionFechaPago(''); setReqGestionNotas(r.notas||''); setReqComprobanteFile(null); setShowReqGestion(true) }}
+                          <div key={r.id} onClick={()=>{ setReqGestionTarget(r); setReqGestionFechaPago(''); setReqGestionBoleta(r.numero_boleta||''); setReqGestionNotas(r.notas||''); setReqComprobanteFile(null); setShowReqGestion(true) }}
                             style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 20px',
                               borderBottom: ri < grp.reqs.length-1 ? '1px solid #f8fafc' : 'none',
                               cursor:'pointer', background: selectedReqs.has(r.id) ? '#f0f9ff' : r.estado==='vencido' ? '#fff8f8' : 'white'}}

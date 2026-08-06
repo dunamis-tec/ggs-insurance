@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { BookOpen, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
+import { BookOpen, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, FileSpreadsheet, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 import * as XLSX from 'xlsx'
+import { generateInformePdf } from '../../lib/generateInformePdf'
 
 const toDateStr = (d) => d.toISOString().split('T')[0]
 const addDays = (dateStr, n) => { const d = new Date(dateStr + 'T12:00:00'); d.setDate(d.getDate() + n); return toDateStr(d) }
@@ -84,6 +85,20 @@ export default function Liquidaciones() {
     const aseg = (inf.aseguradoras?.nombre || 'informe').replace(/\s+/g, '_')
     const fecha = new Date(inf.created_at).toISOString().split('T')[0]
     XLSX.writeFile(wb, `Liquidacion_${aseg}_${fecha}.xlsx`)
+  }
+
+  const exportInformePdf = async (inf) => {
+    const toastId = toast.loading('Generando PDF…')
+    try {
+      const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
+      const logoUrl = confEmp?.logo_url || null
+      const reqs = informeReqs[inf.id] || []
+      await generateInformePdf({ informe: inf, reqs, logoUrl })
+      toast.success('PDF generado', { id: toastId })
+    } catch (err) {
+      console.error(err)
+      toast.error('Error al generar PDF', { id: toastId })
+    }
   }
 
   // Filtro de historial
@@ -380,8 +395,12 @@ export default function Liquidaciones() {
                       <p style={{fontSize:'11px',color:'#94a3b8',margin:0}}>{new Date(inf.created_at).toLocaleDateString('es-GT')}</p>
                     </div>
                     <button onClick={e=>{e.stopPropagation();exportInformeExcel(inf)}} title="Exportar Excel"
-                      style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 10px',background:'#f0fdf4',color:'#15803d',border:'1px solid #bbf7d0',borderRadius:'7px',fontSize:'12px',fontWeight:600,cursor:'pointer',flexShrink:0,marginRight:'8px'}}>
+                      style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 10px',background:'#f0fdf4',color:'#15803d',border:'1px solid #bbf7d0',borderRadius:'7px',fontSize:'12px',fontWeight:600,cursor:'pointer',flexShrink:0,marginRight:'4px'}}>
                       <FileSpreadsheet size={13}/> Excel
+                    </button>
+                    <button onClick={e=>{e.stopPropagation();exportInformePdf(inf)}} title="Exportar PDF"
+                      style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 10px',background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'7px',fontSize:'12px',fontWeight:600,cursor:'pointer',flexShrink:0,marginRight:'8px'}}>
+                      <FileText size={13}/> PDF
                     </button>
                     {isExpanded ? <ChevronUp size={16} color='#64748b'/> : <ChevronDown size={16} color='#64748b'/>}
                   </div>
