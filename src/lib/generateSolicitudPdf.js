@@ -103,16 +103,6 @@ export async function generateSolicitudPdf({ poliza, vehiculos, personaFacturabl
     logoW = logoDataUrl.w * scale
     doc.addImage(logoDataUrl.dataUrl, 'PNG', 8, (HEADER_H - lh) / 2, logoW, lh)
   }
-  const textX = logoDataUrl ? (8 + logoW + 4) : 12
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...WHITE)
-  doc.text('GRUPO GLOBAL EN SEGUROS', textX, HEADER_H / 2 + 0.5)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.5)
-  doc.setTextColor(...GOLD)
-  doc.text('CUIDAR ES AMAR', textX, HEADER_H / 2 + 5.5)
-
   // Document title (right-aligned)
   const solNum = poliza.numero_poliza || `SOL-${poliza.numero_solicitud || '?'}`
   doc.setFont('helvetica', 'bold')
