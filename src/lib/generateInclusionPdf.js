@@ -19,20 +19,28 @@ async function loadLogoFromUrl(url) {
     const resp = await fetch(url)
     if (!resp.ok) return null
     const blob = await resp.blob()
-    const dataUrl = await new Promise(resolve => {
+    const rawDataUrl = await new Promise(resolve => {
       const reader = new FileReader()
       reader.onload  = () => resolve(reader.result)
       reader.onerror = () => resolve(null)
       reader.readAsDataURL(blob)
     })
-    if (!dataUrl) return null
-    const dims = await new Promise(resolve => {
+    if (!rawDataUrl) return null
+    return new Promise(resolve => {
       const img = new Image()
-      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight })
-      img.onerror = () => resolve({ w: 1, h: 1 })
-      img.src = dataUrl
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width  = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = '#111111'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(img, 0, 0)
+        resolve({ dataUrl: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight })
+      }
+      img.onerror = () => resolve(null)
+      img.src = rawDataUrl
     })
-    return { dataUrl, ...dims }
   } catch { return null }
 }
 
