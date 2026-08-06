@@ -13,35 +13,21 @@ const fmtQ = (v) => v ? `Q ${parseFloat(v).toLocaleString('es-GT', { minimumFrac
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
 
 
-async function loadLogoFromUrl(url) {
-  if (!url) return null
-  try {
-    const resp = await fetch(url)
-    if (!resp.ok) return null
-    const blob = await resp.blob()
-    const rawDataUrl = await new Promise(resolve => {
-      const reader = new FileReader()
-      reader.onload  = () => resolve(reader.result)
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(blob)
-    })
-    if (!rawDataUrl) return null
-    return new Promise(resolve => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        canvas.width  = img.naturalWidth
-        canvas.height = img.naturalHeight
-        const ctx = canvas.getContext('2d')
-        ctx.fillStyle = '#111111'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        ctx.drawImage(img, 0, 0)
-        resolve({ dataUrl: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight })
-      }
-      img.onerror = () => resolve(null)
-      img.src = rawDataUrl
-    })
-  } catch { return null }
+function drawGGSLogo(doc, x, y, h) {
+  const s  = h / 265
+  const lw = 10.5 * s
+  doc.setDrawColor(196, 169, 107)
+  doc.setLineWidth(lw)
+  doc.circle(x + 115*s, y + 140*s, 108*s, 'S')
+  doc.circle(x + 268*s, y + 140*s, 108*s, 'S')
+  doc.rect(x + 328*s, y + 32*s, 140*s, 216*s, 'S')
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize((98*s) / 0.3528)
+  doc.setTextColor(196, 169, 107)
+  doc.text('G', x + 115*s, y + 140*s, { align: 'center', baseline: 'middle' })
+  doc.text('G', x + 268*s, y + 140*s, { align: 'center', baseline: 'middle' })
+  doc.text('S', x + 398*s, y + 140*s, { align: 'center', baseline: 'middle' })
+  return 490*s
 }
 
 /**
@@ -64,7 +50,6 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
     ? 'SOLICITUD DE EXCLUSIÓN DE VEHÍCULOS'
     : 'SOLICITUD DE INCLUSIÓN DE VEHÍCULOS'
 
-  const logoDataUrl = await loadLogoFromUrl(logoUrl)
 
   function sectionTable(title, rows, startY) {
     doc.setFillColor(...GOLD)
@@ -100,16 +85,9 @@ export async function generateInclusionPdf({ emision, poliza, vehiculos, persona
   doc.setFillColor(...GOLD)
   doc.rect(0, 0, 4, HEADER_H, 'F')
 
-  let logoW = 0, logoH = 0
-  if (logoDataUrl) {
-    const MAX_H = 22, MAX_W = 70
-    const scale = Math.min(MAX_H / logoDataUrl.h, MAX_W / logoDataUrl.w)
-    logoH = logoDataUrl.h * scale
-    logoW = logoDataUrl.w * scale
-    doc.addImage(logoDataUrl.dataUrl, 'PNG', 8, (HEADER_H - logoH) / 2, logoW, logoH)
-  }
-
-  const textX = logoDataUrl ? (8 + logoW + 4) : 12
+  const LOGO_H = 22
+  const logoW = drawGGSLogo(doc, 8, (HEADER_H - LOGO_H) / 2, LOGO_H)
+  const textX = 8 + logoW + 4
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(...WHITE)
