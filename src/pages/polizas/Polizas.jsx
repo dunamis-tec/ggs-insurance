@@ -1540,6 +1540,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
   const [reqGestionBoleta, setReqGestionBoleta] = useState('')
   const [reqGestionNotas, setReqGestionNotas] = useState('')
   const [reqComprobanteFile, setReqComprobanteFile] = useState(null)
+  const [reqFileKey, setReqFileKey] = useState(0)
   const [expandedReqGroups, setExpandedReqGroups] = useState(new Set())
   const [selectedReqs, setSelectedReqs] = useState(new Set())
   const [expandedVehiculos, setExpandedVehiculos] = useState(new Set())
@@ -2220,7 +2221,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
 
   const closeReqGestion = () => {
     setShowReqGestion(false); setReqGestionTarget(null)
-    setReqGestionFechaPago(''); setReqGestionBoleta(''); setReqGestionNotas(''); setReqComprobanteFile(null)
+    setReqGestionFechaPago(''); setReqGestionBoleta(''); setReqGestionNotas(''); setReqComprobanteFile(null); setReqFileKey(k=>k+1)
   }
 
   const marcarPagado = async () => {
@@ -2274,7 +2275,7 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
     if (error) { toast.error('Error: ' + error.message); return }
     toast.success('Comprobante guardado')
     setReqGestionTarget(prev => ({ ...prev, comprobante_url: publicUrl }))
-    setReqComprobanteFile(null); fetchData()
+    setReqComprobanteFile(null); setReqFileKey(k=>k+1); fetchData()
   }
 
   const handleGenerarPdf = async () => {
@@ -3645,13 +3646,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                             <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'5px'}}>
                               {r.comprobante_url ? 'Reemplazar comprobante' : 'Adjuntar comprobante'}
                             </label>
-                            <input type='file' accept='.pdf,.jpg,.jpeg,.png'
+                            <input key={reqFileKey} type='file' accept='.pdf,.jpg,.jpeg,.png'
                               onChange={e=>setReqComprobanteFile(e.target.files[0]||null)}
                               style={{fontSize:'12px',width:'100%'}}/>
                             {reqComprobanteFile && (
                               <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px',marginBottom:'6px'}}>
                                 <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{reqComprobanteFile.name}</p>
-                                <button onClick={()=>setReqComprobanteFile(null)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
+                                <button onClick={()=>{setReqComprobanteFile(null);setReqFileKey(k=>k+1)}} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
                               </div>
                             )}
                             {reqComprobanteFile && (
@@ -3679,13 +3680,13 @@ function PolizaDetalle({ poliza: polizaInit, onBack, onEdit, fromCliente, fromRe
                               <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>
                                 Comprobante <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span>
                               </label>
-                              <input type='file' accept='.pdf,.jpg,.jpeg,.png'
+                              <input key={reqFileKey} type='file' accept='.pdf,.jpg,.jpeg,.png'
                                 onChange={e=>setReqComprobanteFile(e.target.files[0]||null)}
                                 style={{fontSize:'12px',width:'100%'}}/>
                               {reqComprobanteFile && (
                                 <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px'}}>
                                   <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{reqComprobanteFile.name}</p>
-                                  <button onClick={()=>setReqComprobanteFile(null)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
+                                  <button onClick={()=>{setReqComprobanteFile(null);setReqFileKey(k=>k+1)}} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
                                 </div>
                               )}
                             </div>

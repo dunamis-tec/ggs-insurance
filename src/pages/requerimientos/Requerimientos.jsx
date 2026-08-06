@@ -57,6 +57,7 @@ export default function Requerimientos() {
   const [pagoBoleta, setPagoBoleta] = useState('')
   const [pagoNotas, setPagoNotas] = useState('')
   const [pagoFile, setPagoFile] = useState(null)
+  const [pagoFileKey, setPagoFileKey] = useState(0)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -132,7 +133,7 @@ export default function Requerimientos() {
   }
 
   const closePagoModal = () => {
-    setShowPagoModal(false); setPagoTarget(null); setPagoFecha(''); setPagoBoleta(''); setPagoNotas(''); setPagoFile(null)
+    setShowPagoModal(false); setPagoTarget(null); setPagoFecha(''); setPagoBoleta(''); setPagoNotas(''); setPagoFile(null); setPagoFileKey(k=>k+1)
   }
 
   const confirmarPago = async () => {
@@ -202,6 +203,57 @@ export default function Requerimientos() {
   const countBy = (estado) => reqs.filter(r => getDisplayEstado(r) === estado).length
   const montoBy = (estado) => reqs.filter(r => getDisplayEstado(r) === estado).reduce((s,r)=>s+parseFloat(r.monto||0),0)
 
+  const inputSt = {width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',color:'#111111',background:'white',boxSizing:'border-box',outline:'none'}
+
+  const pagoModalJsx = showPagoModal && pagoTarget && (
+    <>
+      <div onClick={closePagoModal} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1100}}/>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',background:'white',borderRadius:'16px',padding:'0',width:'90%',maxWidth:'460px',zIndex:1101,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{padding:'20px 24px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+          <div>
+            <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+              <span style={{fontSize:'15px',fontWeight:700,color:'#111111'}}>{pagoTarget.codigo}</span>
+            </div>
+            <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
+              <span style={{fontSize:'12px',color:'#64748b'}}>Cuota {pagoTarget.numero_cuota}/{pagoTarget.total_cuotas}</span>
+              <span style={{fontSize:'12px',color:'#64748b'}}>Vence: {new Date(pagoTarget.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}</span>
+              <span style={{fontSize:'13px',fontWeight:700,color:'#111111'}}>Q {parseFloat(pagoTarget.monto||0).toLocaleString()}</span>
+            </div>
+          </div>
+          <button onClick={closePagoModal} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8',flexShrink:0}}><X size={18}/></button>
+        </div>
+        <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
+          <p style={{fontSize:'13px',fontWeight:700,color:'#374151',margin:0}}>Registrar pago</p>
+          <div>
+            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de pago *</label>
+            <input type='date' value={pagoFecha} onChange={e=>setPagoFecha(e.target.value)} style={inputSt}/>
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Comprobante <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+            <input key={pagoFileKey} type='file' accept='.pdf,.jpg,.jpeg,.png' onChange={e=>setPagoFile(e.target.files[0]||null)} style={{fontSize:'12px',width:'100%'}}/>
+            {pagoFile && (
+              <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px'}}>
+                <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pagoFile.name}</p>
+                <button onClick={()=>{setPagoFile(null);setPagoFileKey(k=>k+1)}} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
+              </div>
+            )}
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>No. Boleta <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+            <input value={pagoBoleta} onChange={e=>setPagoBoleta(e.target.value)} placeholder='Ej: 123456' style={inputSt}/>
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
+            <input value={pagoNotas} onChange={e=>setPagoNotas(e.target.value)} placeholder='Ej: Pagado por transferencia...' style={inputSt}/>
+          </div>
+          <button onClick={confirmarPago} style={{padding:'11px',background:'#15803d',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
+            Confirmar pago
+          </button>
+        </div>
+      </div>
+    </>
+  )
+
   // ── DETALLE ──
   if (selected) {
     const displayEstado = getDisplayEstado(selected)
@@ -209,6 +261,7 @@ export default function Requerimientos() {
     const gestionadoHoy = seguimientosHoy.has(selected.id)
     return (
       <div>
+        {pagoModalJsx}
         <button onClick={()=>{
           if (location.state?.fromInforme) navigate('/liquidaciones',{state:{activeTab:'historial'}})
           else if (location.state?.fromInformeComision) navigate('/comisiones',{state:{activeTab:'historial'}})
@@ -480,59 +533,10 @@ export default function Requerimientos() {
   }
 
   // ── LISTA ──
-  const inputSt = {width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',color:'#111111',background:'white',boxSizing:'border-box',outline:'none'}
-
   return (
     <div>
       {/* Modal registrar pago */}
-      {showPagoModal && pagoTarget && (
-        <>
-          <div onClick={closePagoModal} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1100}}/>
-          <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',background:'white',borderRadius:'16px',padding:'0',width:'90%',maxWidth:'460px',zIndex:1101,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
-            <div style={{padding:'20px 24px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
-              <div>
-                <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
-                  <span style={{fontSize:'15px',fontWeight:700,color:'#111111'}}>{pagoTarget.codigo}</span>
-                </div>
-                <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
-                  <span style={{fontSize:'12px',color:'#64748b'}}>Cuota {pagoTarget.numero_cuota}/{pagoTarget.total_cuotas}</span>
-                  <span style={{fontSize:'12px',color:'#64748b'}}>Vence: {new Date(pagoTarget.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}</span>
-                  <span style={{fontSize:'13px',fontWeight:700,color:'#111111'}}>Q {parseFloat(pagoTarget.monto||0).toLocaleString()}</span>
-                </div>
-              </div>
-              <button onClick={closePagoModal} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8',flexShrink:0}}><X size={18}/></button>
-            </div>
-            <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
-              <p style={{fontSize:'13px',fontWeight:700,color:'#374151',margin:0}}>Registrar pago</p>
-              <div>
-                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de pago *</label>
-                <input type='date' value={pagoFecha} onChange={e=>setPagoFecha(e.target.value)} style={inputSt}/>
-              </div>
-              <div>
-                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Comprobante <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
-                <input type='file' accept='.pdf,.jpg,.jpeg,.png' onChange={e=>setPagoFile(e.target.files[0]||null)} style={{fontSize:'12px',width:'100%'}}/>
-                {pagoFile && (
-                  <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px'}}>
-                    <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pagoFile.name}</p>
-                    <button onClick={()=>setPagoFile(null)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
-                  </div>
-                )}
-              </div>
-              <div>
-                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>No. Boleta <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
-                <input value={pagoBoleta} onChange={e=>setPagoBoleta(e.target.value)} placeholder='Ej: 123456' style={inputSt}/>
-              </div>
-              <div>
-                <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
-                <input value={pagoNotas} onChange={e=>setPagoNotas(e.target.value)} placeholder='Ej: Pagado por transferencia...' style={inputSt}/>
-              </div>
-              <button onClick={confirmarPago} style={{padding:'11px',background:'#15803d',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-                Confirmar pago
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      {pagoModalJsx}
 
       {/* Modal gestión rápida */}
       {modalSeg && (

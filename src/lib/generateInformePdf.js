@@ -17,12 +17,20 @@ async function loadLogoFromUrl(url) {
     const resp = await fetch(url)
     if (!resp.ok) return null
     const blob = await resp.blob()
-    return new Promise(resolve => {
+    const dataUrl = await new Promise(resolve => {
       const reader = new FileReader()
       reader.onload  = () => resolve(reader.result)
       reader.onerror = () => resolve(null)
       reader.readAsDataURL(blob)
     })
+    if (!dataUrl) return null
+    const dims = await new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight })
+      img.onerror = () => resolve({ w: 1, h: 1 })
+      img.src = dataUrl
+    })
+    return { dataUrl, ...dims }
   } catch { return null }
 }
 
@@ -49,15 +57,16 @@ export async function generateInformePdf({ informe, reqs, logoUrl }) {
   doc.setFillColor(...GOLD)
   doc.rect(0, 0, 4, HEADER_H, 'F')
 
-  const logoH = 16
-  const logoW = 40
-  const logoX = 8
-  const logoY = (HEADER_H - logoH) / 2
+  let logoW = 0, logoH = 0
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH)
+    const MAX_H = 22, MAX_W = 70
+    const scale = Math.min(MAX_H / logoDataUrl.h, MAX_W / logoDataUrl.w)
+    logoH = logoDataUrl.h * scale
+    logoW = logoDataUrl.w * scale
+    doc.addImage(logoDataUrl.dataUrl, 'PNG', 8, (HEADER_H - logoH) / 2, logoW, logoH)
   }
 
-  const textX = logoDataUrl ? (logoX + logoW + 4) : 12
+  const textX = logoDataUrl ? (8 + logoW + 4) : 12
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(...WHITE)
