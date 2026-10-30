@@ -182,7 +182,8 @@ export default function Dashboard() {
         .limit(20),
       supabase.from('polizas')
         .select('id, numero_poliza, numero_solicitud, prima_total, created_at, clientes(nombre,apellido,tipo,razon_social,nombre_empresa), aseguradoras(nombre)')
-        .eq('estado', 'solicitud')
+        .in('estado', ['solicitud', 'enviada', 'en_reproceso'])
+        .is('numero_poliza', null)
         .order('created_at', { ascending: false })
         .limit(20),
       supabase.from('tareas')
