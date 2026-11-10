@@ -636,8 +636,9 @@ function CatalogoCoberturasTab({ aseguradora, onRefresh }) {
    Recargos tab
 ───────────────────────────────────────── */
 function RecargosTab({ aseguradora, onRefresh }) {
-  const recargos = [...(aseguradora.recargo_fraccionamiento || [])].sort((a, b) => a.numero_cuotas - b.numero_cuotas)
+  const recargos = [...(aseguradora.recargo_fraccionamiento || [])].sort((a, b) => a.numero_cuotas - b.numero_cuotas || a.nombre.localeCompare(b.nombre))
   const [cuotas, setCuotas]       = useState('')
+  const [nombre, setNombre]       = useState('')
   const [porcentaje, setPorcentaje] = useState('')
   const [saving, setSaving]       = useState(false)
 
@@ -645,16 +646,19 @@ function RecargosTab({ aseguradora, onRefresh }) {
     e.preventDefault()
     const nc = parseInt(cuotas)
     if (isNaN(nc) || nc < 2) { toast.error('Las cuotas deben ser al menos 2'); return }
+    if (!nombre.trim()) { toast.error('El nombre de la tarifa es requerido'); return }
     setSaving(true)
     const eid = await getMyEmpresaId()
-    const { error } = await supabase.from('recargo_fraccionamiento').upsert(
-      { empresa_id: eid, aseguradora_id: aseguradora.id, numero_cuotas: nc, porcentaje: parseFloat(porcentaje) || 0 },
-      { onConflict: 'empresa_id,aseguradora_id,numero_cuotas' }
+    const { error } = await supabase.from('recargo_fraccionamiento').insert(
+      { empresa_id: eid, aseguradora_id: aseguradora.id, numero_cuotas: nc, nombre: nombre.trim(), porcentaje: parseFloat(porcentaje) || 0 }
     )
     setSaving(false)
-    if (error) { toast.error('Error al guardar recargo'); return }
+    if (error) {
+      if (error.code === '23505') { toast.error('Ya existe una tarifa con ese nombre para esas cuotas'); return }
+      toast.error('Error al guardar recargo'); return
+    }
     toast.success('Recargo guardado')
-    setCuotas(''); setPorcentaje(''); onRefresh()
+    setCuotas(''); setNombre(''); setPorcentaje(''); onRefresh()
   }
 
   const deleteRecargo = async (id) => {
@@ -665,7 +669,7 @@ function RecargosTab({ aseguradora, onRefresh }) {
   return (
     <div>
       <p style={{fontSize:'14px',color:'#64748b',marginBottom:'20px',marginTop:0}}>
-        Define el porcentaje de recargo que aplica cuando el cliente paga en cuotas.
+        Define los porcentajes de recargo por plazo. Puedes tener múltiples tarifas para el mismo número de cuotas (ej. "Estándar" y "Negociado").
       </p>
 
       {/* Table */}
@@ -675,6 +679,7 @@ function RecargosTab({ aseguradora, onRefresh }) {
             <thead>
               <tr style={{background:'#f8fafc'}}>
                 <th style={{padding:'10px 16px',textAlign:'left',fontSize:'12px',fontWeight:600,color:'#374151',borderBottom:'1px solid #e2e8f0'}}>Número de cuotas</th>
+                <th style={{padding:'10px 16px',textAlign:'left',fontSize:'12px',fontWeight:600,color:'#374151',borderBottom:'1px solid #e2e8f0'}}>Nombre de tarifa</th>
                 <th style={{padding:'10px 16px',textAlign:'left',fontSize:'12px',fontWeight:600,color:'#374151',borderBottom:'1px solid #e2e8f0'}}>% Recargo</th>
                 <th style={{padding:'10px 16px',textAlign:'right',fontSize:'12px',fontWeight:600,color:'#374151',borderBottom:'1px solid #e2e8f0'}}></th>
               </tr>
@@ -687,6 +692,9 @@ function RecargosTab({ aseguradora, onRefresh }) {
                       <span style={{fontWeight:600}}>{rec.numero_cuotas}</span>
                       <span style={{color:'#94a3b8',fontSize:'13px'}}>cuotas</span>
                     </span>
+                  </td>
+                  <td style={{padding:'12px 16px',fontSize:'13px',color:'#374151',fontWeight:500}}>
+                    {rec.nombre}
                   </td>
                   <td style={{padding:'12px 16px'}}>
                     <span style={{display:'inline-block',padding:'3px 10px',background:'#fff7ed',color:'#c2410c',borderRadius:'20px',fontSize:'13px',fontWeight:600,border:'1px solid #fed7aa'}}>
@@ -720,6 +728,11 @@ function RecargosTab({ aseguradora, onRefresh }) {
             <label style={{display:'block',fontSize:'12px',color:'#64748b',marginBottom:'4px'}}>Número de cuotas (mín. 2)</label>
             <input type="number" min="2" value={cuotas} onChange={e=>setCuotas(e.target.value)} placeholder="Ej: 6" required
               style={{width:'120px',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white'}}/>
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:'12px',color:'#64748b',marginBottom:'4px'}}>Nombre de tarifa</label>
+            <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Ej: Estándar" required
+              style={{width:'140px',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white'}}/>
           </div>
           <div>
             <label style={{display:'block',fontSize:'12px',color:'#64748b',marginBottom:'4px'}}>% Recargo</label>

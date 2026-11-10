@@ -74,7 +74,6 @@ export default function Reclamos() {
     return (
       <ReclamoDetalle
         reclamo={selected}
-        backLabel={fromPolizaId ? 'Volver a la póliza' : fromClienteId ? 'Volver al cliente' : 'Volver a reclamos'}
         onBack={() => {
           if (fromPolizaId) { navigate('/polizas', { state: { openPolizaId: fromPolizaId } }); return }
           if (fromClienteId) { navigate('/clientes', { state: { openClienteId: fromClienteId } }); return }
@@ -170,7 +169,7 @@ export default function Reclamos() {
 }
 
 /* ─── Detalle de reclamo ─── */
-function ReclamoDetalle({ reclamo: reclamoInit, onBack, onUpdate, backLabel = 'Volver a reclamos' }) {
+function ReclamoDetalle({ reclamo: reclamoInit, onBack, onUpdate }) {
   const [reclamo, setReclamo]               = useState(reclamoInit)
   const [bitacora, setBitacora]             = useState([])
   const [documentos, setDocumentos]         = useState([])
@@ -307,7 +306,7 @@ function ReclamoDetalle({ reclamo: reclamoInit, onBack, onUpdate, backLabel = 'V
     <div>
       <button onClick={onBack}
         style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', marginBottom: '20px', padding: '0' }}>
-        <ArrowLeft size={16} /> {backLabel}
+        <ArrowLeft size={16} /> Volver a reclamos
       </button>
 
       {/* Header */}
@@ -713,7 +712,7 @@ export function ReclamoModal({ context, onClose, onSaved }) {
 }
 
 /* ─── Mini-lista de reclamos (para tabs en poliza/cliente/vehiculo) ─── */
-export function ReclamosMiniList({ reclamos, loading, onOpen, onNuevo, sinPolizaVigente, fromPolizaId, fromClienteId }) {
+export function ReclamosMiniList({ reclamos, loading, onOpen, onNuevo, sinPolizaVigente }) {
   const navigate = useNavigate()
   if (loading) return <p style={{ padding: '20px', color: '#64748b', fontSize: '13px' }}>Cargando...</p>
   return (
@@ -741,7 +740,7 @@ export function ReclamosMiniList({ reclamos, loading, onOpen, onNuevo, sinPoliza
         const est = estadoConfig[r.estado] || estadoConfig.en_proceso
         return (
           <div key={r.id}
-            onClick={() => navigate('/reclamos', { state: { openReclamoId: r.id, fromPolizaId: fromPolizaId || null, fromClienteId: fromClienteId || null } })}
+            onClick={() => navigate('/reclamos', { state: { openReclamoId: r.id } })}
             style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: i < reclamos.length - 1 ? '1px solid #f1f5f9' : 'none', cursor: 'pointer' }}
             onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
             onMouseLeave={e => e.currentTarget.style.background = 'white'}>

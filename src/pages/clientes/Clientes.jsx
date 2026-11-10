@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car, Upload, Download, Paperclip } from 'lucide-react'
+import { Users, Plus, Search, ArrowLeft, Edit2, Trash2, FileText, CreditCard, UserPlus, X, Building2, User, Phone, Mail, ChevronRight, ChevronDown, ChevronUp, Car } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { ReclamoModal, ReclamosMiniList } from '../reclamos/Reclamos'
 
 const tiposCliente = ['prospecto', 'individual', 'empresa']
-const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', fecha_nacimiento:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'', rep_legal_nombre:'', rep_legal_nit:'', rep_legal_fecha_nacimiento:'', fecha_constitucion:'', pep:false, pep_parentesco:false, cpe:false }
+const emptyCliente = { nombre:'', apellido:'', tipo:'individual', email:'', telefono:'', nit:'', dpi:'', direccion:'', conglomerado_id:'', razon_social:'', nombre_empresa:'', contacto_nombre:'', contacto_apellido:'', contacto_telefono:'', contacto_email:'', contacto_cargo:'' }
 const emptyPF = { nombre:'', apellido:'', nit:'', email:'', telefono:'', direccion:'' }
 
 const tipoColors = { prospecto:{ bg:'#FDF8EE', color:'#C4A96B' }, individual:{ bg:'#f1f5f9', color:'#64748b' }, empresa:{ bg:'#111111', color:'white' } }
@@ -44,13 +43,6 @@ export default function Clientes() {
     }
   }, [location.state, clientes])
 
-  // Reset to list when navigating to /clientes root (e.g. clicking nav link from a detail)
-  useEffect(() => {
-    if (location.pathname === '/clientes' && !location.state?.openClienteId && view !== 'list') {
-      setView('list'); setSelected(null)
-    }
-  }, [location.pathname])
-
   // Pass the desired tab to ClienteDetalle when coming back from a vehicle
   const initialTab = location.state?.openClienteId && location.state?.fromVehiculo ? 'vehiculos' : undefined
 
@@ -87,8 +79,7 @@ export default function Clientes() {
     const payload = {
       nombre: form.nombre, apellido: form.apellido || null, tipo: form.tipo,
       email: form.email || null, telefono: form.telefono || null, nit: form.nit || null, dpi: form.dpi || null,
-      direccion: form.direccion || null, fecha_nacimiento: form.fecha_nacimiento || null,
-      conglomerado_id: form.conglomerado_id || null,
+      direccion: form.direccion || null, conglomerado_id: form.conglomerado_id || null,
       razon_social: form.razon_social || null, nombre_empresa: form.nombre_empresa || null,
       contacto_nombre: form.contacto_nombre || null, contacto_apellido: form.contacto_apellido || null,
       contacto_telefono: form.contacto_telefono || null, contacto_email: form.contacto_email || null,
@@ -124,12 +115,7 @@ export default function Clientes() {
       razon_social: c.razon_social || '', nombre_empresa: c.nombre_empresa || '',
       contacto_nombre: c.contacto_nombre || '', contacto_apellido: c.contacto_apellido || '',
       contacto_telefono: c.contacto_telefono || '', contacto_email: c.contacto_email || '',
-      contacto_cargo: c.contacto_cargo || '', dpi: c.dpi || '',
-      fecha_nacimiento: c.fecha_nacimiento || '',
-      rep_legal_nombre: c.rep_legal_nombre || '', rep_legal_nit: c.rep_legal_nit || '',
-      rep_legal_fecha_nacimiento: c.rep_legal_fecha_nacimiento || '',
-      fecha_constitucion: c.fecha_constitucion || '',
-      pep: c.pep || false, pep_parentesco: c.pep_parentesco || false, cpe: c.cpe || false,
+      contacto_cargo: c.contacto_cargo || '', dpi: c.dpi || ''
     })
     const cong = conglomerados.find(x => x.id === c.conglomerado_id)
     setConglomeradoSearch(cong?.nombre || '')
@@ -228,7 +214,7 @@ export default function Clientes() {
           )}
           {form.tipo === 'empresa' ? (
             <>
-              <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Datos de la empresa</p>
+              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Datos de la empresa</p>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={labelStyle}>Razon social *</label>
@@ -258,27 +244,8 @@ export default function Clientes() {
                   <label style={labelStyle}>Direccion</label>
                   <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
                 </div>
-                <div>
-                  <label style={labelStyle}>Fecha de constitución</label>
-                  <input type='date' value={form.fecha_constitucion} onChange={e => setForm({ ...form, fecha_constitucion: e.target.value })} style={inp} />
-                </div>
               </div>
-              <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Representante legal</p>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
-                <div>
-                  <label style={labelStyle}>Nombre del rep. legal</label>
-                  <input value={form.rep_legal_nombre} onChange={e => setForm({ ...form, rep_legal_nombre: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
-                </div>
-                <div>
-                  <label style={labelStyle}>NIT del rep. legal</label>
-                  <input value={form.rep_legal_nit} onChange={e => setForm({ ...form, rep_legal_nit: e.target.value })} style={inp} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Fecha nac. rep. legal</label>
-                  <input type='date' value={form.rep_legal_fecha_nacimiento} onChange={e => setForm({ ...form, rep_legal_fecha_nacimiento: e.target.value })} max={new Date().toISOString().split('T')[0]} style={inp} />
-                </div>
-              </div>
-              <p style={{ fontSize:'13px', fontWeight:600, color:'#111111', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
+              <p style={{ fontSize:'13px', fontWeight:600, color:'#0C1E3D', marginBottom:'12px', paddingBottom:'8px', borderBottom:'1px solid #f1f5f9' }}>Persona de contacto</p>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'16px', marginBottom:'20px' }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
@@ -332,13 +299,6 @@ export default function Clientes() {
                 <div>
                   <label style={labelStyle}>Direccion</label>
                   <input value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value.toUpperCase() })} style={{...inp, textTransform:'uppercase'}} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Fecha de nacimiento</label>
-                  <input type='date' value={form.fecha_nacimiento}
-                    onChange={e => setForm({ ...form, fecha_nacimiento: e.target.value })}
-                    max={new Date().toISOString().split('T')[0]}
-                    style={inp} />
                 </div>
               </div>
             </>
@@ -411,13 +371,13 @@ export default function Clientes() {
   return (
     <div>
       {/* Header */}
-      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', marginBottom:'20px' }}>
-        <div style={{ padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
+        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ textAlign:'left' }}>
-            <h1 style={{ fontSize:'22px', fontWeight:700, color:'#111111', margin:0 }}>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>
               {activeMainTab === 'clientes' ? 'Clientes' : 'Conglomerados'}
             </h1>
-            <p style={{ color:'#6B6B62', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
+            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
               {activeMainTab === 'clientes'
                 ? `${clientes.length} clientes · ${clientes.filter(c=>c.tipo==='empresa').length} empresas · ${clientes.filter(c=>c.tipo==='prospecto').length} prospectos`
                 : `${conglomerados.length} conglomerados`}
@@ -425,11 +385,11 @@ export default function Clientes() {
           </div>
           {activeMainTab === 'clientes'
             ? <button onClick={() => { setView('form'); setEditing(null); setForm(emptyCliente); setConglomeradoSearch('') }}
-                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
                 <Plus size={16} /> Nuevo cliente
               </button>
             : <button onClick={() => { setShowCongForm(true); setCongForm(emptyCong); setEditingCong(null) }}
-                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
                 <Plus size={16} /> Nuevo conglomerado
               </button>
           }
@@ -441,9 +401,9 @@ export default function Clientes() {
         {[['clientes','Clientes'],['conglomerados','Conglomerados']].map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveMainTab(tab)}
             style={{ padding:'8px 20px', borderRadius:'8px', fontSize:'14px', fontWeight:500, cursor:'pointer',
-              background: activeMainTab === tab ? '#111111' : 'white',
+              background: activeMainTab === tab ? '#0C1E3D' : 'white',
               color: activeMainTab === tab ? 'white' : '#64748b',
-              border: `1px solid ${activeMainTab === tab ? '#111111' : '#e2e8f0'}` }}>
+              border: `1px solid ${activeMainTab === tab ? '#0C1E3D' : '#e2e8f0'}` }}>
             {label}{tab === 'clientes' ? ` (${clientes.length})` : ` (${conglomerados.length})`}
           </button>
         ))}
@@ -462,9 +422,9 @@ export default function Clientes() {
               {['todos', ...tiposCliente].map(t => (
                 <button key={t} onClick={() => setFiltroTipo(t)}
                   style={{ padding:'7px 14px', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontWeight:500,
-                    background: filtroTipo === t ? '#111111' : 'white',
+                    background: filtroTipo === t ? '#0C1E3D' : 'white',
                     color: filtroTipo === t ? 'white' : '#64748b',
-                    border: `1px solid ${filtroTipo === t ? '#111111' : '#e2e8f0'}` }}>
+                    border: `1px solid ${filtroTipo === t ? '#0C1E3D' : '#e2e8f0'}` }}>
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
@@ -489,7 +449,7 @@ export default function Clientes() {
                       <Icon size={18} color={colors.color} />
                     </div>
                     <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
-                      <p style={{ fontWeight:700, color:'#111111', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
+                      <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{getNombreDisplay(c)}</p>
                       <p style={{ fontSize:'12px', color:'#64748b', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>
                         {c.tipo === 'empresa' && c.contacto_nombre ? `Contacto: ${c.contacto_nombre} ${c.contacto_apellido||''} · ` : ''}
                         {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}{c.conglomerados ? ` · ${c.conglomerados.nombre}` : ''}
@@ -523,7 +483,7 @@ export default function Clientes() {
           {/* Inline form */}
           {showCongForm && (
             <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', padding:'20px 24px', marginBottom:'16px' }}>
-              <p style={{ fontSize:'14px', fontWeight:600, color:'#111111', margin:'0 0 14px', textAlign:'left' }}>
+              <p style={{ fontSize:'14px', fontWeight:600, color:'#0C1E3D', margin:'0 0 14px', textAlign:'left' }}>
                 {editingCong ? 'Editar conglomerado' : 'Nuevo conglomerado'}
               </p>
               <form onSubmit={handleCongSubmit} style={{ display:'flex', gap:'10px', alignItems:'flex-end' }}>
@@ -533,7 +493,7 @@ export default function Clientes() {
                     placeholder='Nombre del conglomerado'
                     style={{ width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box', textTransform:'uppercase' }} />
                 </div>
-                <button type='submit' style={{ padding:'10px 20px', background:'#111111', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                <button type='submit' style={{ padding:'10px 20px', background:'#0C1E3D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
                   {editingCong ? 'Actualizar' : 'Crear'}
                 </button>
                 <button type='button' onClick={() => { setShowCongForm(false); setCongForm(emptyCong); setEditingCong(null) }}
@@ -561,11 +521,11 @@ export default function Clientes() {
                       onClick={() => setExpandedCong(prev => prev === cg.id ? null : cg.id)}
                       onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                       onMouseLeave={e => e.currentTarget.style.background='white'}>
-                      <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                        <Building2 size={18} color='#C4A96B' />
+                      <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                        <Building2 size={18} color='#1d4ed8' />
                       </div>
                       <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
-                        <p style={{ fontWeight:700, color:'#111111', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
+                        <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0, textAlign:'left' }}>{cg.nombre}</p>
                         <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left' }}>
                           {cgClientes.length === 0 ? 'Sin clientes asignados' : `${cgClientes.length} cliente${cgClientes.length !== 1 ? 's' : ''}`}
                         </p>
@@ -596,7 +556,7 @@ export default function Clientes() {
                                 <Icon size={15} color={colors.color} />
                               </div>
                               <div style={{ flex:1, minWidth:0 }}>
-                                <p style={{ fontWeight:600, color:'#111111', fontSize:'13px', margin:0, textAlign:'left' }}>{nombreDisplay}</p>
+                                <p style={{ fontWeight:600, color:'#0C1E3D', fontSize:'13px', margin:0, textAlign:'left' }}>{nombreDisplay}</p>
                                 <p style={{ fontSize:'12px', color:'#64748b', margin:0, textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                   {c.email || 'Sin email'}{c.telefono ? ` · ${c.telefono}` : ''}
                                 </p>
@@ -628,14 +588,6 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
   const [personas, setPersonas] = useState([])
   const [reqs, setReqs] = useState([])
   const [vehiculos, setVehiculos] = useState([])
-  const [reclamos, setReclamos] = useState([])
-  const [loadingReclamos, setLoadingReclamos] = useState(true)
-  const [showReclamoModal, setShowReclamoModal] = useState(false)
-  const [documentos, setDocumentos] = useState([])
-  const [loadingDocs, setLoadingDocs] = useState(false)
-  const [uploadingDoc, setUploadingDoc] = useState(false)
-  const [renamingDocId, setRenamingDocId] = useState(null)
-  const [renameValue, setRenameValue] = useState('')
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(initialTab || 'polizas')
   const [showPFForm, setShowPFForm] = useState(false)
@@ -820,16 +772,16 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
             </>
           ) : (
             <>
-              {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#C4A96B'/>} label='NIT' value={cliente.nit} />}
-              {cliente.dpi && <InfoCard icon={<CreditCard size={14} color='#C4A96B'/>} label='DPI' value={cliente.dpi} />}
-              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#C4A96B'/>} label='Telefono' value={cliente.telefono} />}
-              {cliente.email && <InfoCard icon={<Mail size={14} color='#C4A96B'/>} label='Email' value={cliente.email} />}
+              {cliente.nit && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='NIT' value={cliente.nit} />}
+              {cliente.dpi && <InfoCard icon={<CreditCard size={14} color='#1A6BBA'/>} label='DPI' value={cliente.dpi} />}
+              {cliente.telefono && <InfoCard icon={<Phone size={14} color='#1A6BBA'/>} label='Telefono' value={cliente.telefono} />}
+              {cliente.email && <InfoCard icon={<Mail size={14} color='#1A6BBA'/>} label='Email' value={cliente.email} />}
             </>
           )}
         </div>
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap' }}>
-        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`],['reclamos',`Reclamos (${reclamos.length})`],['documentos',`Documentos (${documentos.length})`]].map(([tab,label]) => (
+        {[['polizas',`Polizas (${polizas.length})`],['vehiculos',`Vehiculos (${vehiculos.length})`],['estado_cuenta',`Estado de cuenta (${reqs.length})`],['personas',`Personas facturables (${personas.length})`]].map(([tab,label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding:'8px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:500, cursor:'pointer',
               background: activeTab===tab ? '#111111' : 'white',
@@ -888,16 +840,16 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                 onClick={() => navigate('/vehiculos', { state: { openVehiculoId: v.id, fromClienteId: cliente.id } })}
                 onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                 onMouseLeave={e => e.currentTarget.style.background='white'}>
-                <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#FDF8EE', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
-                  <Car size={18} color='#C4A96B' />
+                <div style={{ width:'40px', height:'40px', borderRadius:'8px', background:'#dbeafe', display:'flex', alignItems:'center', justifyContent:'center', marginRight:'12px', flexShrink:0 }}>
+                  <Car size={18} color='#1A6BBA' />
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontWeight:700, color:'#111111', fontSize:'14px', margin:0 }}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{ fontWeight:700, color:'#0C1E3D', fontSize:'14px', margin:0 }}>{v.marca} {v.modelo} {v.anio}</p>
                   <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>Placa: {fp(v)} · {v.tipo} {v.color ? `· ${v.color}` : ''}</p>
                 </div>
                 {v.valor_asegurado > 0 && (
                   <div style={{ textAlign:'right', marginRight:'12px' }}>
-                    <p style={{ fontSize:'12px', color:'#C4A96B', fontWeight:600, margin:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>
+                    <p style={{ fontSize:'12px', color:'#1A6BBA', fontWeight:600, margin:0 }}>Q {parseFloat(v.valor_asegurado).toLocaleString()}</p>
                     <p style={{ fontSize:'11px', color:'#94a3b8', margin:0 }}>Valor asegurado</p>
                   </div>
                 )}
@@ -910,7 +862,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
       {activeTab === 'estado_cuenta' && (
         <div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'12px', marginBottom:'16px' }}>
-            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#C4A96B']].map(([l,v,c])=>(
+            {[['Pagado','Q '+totalPagado.toLocaleString(),'#22c55e'],['Pendiente','Q '+totalPendiente.toLocaleString(),'#f59e0b'],['Total',reqs.length,'#1A6BBA']].map(([l,v,c])=>(
               <div key={l} style={{ background:'white', borderRadius:'10px', padding:'14px', border:'1px solid #e2e8f0', borderLeft:`4px solid ${c}` }}>
                 <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>{l}</p>
                 <p style={{ fontSize:'16px', fontWeight:700, color:c, margin:'4px 0 0' }}>{v}</p>
@@ -999,7 +951,7 @@ function ClienteDetalle({ cliente, conglomerados, onBack, onEdit, fromReqId, ini
                   {[['nombre','Nombre *',true],['apellido','Apellido',false],['nit','NIT *',true],['email','Email',false],['telefono','Telefono',false],['direccion','Direccion',false]].map(([key,label,req])=>(
                     <div key={key}>
                       <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'4px' }}>{label}</label>
-                      <input value={pfForm[key]} onChange={e => setPfForm({ ...pfForm, [key]: e.target.value })} required={req} style={inp} />
+                      <input value={pfForm[key]} onChange={e => setPfForm({ ...pfForm, [key]: ['nombre','apellido','direccion'].includes(key) ? e.target.value.toUpperCase() : e.target.value })} required={req} style={{...inp, textTransform:['nombre','apellido','direccion'].includes(key)?'uppercase':'none'}} />
                     </div>
                   ))}
                 </div>

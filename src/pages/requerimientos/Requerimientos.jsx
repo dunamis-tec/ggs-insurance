@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { getMyEmpresaId } from '../../lib/getMyEmpresaId'
-import { CreditCard, Search, CheckCircle, Clock, AlertCircle, Upload, ArrowLeft, ExternalLink, FileText, User, PhoneCall, MessageSquare, Plus, X } from 'lucide-react'
+import { CreditCard, Search, CheckCircle, Clock, AlertCircle, Upload, ArrowLeft, ExternalLink, FileText, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -18,17 +17,10 @@ const getDisplayEstado = (r) => {
     const venc = new Date(r.fecha_vencimiento + 'T12:00:00')
     const diff = (venc - hoy) / (1000 * 60 * 60 * 24)
     if (diff < 0) return 'vencido'
-    if (venc.getMonth() === hoy.getMonth() && venc.getFullYear() === hoy.getFullYear()) return 'por_cobrar'
     if (diff <= 15) return 'por_cobrar'
     return 'pendiente'
   }
   return 'pendiente'
-}
-
-const fmtDateTime = (ts) => {
-  if (!ts) return '—'
-  const d = new Date(ts)
-  return d.toLocaleDateString('es-GT') + ' ' + d.toLocaleTimeString('es-GT', { hour:'2-digit', minute:'2-digit' })
 }
 
 export default function Requerimientos() {
@@ -39,26 +31,6 @@ export default function Requerimientos() {
   const [filtroAseguradora, setFiltroAseguradora] = useState('')
   const [uploading, setUploading] = useState(null)
   const [selected, setSelected] = useState(null)
-
-  // Seguimiento
-  const [seguimientosHoy, setSeguimientosHoy] = useState(new Set())
-  const [modalSeg, setModalSeg] = useState(null)   // req object para modal rápido
-  const [obsModal, setObsModal] = useState('')
-  const [savingSeg, setSavingSeg] = useState(false)
-  const [bitacoraReq, setBitacoraReq] = useState([])
-  const [loadingBitacora, setLoadingBitacora] = useState(false)
-  const [showAddSeg, setShowAddSeg] = useState(false)
-  const [obsSeg, setObsSeg] = useState('')
-
-  // Modal de registrar pago
-  const [showPagoModal, setShowPagoModal] = useState(false)
-  const [pagoTarget, setPagoTarget] = useState(null)
-  const [pagoFecha, setPagoFecha] = useState('')
-  const [pagoBoleta, setPagoBoleta] = useState('')
-  const [pagoNotas, setPagoNotas] = useState('')
-  const [pagoFile, setPagoFile] = useState(null)
-  const [pagoFileKey, setPagoFileKey] = useState(0)
-
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -71,95 +43,20 @@ export default function Requerimientos() {
     }
   }, [location.state, reqs])
 
-  useEffect(() => {
-    if (selected) fetchBitacora(selected.id)
-    else { setBitacoraReq([]); setShowAddSeg(false); setObsSeg('') }
-  }, [selected?.id])
-
   const fetchReqs = async () => {
     setLoading(true)
-    const hoy = new Date().toISOString().split('T')[0]
-    const [{ data: reqsData }, { data: segsData }] = await Promise.all([
-      supabase.from('requerimientos_pago')
-        .select('*, polizas(id, numero_poliza, clientes(id, nombre, apellido), aseguradoras(nombre, logo_url)), informe_liquidacion_enviado, fecha_informe_liquidacion, informe_comision_enviado, fecha_informe_comision')
-        .order('fecha_vencimiento', { ascending: true }),
-      supabase.from('bitacora_seguimiento_reqs')
-        .select('req_id')
-        .gte('created_at', hoy + 'T00:00:00')
-        .lte('created_at', hoy + 'T23:59:59')
-    ])
-    setReqs(reqsData || [])
-    setSeguimientosHoy(new Set((segsData || []).map(s => s.req_id)))
+    const { data } = await supabase.from('requerimientos_pago')
+      .select('*, polizas(id, numero_poliza, clientes(id, nombre, apellido), aseguradoras(nombre, logo_url)), informe_liquidacion_enviado, fecha_informe_liquidacion, informe_comision_enviado, fecha_informe_comision')
+      .order('fecha_vencimiento', { ascending: true })
+    setReqs(data || [])
     setLoading(false)
   }
 
-  const fetchBitacora = async (reqId) => {
-    setLoadingBitacora(true)
-    const { data } = await supabase.from('bitacora_seguimiento_reqs')
-      .select('*')
-      .eq('req_id', reqId)
-      .order('created_at', { ascending: false })
-    setBitacoraReq(data || [])
-    setLoadingBitacora(false)
-  }
-
-  const agregarSeguimiento = async (reqId, observaciones, esModal = false) => {
-    setSavingSeg(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: userData } = await supabase.from('users').select('nombre, empresa_id').eq('id', user.id).single()
-      const { error } = await supabase.from('bitacora_seguimiento_reqs').insert({
-        req_id: reqId,
-        empresa_id: userData.empresa_id,
-        observaciones: observaciones || null,
-        created_by: user.id,
-        usuario_nombre: userData.nombre || user.email,
-      })
-      if (error) throw error
-      toast.success('Seguimiento registrado')
-      setSeguimientosHoy(prev => new Set([...prev, reqId]))
-      if (esModal) { setModalSeg(null); setObsModal('') }
-      else { setShowAddSeg(false); setObsSeg('') }
-      if (selected?.id === reqId) fetchBitacora(reqId)
-    } catch (err) {
-      console.error(err)
-      toast.error('Error al guardar seguimiento')
-    }
-    setSavingSeg(false)
-  }
-
-  const openPagoModal = (r) => {
-    setPagoTarget(r); setPagoFecha(''); setPagoBoleta(r.numero_boleta||''); setPagoNotas(''); setPagoFile(null); setShowPagoModal(true)
-  }
-
-  const closePagoModal = () => {
-    setShowPagoModal(false); setPagoTarget(null); setPagoFecha(''); setPagoBoleta(''); setPagoNotas(''); setPagoFile(null); setPagoFileKey(k=>k+1)
-  }
-
-  const confirmarPago = async () => {
-    if (!pagoTarget) return
-    if (!pagoFecha) { toast.error('Ingresa la fecha de pago'); return }
-    const toastId = toast.loading('Registrando pago…')
-    let comprobante_url = pagoTarget.comprobante_url || null
-    if (pagoFile) {
-      const eid = await getMyEmpresaId()
-      const ext = pagoFile.name.split('.').pop()
-      const path = `${eid}/comprobantes/${pagoTarget.polizas?.id||'req'}/${pagoTarget.id}.${ext}`
-      const { error: upErr } = await supabase.storage.from('polizas-pdfs').upload(path, pagoFile, { upsert: true })
-      if (upErr) { toast.dismiss(toastId); toast.error('Error subiendo comprobante: ' + upErr.message); return }
-      const { data: { publicUrl } } = supabase.storage.from('polizas-pdfs').getPublicUrl(path)
-      comprobante_url = publicUrl
-    }
-    const { error } = await supabase.from('requerimientos_pago').update({
-      estado: 'pagado', fecha_pago: pagoFecha,
-      comprobante_url, notas: pagoNotas || null,
-      numero_boleta: pagoBoleta || null,
-    }).eq('id', pagoTarget.id)
-    toast.dismiss(toastId)
-    if (error) { toast.error('Error: ' + error.message); return }
-    toast.success('Pago registrado')
-    closePagoModal(); fetchReqs()
-    if (selected?.id === pagoTarget.id) setSelected(r => ({ ...r, estado:'pagado', fecha_pago: pagoFecha }))
+  const marcarPagado = async (id) => {
+    await supabase.from('requerimientos_pago').update({ estado: 'pagado', fecha_pago: new Date().toISOString().split('T')[0] }).eq('id', id)
+    toast.success('Marcado como pagado')
+    fetchReqs()
+    if (selected?.id === id) setSelected(r => ({ ...r, estado:'pagado', fecha_pago: new Date().toISOString().split('T')[0] }))
   }
 
   const marcarPendiente = async (id) => {
@@ -173,8 +70,7 @@ export default function Requerimientos() {
     const file = e.target.files[0]
     if (!file) return
     setUploading(req.id)
-    const eid = await getMyEmpresaId()
-    const fileName = `${eid}/comprobantes/${req.id}_${Date.now()}.${file.name.split('.').pop()}`
+    const fileName = `comprobantes/${req.id}_${Date.now()}.${file.name.split('.').pop()}`
     const { error } = await supabase.storage.from('logos').upload(fileName, file, { upsert: true })
     if (error) { toast.error('Error al subir comprobante'); setUploading(null); return }
     const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName)
@@ -193,75 +89,19 @@ export default function Requerimientos() {
   const filtered = reqs.filter(r => {
     const matchSearch = ((r.codigo||'')+' '+(r.polizas?.numero_poliza||'')+' '+(r.polizas?.clientes?.nombre||'')+' '+(r.polizas?.aseguradoras?.nombre||'')).toLowerCase().includes(search.toLowerCase())
     const displayEstado = getDisplayEstado(r)
-    const matchEstado = filtroEstado === 'todos'
-      || displayEstado === filtroEstado
-      || (filtroEstado === 'por_cobrar' && displayEstado === 'vencido')
-    const matchAseg = !filtroAseguradora || r.polizas?.aseguradoras?.nombre === filtroAseguradora
-    return matchSearch && matchEstado && matchAseg
+    const matchEstado = filtroEstado === 'todos' || displayEstado === filtroEstado
+    return matchSearch && matchEstado
   })
 
   const countBy = (estado) => reqs.filter(r => getDisplayEstado(r) === estado).length
   const montoBy = (estado) => reqs.filter(r => getDisplayEstado(r) === estado).reduce((s,r)=>s+parseFloat(r.monto||0),0)
 
-  const inputSt = {width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',color:'#111111',background:'white',boxSizing:'border-box',outline:'none'}
-
-  const pagoModalJsx = showPagoModal && pagoTarget && (
-    <>
-      <div onClick={closePagoModal} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1100}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',background:'white',borderRadius:'16px',padding:'0',width:'90%',maxWidth:'460px',zIndex:1101,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto'}}>
-        <div style={{padding:'20px 24px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
-          <div>
-            <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
-              <span style={{fontSize:'15px',fontWeight:700,color:'#111111'}}>{pagoTarget.codigo}</span>
-            </div>
-            <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
-              <span style={{fontSize:'12px',color:'#64748b'}}>Cuota {pagoTarget.numero_cuota}/{pagoTarget.total_cuotas}</span>
-              <span style={{fontSize:'12px',color:'#64748b'}}>Vence: {new Date(pagoTarget.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT')}</span>
-              <span style={{fontSize:'13px',fontWeight:700,color:'#111111'}}>Q {parseFloat(pagoTarget.monto||0).toLocaleString()}</span>
-            </div>
-          </div>
-          <button onClick={closePagoModal} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8',flexShrink:0}}><X size={18}/></button>
-        </div>
-        <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
-          <p style={{fontSize:'13px',fontWeight:700,color:'#374151',margin:0}}>Registrar pago</p>
-          <div>
-            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Fecha de pago *</label>
-            <input type='date' value={pagoFecha} onChange={e=>setPagoFecha(e.target.value)} style={inputSt}/>
-          </div>
-          <div>
-            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Comprobante <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
-            <input key={pagoFileKey} type='file' accept='.pdf,.jpg,.jpeg,.png' onChange={e=>setPagoFile(e.target.files[0]||null)} style={{fontSize:'12px',width:'100%'}}/>
-            {pagoFile && (
-              <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px'}}>
-                <p style={{fontSize:'11px',color:'#64748b',margin:0,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pagoFile.name}</p>
-                <button onClick={()=>{setPagoFile(null);setPagoFileKey(k=>k+1)}} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'0',flexShrink:0,fontSize:'13px',lineHeight:1}}>×</button>
-              </div>
-            )}
-          </div>
-          <div>
-            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>No. Boleta <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
-            <input value={pagoBoleta} onChange={e=>setPagoBoleta(e.target.value)} placeholder='Ej: 123456' style={inputSt}/>
-          </div>
-          <div>
-            <label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#374151',marginBottom:'4px'}}>Notas <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span></label>
-            <input value={pagoNotas} onChange={e=>setPagoNotas(e.target.value)} placeholder='Ej: Pagado por transferencia...' style={inputSt}/>
-          </div>
-          <button onClick={confirmarPago} style={{padding:'11px',background:'#15803d',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:600,cursor:'pointer'}}>
-            Confirmar pago
-          </button>
-        </div>
-      </div>
-    </>
-  )
-
-  // ── DETALLE ──
+  // --- DETALLE ---
   if (selected) {
     const displayEstado = getDisplayEstado(selected)
     const Icon = estadoIcons[displayEstado] || Clock
-    const gestionadoHoy = seguimientosHoy.has(selected.id)
     return (
       <div>
-        {pagoModalJsx}
         <button onClick={()=>{
           if (location.state?.fromInforme) navigate('/liquidaciones',{state:{activeTab:'historial'}})
           else if (location.state?.fromInformeComision) navigate('/comisiones',{state:{activeTab:'historial'}})
@@ -270,16 +110,16 @@ export default function Requerimientos() {
           <ArrowLeft size={16}/> {location.state?.fromInforme || location.state?.fromInformeComision ? 'Volver a informes' : 'Volver a requerimientos'}
         </button>
 
-        {/* Header */}
-        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'16px',overflow:'hidden'}}>
-          <div style={{padding:'24px 28px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
+        {/* ── Header full-width ── */}
+        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'16px'}}>
+          <div style={{padding:'24px 28px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-              <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'#FDF8EE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <CreditCard size={24} color='#C4A96B'/>
+              <div style={{width:'52px',height:'52px',borderRadius:'12px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <CreditCard size={24} color='white'/>
               </div>
               <div>
-                <h2 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0,letterSpacing:'-0.3px'}}>{selected.codigo}</h2>
-                <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>
+                <h2 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0,letterSpacing:'-0.3px'}}>{selected.codigo}</h2>
+                <p style={{fontSize:'13px',color:'rgba(255,255,255,0.65)',margin:'4px 0 0'}}>
                   Cuota {selected.numero_cuota} de {selected.total_cuotas}
                   {selected.polizas?.aseguradoras?.nombre && <span style={{marginLeft:'10px',opacity:0.8}}>· {selected.polizas.aseguradoras.nombre}</span>}
                 </p>
@@ -287,22 +127,23 @@ export default function Requerimientos() {
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'12px',flexShrink:0}}>
               <div style={{textAlign:'right'}}>
-                <p style={{fontSize:'11px',color:'#94a3b8',margin:0}}>Monto</p>
-                <p style={{fontSize:'26px',fontWeight:800,color:'#111111',margin:'2px 0 0',letterSpacing:'-0.5px'}}>Q {parseFloat(selected.monto||0).toLocaleString()}</p>
+                <p style={{fontSize:'11px',color:'rgba(255,255,255,0.55)',margin:0}}>Monto</p>
+                <p style={{fontSize:'26px',fontWeight:800,color:'white',margin:'2px 0 0',letterSpacing:'-0.5px'}}>Q {parseFloat(selected.monto||0).toLocaleString()}</p>
               </div>
-              <div style={{width:'1px',height:'40px',background:'#FDF8EE'}}/>
-              <div style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',background:selected.estado==='pagado'?'rgba(34,197,94,0.25)':displayEstado==='vencido'?'rgba(239,68,68,0.25)':displayEstado==='por_cobrar'?'rgba(245,158,11,0.25)':'#f1f5f9',border:'1px solid #e2e8f0'}}>
-                <Icon size={13} color='#C4A96B'/>
-                <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>{estadoLabel[displayEstado]}</span>
+              <div style={{width:'1px',height:'40px',background:'rgba(255,255,255,0.2)'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',background:selected.estado==='pagado'?'rgba(34,197,94,0.25)':displayEstado==='vencido'?'rgba(239,68,68,0.25)':displayEstado==='por_cobrar'?'rgba(245,158,11,0.25)':'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.2)'}}>
+                <Icon size={13} color='white'/>
+                <span style={{fontSize:'13px',fontWeight:600,color:'white'}}>{estadoLabel[displayEstado]}</span>
               </div>
             </div>
           </div>
+          {/* Stats strip */}
           <div style={{display:'flex',borderTop:'1px solid #f1f5f9'}}>
             {[
               ['Vencimiento', selected.fecha_vencimiento ? new Date(selected.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-GT') : '—', displayEstado==='vencido'?'#ef4444':displayEstado==='por_cobrar'?'#f59e0b':'#1e293b'],
               ['Fecha de pago', selected.fecha_pago ? new Date(selected.fecha_pago+'T12:00:00').toLocaleDateString('es-GT') : '—', '#22c55e'],
-              ['Póliza', selected.polizas?.numero_poliza || '—', '#C4A96B'],
-              ['Asegurado', `${selected.polizas?.clientes?.nombre||''} ${selected.polizas?.clientes?.apellido||''}`.trim() || '—', '#111111'],
+              ['Póliza', selected.polizas?.numero_poliza || '—', '#1A6BBA'],
+              ['Cliente', `${selected.polizas?.clientes?.nombre||''} ${selected.polizas?.clientes?.apellido||''}`.trim() || '—', '#0C1E3D'],
             ].map(([label, value, color], idx, arr) => (
               <div key={label} style={{flex:1,padding:'14px 20px',borderRight:idx<arr.length-1?'1px solid #f1f5f9':'none'}}>
                 <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.5px'}}>{label}</p>
@@ -312,11 +153,12 @@ export default function Requerimientos() {
           </div>
         </div>
 
-        {/* Body 2-col */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'16px',alignItems:'start',marginBottom:'16px'}}>
+        {/* ── Body 2-col ── */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'16px',alignItems:'start'}}>
 
           {/* Columna izquierda */}
           <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+
             {/* Vínculos */}
             <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
               <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
@@ -329,11 +171,11 @@ export default function Requerimientos() {
                   onMouseLeave={e=>e.currentTarget.style.background='white'}>
                   <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                     <div style={{width:'38px',height:'38px',borderRadius:'8px',background:'#eff6ff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                      <FileText size={16} color='#C4A96B'/>
+                      <FileText size={16} color='#1A6BBA'/>
                     </div>
                     <div>
                       <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Póliza</p>
-                      <p style={{fontSize:'15px',fontWeight:700,color:'#111111',margin:'2px 0 0'}}>{selected.polizas?.numero_poliza||'Sin número'}</p>
+                      <p style={{fontSize:'15px',fontWeight:700,color:'#0C1E3D',margin:'2px 0 0'}}>{selected.polizas?.numero_poliza||'Sin número'}</p>
                     </div>
                   </div>
                   <ExternalLink size={14} color='#94a3b8'/>
@@ -347,8 +189,8 @@ export default function Requerimientos() {
                       <User size={16} color='#15803d'/>
                     </div>
                     <div>
-                      <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Asegurado</p>
-                      <p style={{fontSize:'15px',fontWeight:700,color:'#111111',margin:'2px 0 0'}}>{selected.polizas?.clientes?.nombre} {selected.polizas?.clientes?.apellido||''}</p>
+                      <p style={{fontSize:'11px',color:'#94a3b8',margin:0,textTransform:'uppercase',letterSpacing:'0.4px'}}>Cliente</p>
+                      <p style={{fontSize:'15px',fontWeight:700,color:'#0C1E3D',margin:'2px 0 0'}}>{selected.polizas?.clientes?.nombre} {selected.polizas?.clientes?.apellido||''}</p>
                     </div>
                   </div>
                   <ExternalLink size={14} color='#94a3b8'/>
@@ -374,7 +216,7 @@ export default function Requerimientos() {
                       <FileText size={18} color='#1d4ed8'/>
                     </div>
                     <div style={{flex:1}}>
-                      <p style={{fontSize:'13px',fontWeight:600,color:'#111111',margin:0}}>Comprobante subido</p>
+                      <p style={{fontSize:'13px',fontWeight:600,color:'#0C1E3D',margin:0}}>Comprobante subido</p>
                       <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>Archivo adjunto disponible</p>
                     </div>
                     <label style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 12px',background:'#f1f5f9',color:'#374151',borderRadius:'7px',fontSize:'12px',fontWeight:500,cursor:'pointer',whiteSpace:'nowrap'}}>
@@ -396,7 +238,8 @@ export default function Requerimientos() {
 
           {/* Columna derecha */}
           <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
-            {/* Estado */}
+
+            {/* Estado + acción */}
             <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
               <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
                 <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:0}}>Estado</p>
@@ -407,7 +250,7 @@ export default function Requerimientos() {
                   <span style={{fontSize:'15px',fontWeight:700,color:estadoColors[displayEstado]}}>{estadoLabel[displayEstado]}</span>
                 </div>
                 {selected.estado !== 'pagado'
-                  ? <button onClick={()=>openPagoModal(selected)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'7px',width:'100%',padding:'11px',background:'#16a34a',color:'white',border:'none',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
+                  ? <button onClick={()=>marcarPagado(selected.id)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'7px',width:'100%',padding:'11px',background:'#16a34a',color:'white',border:'none',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                       <CheckCircle size={15}/> Marcar como pagado
                     </button>
                   : <button onClick={()=>marcarPendiente(selected.id)} style={{width:'100%',padding:'11px',background:'#fef9c3',color:'#a16207',border:'1px solid #fde68a',borderRadius:'9px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
@@ -417,11 +260,12 @@ export default function Requerimientos() {
               </div>
             </div>
 
-            {/* Informes */}
+            {/* Informes (Liquidación + Comisión) */}
             <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
               <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
                 <p style={{fontSize:'13px',fontWeight:600,color:'#374151',margin:0}}>Informes</p>
               </div>
+              {/* Fila Liquidación */}
               <div style={{padding:'14px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'12px'}}>
                 <div style={{width:'34px',height:'34px',borderRadius:'8px',background:selected.informe_liquidacion_enviado?'#dcfce7':'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                   {selected.informe_liquidacion_enviado ? <CheckCircle size={16} color='#15803d'/> : <Clock size={16} color='#94a3b8'/>}
@@ -432,10 +276,13 @@ export default function Requerimientos() {
                     {selected.informe_liquidacion_enviado ? 'Liquidado' : 'Pendiente'}
                   </p>
                   {selected.informe_liquidacion_enviado && selected.fecha_informe_liquidacion && (
-                    <p style={{fontSize:'11px',color:'#94a3b8',margin:'1px 0 0'}}>{new Date(selected.fecha_informe_liquidacion).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric'})}</p>
+                    <p style={{fontSize:'11px',color:'#94a3b8',margin:'1px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {new Date(selected.fecha_informe_liquidacion).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric'})}
+                    </p>
                   )}
                 </div>
               </div>
+              {/* Fila Comisión */}
               <div style={{padding:'14px 20px',display:'flex',alignItems:'center',gap:'12px'}}>
                 <div style={{width:'34px',height:'34px',borderRadius:'8px',background:selected.informe_comision_enviado?'#dcfce7':'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                   {selected.informe_comision_enviado ? <CheckCircle size={16} color='#15803d'/> : <Clock size={16} color='#94a3b8'/>}
@@ -446,150 +293,28 @@ export default function Requerimientos() {
                     {selected.informe_comision_enviado ? 'Enviado' : 'Pendiente'}
                   </p>
                   {selected.informe_comision_enviado && selected.fecha_informe_comision && (
-                    <p style={{fontSize:'11px',color:'#94a3b8',margin:'1px 0 0'}}>{new Date(selected.fecha_informe_comision).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric'})}</p>
+                    <p style={{fontSize:'11px',color:'#94a3b8',margin:'1px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {new Date(selected.fecha_informe_comision).toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric'})}
+                    </p>
                   )}
                 </div>
               </div>
             </div>
+
           </div>
-        </div>
-
-        {/* ── Bitácora de seguimiento (full-width) ── */}
-        <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
-          <div style={{padding:'16px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:'10px'}}>
-            <PhoneCall size={16} color='#C4A96B'/>
-            <h3 style={{fontSize:'15px',fontWeight:600,color:'#111111',margin:0}}>Bitácora de seguimiento</h3>
-            {gestionadoHoy && (
-              <span style={{display:'inline-flex',alignItems:'center',gap:'5px',padding:'2px 10px',borderRadius:'20px',fontSize:'12px',fontWeight:600,background:'#dcfce7',color:'#15803d'}}>
-                <CheckCircle size={11}/> Gestionado hoy
-              </span>
-            )}
-            <span style={{marginLeft:'auto',background:'#f1f5f9',color:'#64748b',fontSize:'12px',padding:'2px 8px',borderRadius:'20px'}}>{bitacoraReq.length}</span>
-            {!showAddSeg && (
-              <button onClick={()=>setShowAddSeg(true)}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',background:'#111111',color:'white',border:'none',borderRadius:'7px',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
-                <Plus size={13}/> Agregar seguimiento
-              </button>
-            )}
-          </div>
-
-          {/* Formulario inline */}
-          {showAddSeg && (
-            <div style={{padding:'16px 20px',background:'#f8fafc',borderBottom:'1px solid #f1f5f9'}}>
-              <textarea
-                value={obsSeg}
-                onChange={e=>setObsSeg(e.target.value)}
-                placeholder="Observaciones del seguimiento (ej: Se contactó al cliente, prometió pagar el viernes)..."
-                rows={3}
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontFamily:'inherit',resize:'vertical',boxSizing:'border-box',outline:'none',color:'#1e293b'}}
-              />
-              <div style={{display:'flex',gap:'8px',marginTop:'10px'}}>
-                <button
-                  onClick={()=>agregarSeguimiento(selected.id, obsSeg, false)}
-                  disabled={savingSeg}
-                  style={{padding:'8px 18px',background:'#111111',color:'white',border:'none',borderRadius:'7px',fontSize:'13px',fontWeight:600,cursor:savingSeg?'not-allowed':'pointer',opacity:savingSeg?0.6:1}}>
-                  {savingSeg ? 'Guardando...' : 'Guardar seguimiento'}
-                </button>
-                <button onClick={()=>{setShowAddSeg(false);setObsSeg('')}}
-                  style={{padding:'8px 14px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'7px',fontSize:'13px',cursor:'pointer'}}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Lista de entradas */}
-          {loadingBitacora ? (
-            <p style={{padding:'20px',color:'#64748b',fontSize:'13px'}}>Cargando...</p>
-          ) : bitacoraReq.length === 0 ? (
-            <div style={{padding:'36px',textAlign:'center'}}>
-              <MessageSquare size={26} color='#cbd5e1' style={{marginBottom:'8px'}}/>
-              <p style={{color:'#94a3b8',margin:0,fontSize:'13px'}}>Sin seguimientos registrados</p>
-            </div>
-          ) : bitacoraReq.map((entry, i) => {
-            const esHoy = new Date(entry.created_at).toDateString() === new Date().toDateString()
-            return (
-              <div key={entry.id} style={{display:'flex',gap:'14px',padding:'14px 20px',borderBottom:i<bitacoraReq.length-1?'1px solid #f1f5f9':'none'}}>
-                <div style={{width:'34px',height:'34px',borderRadius:'50%',background:esHoy?'#dcfce7':'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:'2px'}}>
-                  <PhoneCall size={14} color={esHoy?'#15803d':'#94a3b8'}/>
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
-                    <span style={{fontSize:'13px',fontWeight:600,color:'#111111'}}>{entry.usuario_nombre || 'Usuario'}</span>
-                    {esHoy && <span style={{fontSize:'11px',padding:'1px 7px',borderRadius:'20px',background:'#dcfce7',color:'#15803d',fontWeight:600}}>Hoy</span>}
-                    <span style={{fontSize:'12px',color:'#94a3b8',marginLeft:'auto'}}>{fmtDateTime(entry.created_at)}</span>
-                  </div>
-                  {entry.observaciones
-                    ? <p style={{fontSize:'13px',color:'#374151',margin:0,lineHeight:'1.5'}}>{entry.observaciones}</p>
-                    : <p style={{fontSize:'13px',color:'#94a3b8',margin:0,fontStyle:'italic'}}>Sin observaciones</p>
-                  }
-                </div>
-              </div>
-            )
-          })}
         </div>
       </div>
     )
   }
 
-  // ── LISTA ──
+  // --- LISTA ---
   return (
     <div>
-      {/* Modal registrar pago */}
-      {pagoModalJsx}
-
-      {/* Modal gestión rápida */}
-      {modalSeg && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}
-          onClick={()=>{setModalSeg(null);setObsModal('')}}>
-          <div style={{background:'white',borderRadius:'14px',width:'100%',maxWidth:'440px',overflow:'hidden',boxShadow:'0 20px 60px rgba(0,0,0,0.2)'}}
-            onClick={e=>e.stopPropagation()}>
-            <div style={{padding:'18px 20px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                <PhoneCall size={16} color='#C4A96B'/>
-                <div>
-                  <p style={{fontSize:'14px',fontWeight:700,color:'#111111',margin:0}}>Marcar gestión de cobro</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:'2px 0 0'}}>{modalSeg.codigo} · {modalSeg.polizas?.clientes?.nombre} {modalSeg.polizas?.clientes?.apellido||''}</p>
-                </div>
-              </div>
-              <button onClick={()=>{setModalSeg(null);setObsModal('')}} style={{background:'none',border:'none',cursor:'pointer',padding:'4px',display:'flex'}}>
-                <X size={18} color='#94a3b8'/>
-              </button>
-            </div>
-            <div style={{padding:'18px 20px'}}>
-              <label style={{display:'block',fontSize:'13px',fontWeight:600,color:'#374151',marginBottom:'6px'}}>
-                Observaciones <span style={{fontWeight:400,color:'#94a3b8'}}>(opcional)</span>
-              </label>
-              <textarea
-                value={obsModal}
-                onChange={e=>setObsModal(e.target.value)}
-                placeholder="Ej: Se contactó al cliente, indicó que pagará el lunes..."
-                rows={4}
-                autoFocus
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',fontFamily:'inherit',resize:'vertical',boxSizing:'border-box',outline:'none',color:'#1e293b'}}
-              />
-              <div style={{display:'flex',gap:'8px',marginTop:'14px'}}>
-                <button
-                  onClick={()=>agregarSeguimiento(modalSeg.id, obsModal, true)}
-                  disabled={savingSeg}
-                  style={{flex:1,padding:'10px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:savingSeg?'not-allowed':'pointer',opacity:savingSeg?0.6:1}}>
-                  {savingSeg ? 'Guardando...' : 'Registrar gestión'}
-                </button>
-                <button onClick={()=>{setModalSeg(null);setObsModal('')}}
-                  style={{padding:'10px 16px',background:'white',color:'#64748b',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',cursor:'pointer'}}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Gestión de cobro</h1>
-            <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Requerimientos de pago</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {reqs.length} total · {countBy('pendiente')+countBy('por_cobrar')} pendientes · {countBy('vencido')} vencidos
             </p>
           </div>
@@ -617,20 +342,13 @@ export default function Requerimientos() {
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por código, póliza, asegurado..."
             style={{width:'100%',padding:'9px 12px 9px 36px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',background:'white',color:'#1e293b',boxSizing:'border-box'}}/>
         </div>
-        <select value={filtroAseguradora} onChange={e=>setFiltroAseguradora(e.target.value)}
-          style={{padding:'7px 12px',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'13px',background:'white',color:filtroAseguradora?'#111111':'#64748b',cursor:'pointer',minWidth:'160px'}}>
-          <option value=''>Todas las aseguradoras</option>
-          {aseguradorasUnicas.map(a=>(
-            <option key={a.nombre} value={a.nombre}>{a.nombre}</option>
-          ))}
-        </select>
         <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
           {[['todos','Todos'],['pendiente','Pendiente'],['por_cobrar','Por cobrar'],['vencido','Vencido'],['pagado','Pagado']].map(([e,l])=>(
             <button key={e} onClick={()=>setFiltroEstado(e)}
               style={{padding:'7px 14px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500,
                 background:filtroEstado===e?'#111111':'white',
                 color:filtroEstado===e?'white':'#64748b',
-                border:`1px solid ${filtroEstado===e?'#111111':'#e2e8f0'}`}}>
+                border:`1px solid ${filtroEstado===e?'#0C1E3D':'#e2e8f0'}`}}>
               {l}
             </button>
           ))}
@@ -646,10 +364,10 @@ export default function Requerimientos() {
           </div>
         ) : (
           <div style={{overflowX:'auto'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',minWidth:'700px'}}>
+          <table style={{width:'100%',borderCollapse:'collapse',minWidth:'600px'}}>
             <thead>
               <tr style={{background:'#f8fafc',borderBottom:'2px solid #e2e8f0'}}>
-                {['Gestión hoy','Nº Req.','Cuota','Póliza','Vencimiento','Monto','Estado','Liquidación',''].map(h=>(
+                {['Nº Req.','Cuota','Póliza','Vencimiento','Monto','Estado','Liquidación'].map(h=>(
                   <th key={h} style={{padding:'10px 16px',textAlign:'left',fontSize:'12px',fontWeight:600,color:'#64748b',whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
@@ -658,32 +376,12 @@ export default function Requerimientos() {
               {filtered.map((r,i)=>{
                 const displayEstado = getDisplayEstado(r)
                 const Icon = estadoIcons[displayEstado]||Clock
-                const gestionado = seguimientosHoy.has(r.id)
-                const esCobrable = displayEstado === 'por_cobrar' || displayEstado === 'vencido'
                 return (
                   <tr key={r.id} style={{borderBottom:i<filtered.length-1?'1px solid #f1f5f9':'none',cursor:'pointer'}}
                     onClick={()=>setSelected(r)}
                     onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
                     onMouseLeave={e=>e.currentTarget.style.background='white'}>
-
-                    {/* Gestión hoy */}
-                    <td style={{padding:'10px 16px'}} onClick={e=>e.stopPropagation()}>
-                      {esCobrable ? (
-                        gestionado
-                          ? <span title="Gestionado hoy" style={{display:'inline-flex',alignItems:'center',gap:'5px',padding:'3px 10px',borderRadius:'20px',fontSize:'12px',fontWeight:600,background:'#dcfce7',color:'#15803d',whiteSpace:'nowrap'}}>
-                              <PhoneCall size={11}/> Gestionado
-                            </span>
-                          : <button
-                              onClick={e=>{e.stopPropagation();setModalSeg(r);setObsModal('')}}
-                              style={{display:'inline-flex',alignItems:'center',gap:'5px',padding:'5px 10px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'7px',fontSize:'12px',fontWeight:500,color:'#374151',cursor:'pointer',whiteSpace:'nowrap'}}>
-                              <PhoneCall size={11} color='#64748b'/> Marcar gestión
-                            </button>
-                      ) : (
-                        <span style={{fontSize:'12px',color:'#cbd5e1'}}>—</span>
-                      )}
-                    </td>
-
-                    <td style={{padding:'12px 16px',fontSize:'13px',fontWeight:700,color:'#111111'}}>{r.codigo}</td>
+                    <td style={{padding:'12px 16px',fontSize:'13px',fontWeight:700,color:'#0C1E3D'}}>{r.codigo}</td>
                     <td style={{padding:'12px 16px',fontSize:'13px',color:'#64748b',whiteSpace:'nowrap'}}>{r.numero_cuota} / {r.total_cuotas}</td>
                     <td style={{padding:'12px 16px',fontSize:'13px',color:'#374151',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                       {r.polizas?.numero_poliza||'—'}
@@ -705,7 +403,6 @@ export default function Requerimientos() {
                           : <span style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',borderRadius:'20px',fontSize:'12px',fontWeight:500,background:'#fef9c3',color:'#a16207'}}><Clock size={11}/>Pendiente</span>
                       ) : <span style={{fontSize:'12px',color:'#cbd5e1'}}>—</span>}
                     </td>
-                    <td style={{padding:'12px 16px',fontSize:'12px',color:'#94a3b8',whiteSpace:'nowrap'}}>Ver →</td>
                   </tr>
                 )
               })}

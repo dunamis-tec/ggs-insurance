@@ -1,26 +1,13 @@
-/* ── GGS Brand Design System — Opción 1: Clásica & Elegante ── */
-:root {
-  --gold:       #C4A96B;
-  --gold-dark:  #A8883F;
-  --gold-light: #EDE3C6;
-  --gold-bg:    #FDF8EE;
-  --black:      #111111;
-  --silver:     #C5C5BE;
-  --off-white:  #F7F5F2;
-  --gray-mid:   #6B6B62;
-  --text:       #1a1a14;
-}
-
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: 'Outfit', system-ui, 'Segoe UI', sans-serif;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
-  color: var(--text);
-  background: var(--off-white);
+  color: #1e293b;
+  background: #F4F6F9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -30,20 +17,6 @@ body {
   max-width: 100%;
   text-align: left;
   min-height: 100vh;
-}
-
-/* Mobile: lock the document so only <main> scrolls, not the whole page.
-   Without this, the body/root grow beyond 100dvh and the nav floats away. */
-@media (max-width: 768px) {
-  html, body {
-    height: 100%;
-    overflow: hidden;
-  }
-  #root {
-    height: 100dvh;
-    min-height: unset;
-    overflow: hidden;
-  }
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -56,11 +29,4 @@ p {
 
 input, button, select, textarea {
   font-family: inherit;
-}
-
-/* Prevent iOS Safari from zooming in on focused inputs (triggers when font-size < 16px) */
-@media (max-width: 768px) {
-  input, select, textarea {
-    font-size: 16px !important;
-  }
 }

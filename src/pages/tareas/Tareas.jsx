@@ -200,18 +200,52 @@ export default function Tareas() {
 
   return (
     <div>
-      {/* ── Header ── */}
-      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
-        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', overflow:'hidden', marginBottom:'20px' }}>
+        <div style={{ padding:'20px 24px', background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111111', margin: 0 }}>Tareas</h1>
-            <p style={{ color: '#6B6B62', fontSize: '14px', marginTop: '4px', marginBottom: 0 }}>
+            <h1 style={{ fontSize:'22px', fontWeight:700, color:'white', margin:0 }}>Tareas</h1>
+            <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', marginTop:'4px', marginBottom:0 }}>
               {pendientes.length} pendientes · {vencidas.length} vencidas
             </p>
           </div>
           <button onClick={() => setShowForm(!showForm)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+            style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 20px', background:'rgba(255,255,255,0.2)', color:'white', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
             <Plus size={16} /> Nueva tarea
+          </button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div style={{ background: 'white', borderRadius: '12px', padding: '20px 24px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#0C1E3D', marginBottom: '14px' }}>Nueva tarea manual</h3>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '14px', marginBottom: '14px' }}>
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Título *</label>
+                <input value={titulo} onChange={e => setTitulo(e.target.value)} required placeholder="Ej: Llamar al cliente para renovación" style={inp} />
+              </div>
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Descripción</label>
+                <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Detalles adicionales..." style={inp} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Fecha límite</label>
+                <input type='date' value={fechaVenc} onChange={e => setFechaVenc(e.target.value)} style={inp} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type='submit' style={{ padding: '9px 20px', background: '#0C1E3D', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>Crear tarea</button>
+              <button type='button' onClick={() => setShowForm(false)} style={{ padding: '9px 20px', background: 'white', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        {[['pendiente', 'Pendientes'], ['completada', 'Completadas'], ['todas', 'Todas']].map(([val, label]) => (
+          <button key={val} onClick={() => setFiltro(val)}
+            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', background: filtro === val ? '#0C1E3D' : 'white', color: filtro === val ? 'white' : '#64748b', border: '1px solid ' + (filtro === val ? '#0C1E3D' : '#e2e8f0') }}>
+            {label}{val === 'pendiente' ? ' (' + pendientes.length + ')' : ''}
           </button>
         </div>
       </div>

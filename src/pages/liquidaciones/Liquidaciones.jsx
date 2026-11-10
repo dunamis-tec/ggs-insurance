@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { BookOpen, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, FileSpreadsheet, FileText } from 'lucide-react'
+import { BookOpen, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
-import * as XLSX from 'xlsx'
-import { generateInformePdf } from '../../lib/generateInformePdf'
 
 const toDateStr = (d) => d.toISOString().split('T')[0]
 const addDays = (dateStr, n) => { const d = new Date(dateStr + 'T12:00:00'); d.setDate(d.getDate() + n); return toDateStr(d) }
@@ -60,46 +58,6 @@ export default function Liquidaciones() {
   }
 
   const toggleExpandInforme = (id) => setExpandedInforme(prev => prev === id ? null : id)
-
-  const exportInformeExcel = (inf) => {
-    const reqs = informeReqs[inf.id] || []
-    const fmtD = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT') : '—'
-    const rows = reqs.map(r => ({
-      'Nº Req.':    r.codigo || '—',
-      'Cuota':      `${r.numero_cuota}/${r.total_cuotas}`,
-      'Póliza':     r.polizas?.numero_poliza || '—',
-      'Cliente':    [r.polizas?.clientes?.nombre, r.polizas?.clientes?.apellido].filter(Boolean).join(' ') || '—',
-      'Fecha pago': fmtD(r.fecha_pago),
-      'Monto (Q)':  parseFloat(r.monto || 0),
-    }))
-    // Total row
-    rows.push({
-      'Nº Req.': '', 'Cuota': '', 'Póliza': '', 'Cliente': '',
-      'Fecha pago': 'TOTAL',
-      'Monto (Q)': reqs.reduce((s, r) => s + parseFloat(r.monto || 0), 0),
-    })
-    const ws = XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = [{ wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 12 }]
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Liquidación')
-    const aseg = (inf.aseguradoras?.nombre || 'informe').replace(/\s+/g, '_')
-    const fecha = new Date(inf.created_at).toISOString().split('T')[0]
-    XLSX.writeFile(wb, `Liquidacion_${aseg}_${fecha}.xlsx`)
-  }
-
-  const exportInformePdf = async (inf) => {
-    const toastId = toast.loading('Generando PDF…')
-    try {
-      const { data: confEmp } = await supabase.from('configuracion_empresa').select('logo_url').limit(1).single()
-      const logoUrl = confEmp?.logo_url || '/ggs-logo-nav.png'
-      const reqs = informeReqs[inf.id] || []
-      await generateInformePdf({ informe: inf, reqs, logoUrl })
-      toast.success('PDF generado', { id: toastId })
-    } catch (err) {
-      console.error(err)
-      toast.error('Error al generar PDF', { id: toastId })
-    }
-  }
 
   // Filtro de historial
   const filteredInformes = informes.filter(inf => {
@@ -157,7 +115,7 @@ export default function Liquidaciones() {
     if (sel.length === 0) { toast.error('Seleccioná al menos un requerimiento'); return '' }
     const asegNombre = sel[0]?.polizas?.aseguradoras?.nombre || 'Aseguradora'
     let texto = `LIQUIDACIÓN - ${asegNombre}\nFecha: ${new Date().toLocaleDateString('es-GT')}\n\n`
-    texto += `${'# de Requerimiento'.padEnd(20)} ${'Póliza'.padEnd(15)} ${'Cliente'.padEnd(25)} ${'Monto'.padStart(12)}\n` + '─'.repeat(75) + '\n'
+    texto += `${'Código'.padEnd(20)} ${'Póliza'.padEnd(15)} ${'Cliente'.padEnd(25)} ${'Monto'.padStart(12)}\n` + '─'.repeat(75) + '\n'
     sel.forEach(r => { texto += `${(r.codigo||'').padEnd(20)} ${(r.polizas?.numero_poliza||'').padEnd(15)} ${((r.polizas?.clientes?.nombre||'')+' '+(r.polizas?.clientes?.apellido||'')).slice(0,24).padEnd(25)} ${'Q '+parseFloat(r.monto||0).toLocaleString()}\n` })
     texto += '─'.repeat(75) + '\n' + `${'TOTAL'.padEnd(62)} Q ${totalSeleccionado.toLocaleString()}\n\nTotal requerimientos: ${sel.length}`
     return texto
@@ -191,13 +149,16 @@ export default function Liquidaciones() {
   return (
     <div>
       {/* Header */}
-      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',marginBottom:'20px'}}>
-        <div style={{padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{background:'white',borderRadius:'12px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'20px'}}>
+        <div style={{padding:'20px 24px',background:'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{textAlign:'left'}}>
-            <h1 style={{fontSize:'22px',fontWeight:700,color:'#111111',margin:0}}>Planillas</h1>
-            <p style={{color:'#6B6B62',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
+            <h1 style={{fontSize:'22px',fontWeight:700,color:'white',margin:0}}>Liquidaciones</h1>
+            <p style={{color:'rgba(255,255,255,0.7)',fontSize:'14px',marginTop:'4px',marginBottom:0}}>
               {reqs.length} pendientes de envío · {informes.length} informes enviados
             </p>
+          </div>
+          <div style={{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <BookOpen size={20} color='white'/>
           </div>
         </div>
       </div>
@@ -250,7 +211,7 @@ export default function Liquidaciones() {
                 <button onClick={copiarPortapapeles} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:500}}>
                   <Copy size={14}/> Copiar resumen
                 </button>
-                <button onClick={marcarComoEnviado} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#C8A84B',color:'#111111',border:'none',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
+                <button onClick={marcarComoEnviado} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#C8A84B',color:'#0C1E3D',border:'none',borderRadius:'8px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>
                   <Send size={14}/> Marcar como enviado
                 </button>
               </div>
@@ -262,7 +223,7 @@ export default function Liquidaciones() {
             <div style={{minWidth:'520px'}}>
             <div style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:'1px solid #f1f5f9',background:'#f8fafc'}}>
               <input type="checkbox" checked={selectedIds.length===selectableIds.length&&selectableIds.length>0} onChange={selectAll}
-                style={{width:'16px',height:'16px',cursor:'pointer',accentColor:'#C4A96B',marginRight:'12px'}}/>
+                style={{width:'16px',height:'16px',cursor:'pointer',accentColor:'#1A6BBA',marginRight:'12px'}}/>
               <span style={{fontSize:'13px',fontWeight:600,color:'#374151',flex:1}}>Requerimiento</span>
               <span style={{fontSize:'13px',fontWeight:600,color:'#374151',width:'140px'}}>Aseguradora</span>
               <span style={{fontSize:'13px',fontWeight:600,color:'#374151',width:'100px'}}>Fecha pago</span>
@@ -283,9 +244,9 @@ export default function Liquidaciones() {
                 onMouseEnter={e=>{if(!isSelected&&!isDimmed)e.currentTarget.style.background='#f8fafc'}}
                 onMouseLeave={e=>{if(!isSelected&&!isDimmed)e.currentTarget.style.background='white'}}>
                 <input type="checkbox" checked={isSelected} disabled={isDimmed} onChange={()=>toggleSelect(r.id)}
-                  style={{width:'16px',height:'16px',cursor:isDimmed?'not-allowed':'pointer',accentColor:'#C4A96B',marginRight:'12px'}} onClick={e=>e.stopPropagation()}/>
+                  style={{width:'16px',height:'16px',cursor:isDimmed?'not-allowed':'pointer',accentColor:'#1A6BBA',marginRight:'12px'}} onClick={e=>e.stopPropagation()}/>
                 <div style={{flex:1,minWidth:0}}>
-                  <p style={{fontWeight:600,color:'#111111',fontSize:'13px',textAlign:'left',margin:0}}>{r.codigo}</p>
+                  <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'13px',textAlign:'left',margin:0}}>{r.codigo}</p>
                   <p style={{fontSize:'12px',color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textAlign:'left',margin:0}}>
                     {r.polizas?.numero_poliza||'Sin póliza'} · {r.polizas?.clientes?.nombre} {r.polizas?.clientes?.apellido||''}
                   </p>
@@ -385,23 +346,15 @@ export default function Liquidaciones() {
                       <Send size={15} color="#15803d"/>
                     </div>
                     <div style={{flex:1,minWidth:0}}>
-                      <p style={{fontWeight:600,color:'#111111',fontSize:'14px',margin:0,textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{inf.aseguradoras?.nombre}</p>
+                      <p style={{fontWeight:600,color:'#0C1E3D',fontSize:'14px',margin:0,textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{inf.aseguradoras?.nombre}</p>
                       <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                         {inf.fecha_desde?new Date(inf.fecha_desde+'T12:00:00').toLocaleDateString('es-GT'):'—'} → {inf.fecha_hasta?new Date(inf.fecha_hasta+'T12:00:00').toLocaleDateString('es-GT'):'—'} · {inf.total_requerimientos} reqs
                       </p>
                     </div>
                     <div style={{textAlign:'right',marginRight:'8px',flexShrink:0}}>
-                      <p style={{fontSize:'14px',fontWeight:700,color:'#C4A96B',margin:0,whiteSpace:'nowrap'}}>Q {parseFloat(inf.total_monto||0).toLocaleString()}</p>
+                      <p style={{fontSize:'14px',fontWeight:700,color:'#1A6BBA',margin:0,whiteSpace:'nowrap'}}>Q {parseFloat(inf.total_monto||0).toLocaleString()}</p>
                       <p style={{fontSize:'11px',color:'#94a3b8',margin:0}}>{new Date(inf.created_at).toLocaleDateString('es-GT')}</p>
                     </div>
-                    <button onClick={e=>{e.stopPropagation();exportInformeExcel(inf)}} title="Exportar Excel"
-                      style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 10px',background:'#f0fdf4',color:'#15803d',border:'1px solid #bbf7d0',borderRadius:'7px',fontSize:'12px',fontWeight:600,cursor:'pointer',flexShrink:0,marginRight:'4px'}}>
-                      <FileSpreadsheet size={13}/> Excel
-                    </button>
-                    <button onClick={e=>{e.stopPropagation();exportInformePdf(inf)}} title="Exportar PDF"
-                      style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 10px',background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'7px',fontSize:'12px',fontWeight:600,cursor:'pointer',flexShrink:0,marginRight:'8px'}}>
-                      <FileText size={13}/> PDF
-                    </button>
                     {isExpanded ? <ChevronUp size={16} color='#64748b'/> : <ChevronDown size={16} color='#64748b'/>}
                   </div>
 
@@ -427,7 +380,7 @@ export default function Liquidaciones() {
                                 onClick={()=>navigate('/requerimientos',{state:{openReqId:r.id,fromInforme:true}})}
                                 onMouseEnter={e=>e.currentTarget.style.background='#eff6ff'}
                                 onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                                <td style={{padding:'10px 20px',fontSize:'13px',fontWeight:700,color:'#111111'}}>{r.codigo}</td>
+                                <td style={{padding:'10px 20px',fontSize:'13px',fontWeight:700,color:'#0C1E3D'}}>{r.codigo}</td>
                                 <td style={{padding:'10px 20px',fontSize:'13px',color:'#64748b'}}>{r.numero_cuota}/{r.total_cuotas}</td>
                                 <td style={{padding:'10px 20px',fontSize:'13px',color:'#374151'}}>{r.polizas?.numero_poliza||'—'}</td>
                                 <td style={{padding:'10px 20px',fontSize:'13px',color:'#374151'}}>{r.polizas?.clientes?.nombre} {r.polizas?.clientes?.apellido||''}</td>
@@ -442,7 +395,7 @@ export default function Liquidaciones() {
                           <tfoot>
                             <tr style={{borderTop:'2px solid #e2e8f0',background:'#f1f5f9'}}>
                               <td colSpan={5} style={{padding:'8px 20px',fontSize:'12px',fontWeight:600,color:'#374151',textAlign:'right'}}>Total</td>
-                              <td style={{padding:'8px 20px',fontSize:'13px',fontWeight:700,color:'#111111'}}>
+                              <td style={{padding:'8px 20px',fontSize:'13px',fontWeight:700,color:'#0C1E3D'}}>
                                 Q {reqsInforme.reduce((s,r)=>s+parseFloat(r.monto||0),0).toLocaleString()}
                               </td>
                             </tr>

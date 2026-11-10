@@ -3,11 +3,10 @@ import { supabase } from '../../lib/supabase'
 import { Car, Plus, Edit2, Trash2, Search, ArrowLeft, FileText, X, Paperclip, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { ReclamoModal, ReclamosMiniList } from '../reclamos/Reclamos'
 
-const DEFAULT_TIPOS_VEHICULO = ['sedan','pickup','suv','van','moto','camion','otro']
+const tiposVehiculo = ['sedan','pickup','suv','van','moto','camion','otro']
 const tiposPlaca = ['M','C','P','CD','A','MI','TC']
-const emptyForm = { marca:'', modelo:'', anio:'', placa:'', tipo_placa:'', chasis:'', motor:'', color:'', tipo:'', valor_asegurado:'' }
+const emptyForm = { marca:'', modelo:'', anio:'', placa:'', tipo_placa:'', chasis:'', motor:'', color:'', tipo:'sedan', valor_asegurado:'' }
 const placaRegex = /^\d{3}[A-Z]{3}$/
 const fp = (v) => v?.tipo_placa ? `${v.tipo_placa}${v?.placa||''}` : (v?.placa || 'N/A')
 const estadoColors = { solicitada:'#f59e0b', reproceso:'#ef4444', emitida:'#22c55e' }
@@ -84,13 +83,6 @@ export default function Vehiculos() {
     }
   }, [location.state, vehiculos])
 
-  // Reset to list when navigating to /vehiculos root (e.g. clicking nav link from a detail)
-  useEffect(() => {
-    if (location.pathname === '/vehiculos' && !location.state?.openVehiculoId && view !== 'list') {
-      setView('list'); setSelected(null)
-    }
-  }, [location.pathname])
-
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: vData }, { data: cData }, { data: tData }] = await Promise.all([
@@ -155,7 +147,7 @@ export default function Vehiculos() {
   }
 
   const handleEdit = (v) => {
-    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', tipo_placa:v.tipo_placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'', valor_asegurado:v.valor_asegurado||'' })
+    setForm({ marca:v.marca, modelo:v.modelo, anio:v.anio, placa:v.placa||'', tipo_placa:v.tipo_placa||'', chasis:v.chasis||'', motor:v.motor||'', color:v.color||'', tipo:v.tipo||'sedan', valor_asegurado:v.valor_asegurado||'' })
     setClienteId(v.cliente_id)
     setEditing(v.id)
     setPlacaError('')
@@ -172,7 +164,7 @@ export default function Vehiculos() {
   }
 
   const filtered = vehiculos.filter(v =>
-    (v.marca+' '+v.modelo+' '+v.anio+' '+fp(v)+' '+getNombreCliente(v.clientes)).toLowerCase().includes(search.toLowerCase())
+    (v.marca+' '+v.modelo+' '+v.anio+' '+fp(v)+' '+(v.clientes?.nombre||'')).toLowerCase().includes(search.toLowerCase())
   )
 
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', fontSize:'14px', background:'white', color:'#1e293b', boxSizing:'border-box' }
@@ -232,9 +224,9 @@ export default function Vehiculos() {
               <div>
                 <label style={labelStyle}>No. Chasis / VIN</label>
                 <input value={form.chasis}
-                  onChange={e=>{ setForm({...form,chasis:e.target.value.toUpperCase()}); setChasisError('') }}
+                  onChange={e=>{ setForm({...form,chasis:e.target.value}); setChasisError('') }}
                   onBlur={e=>checkChasisDuplicado(e.target.value)}
-                  style={{...inp, borderColor: chasisError ? '#ef4444' : '#e2e8f0', background: chasisError ? '#fef2f2' : 'white', textTransform:'uppercase'}}/>
+                  style={{...inp, borderColor: chasisError ? '#ef4444' : '#e2e8f0', background: chasisError ? '#fef2f2' : 'white'}}/>
                 {chasisError && <p style={{color:'#ef4444',fontSize:'12px',margin:'4px 0 0'}}>{chasisError}</p>}
               </div>
               <div>
@@ -315,8 +307,8 @@ export default function Vehiculos() {
                   <Car size={18} color='#C4A96B'/>
                 </div>
                 <div style={{flex:1,minWidth:0,textAlign:'left'}}>
-                  <p style={{fontWeight:700,color:'#111111',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
-                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{getNombreCliente(v.clientes)} · Placa: {fp(v)}{v.tipo ? ` · ${v.tipo.charAt(0).toUpperCase()+v.tipo.slice(1).toLowerCase()}` : ''}</p>
+                  <p style={{fontWeight:700,color:'#0C1E3D',fontSize:'14px',margin:0,textAlign:'left'}}>{v.marca} {v.modelo} {v.anio}</p>
+                  <p style={{fontSize:'12px',color:'#64748b',margin:0,textAlign:'left'}}>{v.clientes?.nombre} {v.clientes?.apellido||''} · Placa: {fp(v)} · {v.tipo}</p>
                 </div>
                 <div style={{display:'flex',gap:'6px',flexShrink:0}} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>handleEdit(v)} style={{padding:'6px',background:'#f1f5f9',border:'none',borderRadius:'6px',cursor:'pointer'}}><Edit2 size={14} color='#64748b'/></button>
@@ -356,7 +348,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
     }
   }
 
-  useEffect(() => { fetchHistorial(); fetchDocumentos(); fetchReclamos() }, [vehiculo.id])
+  useEffect(() => { fetchHistorial() }, [vehiculo.id])
 
   const fetchHistorial = async () => {
     setLoading(true)
@@ -458,7 +450,7 @@ function VehiculoDetalle({ vehiculo, onBack, onEdit, fromClienteId, fromPolizaId
               <p style={{fontSize:'13px',color:'#6B6B62',margin:'4px 0 0'}}>{getNombreCliente(vehiculo.clientes)}{vehiculo.tipo ? ` · ${vehiculo.tipo.charAt(0).toUpperCase()+vehiculo.tipo.slice(1).toLowerCase()}` : ''}</p>
             </div>
           </div>
-          <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#111111',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
+          <button onClick={()=>{ onEdit(vehiculo) }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'rgba(255,255,255,0.2)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',flexShrink:0}}>
             <Edit2 size={13}/> Editar
           </button>
         </div>

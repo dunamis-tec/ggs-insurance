@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { DollarSign, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, BookOpen, FileSpreadsheet } from 'lucide-react'
+import { DollarSign, Search, Copy, CheckCircle, Send, Filter, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
-import * as XLSX from 'xlsx'
 
 const toDateStr = (d) => d.toISOString().split('T')[0]
 const addDays = (dateStr, n) => { const d = new Date(dateStr + 'T12:00:00'); d.setDate(d.getDate() + n); return toDateStr(d) }
@@ -60,31 +59,6 @@ export default function Comisiones() {
   }
 
   const toggleExpandInforme = (id) => setExpandedInforme(prev => prev === id ? null : id)
-
-  const exportInformeExcel = (inf) => {
-    const reqs = informeReqs[inf.id] || []
-    const fmtD = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT') : '—'
-    const rows = reqs.map(r => ({
-      'Nº Req.':    r.codigo || '—',
-      'Cuota':      `${r.numero_cuota}/${r.total_cuotas}`,
-      'Póliza':     r.polizas?.numero_poliza || '—',
-      'Cliente':    [r.polizas?.clientes?.nombre, r.polizas?.clientes?.apellido].filter(Boolean).join(' ') || '—',
-      'Fecha pago': fmtD(r.fecha_pago),
-      'Monto (Q)':  parseFloat(r.monto || 0),
-    }))
-    rows.push({
-      'Nº Req.': '', 'Cuota': '', 'Póliza': '', 'Cliente': '',
-      'Fecha pago': 'TOTAL',
-      'Monto (Q)': reqs.reduce((s, r) => s + parseFloat(r.monto || 0), 0),
-    })
-    const ws = XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = [{ wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 12 }]
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Comisiones')
-    const aseg = (inf.aseguradoras?.nombre || 'informe').replace(/\s+/g, '_')
-    const fecha = new Date(inf.created_at).toISOString().split('T')[0]
-    XLSX.writeFile(wb, `Comisiones_${aseg}_${fecha}.xlsx`)
-  }
 
   const filteredInformes = informes.filter(inf => {
     if (filtroFechaHistorial) {
@@ -147,8 +121,8 @@ export default function Comisiones() {
     const sel = filtered.filter(r => selectedIds.includes(r.id))
     if (!sel.length) { toast.error('Selecciona requerimientos'); return }
     let t = 'COMISIONES - ' + (sel[0]?.polizas?.aseguradoras?.nombre || '') + '\nFecha: ' + new Date().toLocaleDateString('es-GT') + '\n\n'
-    sel.forEach(r => { t += r.codigo + ' | ' + (r.polizas?.numero_poliza || '') + ' | ' + (r.polizas?.clientes?.nombre || '') + ' | Prima neta: Q ' + parseFloat(r.prima_neta||0).toLocaleString() + ' | Com: Q ' + parseFloat(r.monto_comision||0).toLocaleString() + '\n' })
-    t += '\nTOTAL COMISIONES: Q ' + totalComision.toLocaleString()
+    sel.forEach(r => { t += r.codigo + ' | ' + (r.polizas?.numero_poliza || '') + ' | ' + (r.polizas?.clientes?.nombre || '') + ' | Q ' + parseFloat(r.monto || 0).toLocaleString() + '\n' })
+    t += '\nTOTAL: Q ' + total.toLocaleString()
     navigator.clipboard.writeText(t)
     toast.success('Resumen copiado')
   }
@@ -163,7 +137,7 @@ export default function Comisiones() {
       tipo: 'comision', aseguradora_id: asegId,
       fecha_desde: filtroDesde || sel[sel.length - 1]?.fecha_pago,
       fecha_hasta: filtroHasta || sel[0]?.fecha_pago,
-      total_requerimientos: selectedIds.length, total_monto: totalComision, created_by: user?.id
+      total_requerimientos: selectedIds.length, total_monto: total, created_by: user?.id
     }).select().single()
     if (error) { toast.error('Error al crear informe'); return }
     await supabase.from('requerimientos_pago')
@@ -179,13 +153,16 @@ export default function Comisiones() {
   return (
     <div>
       {/* Header */}
-      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
-        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: '20px' }}>
+        <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #0C1E3D 0%, #1A6BBA 100%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ textAlign: 'left' }}>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111111', margin: 0 }}>Comisiones</h1>
-            <p style={{ color: '#6B6B62', fontSize: '14px', marginTop: '4px', marginBottom: 0 }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'white', margin: 0 }}>Comisiones</h1>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '4px', marginBottom: 0 }}>
               {reqs.length} pendientes de cobro · {informes.length} informes enviados
             </p>
+          </div>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <DollarSign size={20} color='white' />
           </div>
         </div>
       </div>
@@ -195,8 +172,8 @@ export default function Comisiones() {
         {[['pendientes', 'Pendientes de envío'], ['historial', 'Historial de informes']].map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding: '8px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer',
-              background: activeTab === tab ? '#111111' : 'white', color: activeTab === tab ? 'white' : '#64748b',
-              border: `1px solid ${activeTab === tab ? '#111111' : '#e2e8f0'}` }}>
+              background: activeTab === tab ? '#0C1E3D' : 'white', color: activeTab === tab ? 'white' : '#64748b',
+              border: `1px solid ${activeTab === tab ? '#0C1E3D' : '#e2e8f0'}` }}>
             {label}{tab === 'pendientes' ? ` (${reqs.length})` : ''}
           </button>
         ))}
@@ -236,16 +213,16 @@ export default function Comisiones() {
           </div>
 
           {selectedIds.length > 0 && (
-            <div style={{ background: '#111111', borderRadius: '12px', padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ background: '#0C1E3D', borderRadius: '12px', padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <p style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>{selectedIds.length} seleccionados · Total primas netas: Q {filtered.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + parseFloat(r.prima_neta || 0), 0).toLocaleString()} · Comisión: Q {totalComision.toLocaleString()}</p>
+                <p style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>{selectedIds.length} seleccionados · Q {total.toLocaleString()}</p>
                 <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>Listos para generar informe</p>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={copiar} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
                   <Copy size={14} /> Copiar resumen
                 </button>
-                <button onClick={enviar} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#C8A84B', color: '#111111', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>
+                <button onClick={enviar} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#C8A84B', color: '#0C1E3D', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>
                   <Send size={14} /> Marcar como enviado
                 </button>
               </div>
@@ -253,84 +230,53 @@ export default function Comisiones() {
           )}
 
           <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+            <div style={{ minWidth: '540px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+              <input type='checkbox' checked={selectedIds.length === selectableIds.length && selectableIds.length > 0} onChange={selectAll}
+                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#1A6BBA', marginRight: '12px' }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', flex: 1 }}>Requerimiento</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '160px' }}>Aseguradora / Producto</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '100px' }}>Fecha pago</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', width: '100px', textAlign: 'right' }}>Monto</span>
+            </div>
             {loading ? <p style={{ padding: '24px', color: '#64748b' }}>Cargando...</p> :
               filtered.length === 0 ? (
                 <div style={{ padding: '48px', textAlign: 'center' }}>
                   <DollarSign size={32} color='#cbd5e1' style={{ marginBottom: '12px' }} />
                   <p style={{ color: '#94a3b8' }}>No hay comisiones pendientes</p>
                 </div>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>
-                          <input type='checkbox' checked={selectedIds.length === selectableIds.length && selectableIds.length > 0} onChange={selectAll}
-                            style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#C4A96B', marginRight: '10px', verticalAlign: 'middle' }} />
-                          Nº Req.
-                        </th>
-                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>Cuota</th>
-                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>Aseguradora / Producto</th>
-                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>Fecha pago</th>
-                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>Prima neta</th>
-                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>Comisión</th>
-                        <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>Total req</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((r, i) => {
-                        const isDimmed = selectedAsegId && r.polizas?.aseguradoras?.id !== selectedAsegId
-                        const isSelected = selectedIds.includes(r.id)
-                        return (
-                          <tr key={r.id}
-                            style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f1f5f9' : 'none', cursor: isDimmed ? 'not-allowed' : 'pointer', opacity: isDimmed ? 0.45 : 1, background: isSelected ? '#fffbf0' : 'white' }}
-                            onClick={() => !isDimmed && toggle(r.id)}
-                            onMouseEnter={e => { if (!isSelected && !isDimmed) e.currentTarget.style.background = '#f8fafc' }}
-                            onMouseLeave={e => { e.currentTarget.style.background = isSelected ? '#fffbf0' : 'white' }}>
-                            <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 700, color: '#111111', whiteSpace: 'nowrap' }}>
-                              <input type='checkbox' checked={isSelected} disabled={isDimmed} onChange={() => toggle(r.id)}
-                                style={{ width: '15px', height: '15px', cursor: isDimmed ? 'not-allowed' : 'pointer', accentColor: '#C4A96B', marginRight: '10px', verticalAlign: 'middle' }}
-                                onClick={e => e.stopPropagation()} />
-                              {r.codigo}
-                            </td>
-                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>{r.numero_cuota}/{r.total_cuotas}</td>
-                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {r.polizas?.aseguradoras?.nombre || '—'}
-                              <span style={{ color: '#94a3b8', fontSize: '12px', display: 'block' }}>{r.polizas?.productos?.nombre || ''}</span>
-                            </td>
-                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                              {r.fecha_pago ? new Date(r.fecha_pago + 'T12:00:00').toLocaleDateString('es-GT') : '—'}
-                            </td>
-                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>
-                              {r.prima_neta > 0 ? `Q ${parseFloat(r.prima_neta).toLocaleString()}` : '—'}
-                            </td>
-                            <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#C4A96B' }}>
-                                {r.monto_comision > 0 ? `Q ${parseFloat(r.monto_comision).toLocaleString()}` : '—'}
-                              </span>
-                              {r.porcentaje_comision > 0 && <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '4px' }}>{r.porcentaje_comision}%</span>}
-                            </td>
-                            <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: '#1e293b', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                              Q {parseFloat(r.monto || 0).toLocaleString()}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f8fafc' }}>
-                        <td colSpan={4} style={{ padding: '10px 16px', fontSize: '12px', color: '#64748b' }}>{filtered.length} requerimientos</td>
-                        <td colSpan={2} style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#C4A96B', whiteSpace: 'nowrap' }}>
-                          Com: Q {filtered.reduce((s, r) => s + parseFloat(r.monto_comision || 0), 0).toLocaleString()}
-                        </td>
-                        <td style={{ padding: '10px 16px', fontSize: '14px', fontWeight: 700, color: '#111111', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          Q {filtered.reduce((s, r) => s + parseFloat(r.monto || 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
+              ) : filtered.map((r, i) => {
+                const isDimmed = selectedAsegId && r.polizas?.aseguradoras?.id !== selectedAsegId
+                const isSelected = selectedIds.includes(r.id)
+                return (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: i < filtered.length - 1 ? '1px solid #f1f5f9' : 'none', background: isSelected ? '#eff6ff' : isDimmed ? '#fafafa' : 'white', cursor: isDimmed ? 'not-allowed' : 'pointer', opacity: isDimmed ? 0.45 : 1, transition: 'opacity 0.15s' }}
+                    onClick={() => !isDimmed && toggle(r.id)}
+                    onMouseEnter={e => { if (!isSelected && !isDimmed) e.currentTarget.style.background = '#f8fafc' }}
+                    onMouseLeave={e => { if (!isSelected && !isDimmed) e.currentTarget.style.background = 'white' }}>
+                    <input type='checkbox' checked={isSelected} disabled={isDimmed} onChange={() => toggle(r.id)}
+                      style={{ width: '16px', height: '16px', cursor: isDimmed ? 'not-allowed' : 'pointer', accentColor: '#1A6BBA', marginRight: '12px' }} onClick={e => e.stopPropagation()} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, color: '#0C1E3D', fontSize: '13px', textAlign: 'left', margin: 0 }}>{r.codigo} <span style={{ fontWeight: 400, color: '#64748b' }}>· {r.numero_cuota}/{r.total_cuotas}</span></p>
+                      <p style={{ fontSize: '12px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', margin: 0 }}>{r.polizas?.numero_poliza} · {r.polizas?.clientes?.nombre} {r.polizas?.clientes?.apellido || ''}</p>
+                    </div>
+                    <div style={{ width: '160px', flexShrink: 0 }}>
+                      <p style={{ fontSize: '12px', color: '#374151', fontWeight: 500, margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.polizas?.aseguradoras?.nombre}</p>
+                      <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.polizas?.productos?.nombre}</p>
+                    </div>
+                    <p style={{ width: '100px', fontSize: '12px', color: '#64748b', margin: 0, flexShrink: 0 }}>{r.fecha_pago ? new Date(r.fecha_pago + 'T12:00:00').toLocaleDateString('es-GT') : '-'}</p>
+                    <p style={{ width: '100px', fontSize: '14px', fontWeight: 700, color: '#1e293b', textAlign: 'right', margin: 0, flexShrink: 0 }}>Q {parseFloat(r.monto || 0).toLocaleString()}</p>
+                  </div>
+                )
+              })}
+            {filtered.length > 0 && (
+              <div style={{ padding: '12px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '24px' }}>
+                <span style={{ fontSize: '13px', color: '#64748b' }}>{filtered.length} requerimientos</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#0C1E3D' }}>Total: Q {filtered.reduce((s, r) => s + parseFloat(r.monto || 0), 0).toLocaleString()}</span>
+              </div>
+            )}
+            </div>
+            </div>
           </div>
         </>
       )}
@@ -403,19 +349,15 @@ export default function Comisiones() {
                         <Send size={15} color='#15803d' />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontWeight: 600, color: '#111111', fontSize: '14px', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inf.aseguradoras?.nombre}</p>
+                        <p style={{ fontWeight: 600, color: '#0C1E3D', fontSize: '14px', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inf.aseguradoras?.nombre}</p>
                         <p style={{ fontSize: '12px', color: '#64748b', margin: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {inf.fecha_desde ? new Date(inf.fecha_desde + 'T12:00:00').toLocaleDateString('es-GT') : '—'} → {inf.fecha_hasta ? new Date(inf.fecha_hasta + 'T12:00:00').toLocaleDateString('es-GT') : '—'} · {inf.total_requerimientos} reqs
                         </p>
                       </div>
                       <div style={{ textAlign: 'right', marginRight: '8px', flexShrink: 0 }}>
-                        <p style={{ fontSize: '14px', fontWeight: 700, color: '#C4A96B', margin: 0, whiteSpace: 'nowrap' }}>Q {parseFloat(inf.total_monto || 0).toLocaleString()}</p>
+                        <p style={{ fontSize: '14px', fontWeight: 700, color: '#1A6BBA', margin: 0, whiteSpace: 'nowrap' }}>Q {parseFloat(inf.total_monto || 0).toLocaleString()}</p>
                         <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>{new Date(inf.created_at).toLocaleDateString('es-GT')}</p>
                       </div>
-                      <button onClick={e => { e.stopPropagation(); exportInformeExcel(inf) }} title="Exportar Excel"
-                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, marginRight: '8px' }}>
-                        <FileSpreadsheet size={13} /> Excel
-                      </button>
                       {isExpanded ? <ChevronUp size={16} color='#64748b' /> : <ChevronDown size={16} color='#64748b' />}
                     </div>
 
@@ -440,7 +382,7 @@ export default function Comisiones() {
                                   onClick={() => navigate('/requerimientos', { state: { openReqId: r.id, fromInformeComision: true } })}
                                   onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
                                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                  <td style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 700, color: '#111111' }}>{r.codigo}</td>
+                                  <td style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 700, color: '#0C1E3D' }}>{r.codigo}</td>
                                   <td style={{ padding: '10px 20px', fontSize: '13px', color: '#64748b' }}>{r.numero_cuota}/{r.total_cuotas}</td>
                                   <td style={{ padding: '10px 20px', fontSize: '13px', color: '#374151' }}>{r.polizas?.numero_poliza || '—'}</td>
                                   <td style={{ padding: '10px 20px', fontSize: '13px', color: '#374151' }}>{r.polizas?.clientes?.nombre} {r.polizas?.clientes?.apellido || ''}</td>
@@ -455,7 +397,7 @@ export default function Comisiones() {
                             <tfoot>
                               <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f1f5f9' }}>
                                 <td colSpan={5} style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, color: '#374151', textAlign: 'right' }}>Total</td>
-                                <td style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700, color: '#111111' }}>
+                                <td style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700, color: '#0C1E3D' }}>
                                   Q {reqsInforme.reduce((s, r) => s + parseFloat(r.monto || 0), 0).toLocaleString()}
                                 </td>
                               </tr>
